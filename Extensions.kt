@@ -3,7 +3,10 @@
 package com.bentley.itmnativeui
 
 import android.os.Build
+import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
+import com.eclipsesource.json.PrettyPrint
+import java.io.StringWriter
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.*
@@ -21,6 +24,24 @@ fun JsonValue.getOptionalString(propertyName: String, defaultValue: String? = nu
 
 fun JsonValue.getOptionalBoolean(propertyName: String, defaultValue: Boolean? = null): Boolean? {
     return if (this[propertyName]?.isBoolean == true) this[propertyName]!!.asBoolean() else defaultValue
+}
+
+fun JsonValue.getOptionalLong(propertyName: String, defaultValue: Long? = null): Long? {
+    return if (this[propertyName]?.isNumber == true) this[propertyName]!!.asLong() else defaultValue
+}
+
+fun JsonValue.getOptionalObject(propertyName: String, defaultValue: JsonObject? = null): JsonObject? {
+    return if (this[propertyName]?.isObject == true) this[propertyName]!!.asObject() else defaultValue
+}
+
+fun JsonValue.asOptionalObject(defaultValue: JsonObject? = null): JsonObject? {
+    return if (this.isObject) this.asObject() else defaultValue
+}
+
+fun JsonValue.toPrettyString(): String {
+    val writer = StringWriter()
+    writeTo(writer, PrettyPrint.indentWithSpaces(4))
+    return writer.toString()
 }
 
 fun String.iso8601ToDate(): Date? {

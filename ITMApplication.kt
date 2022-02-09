@@ -6,13 +6,12 @@ import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
-import android.util.Log
 import android.webkit.*
 import androidx.lifecycle.MutableLiveData
+import com.bentley.field.ui.controllers.model.FieldAuthorizationClient
 import com.bentley.itwin.IModelJsHost
 import com.bentley.itwin.MobileFrontend
 import kotlinx.coroutines.*
-import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 enum class ReachabilityStatus {
@@ -24,39 +23,41 @@ enum class ReachabilityStatus {
 abstract class ITMApplication(val appContext: Context, private val attachConsoleLogger: Boolean = false, private val forceExtractBackendAssets: Boolean = false) {
     protected var host: IModelJsHost? = null
     private var backendInitTask = Job()
-    private val isBackendInitialized = AtomicBoolean(false)
+    private val _isBackendInitialized = AtomicBoolean(false)
+    val isBackendInitialized: Boolean get() = _isBackendInitialized.get()
 
     var webView: MobileFrontend? = null
     val isLoaded = MutableLiveData(false)
     var frontendBaseUrl = ""
     var messenger: ITMMessenger? = null
     var coMessenger: ITMCoMessenger? = null
+    var logger = ITMLogger()
     private var consoleLogger: ITMConsoleLogger? = null
     private var reachabilityStatus = ReachabilityStatus.NotReachable
-
-    companion object {
-        private val TAG = ITMApplication::class.java.simpleName
-    }
 
     /**
      * Initialize the iModelJs backend if not initialized yet. This can be called from the launch activity.
      */
     open fun initializeBackend() {
-        if (isBackendInitialized.getAndSet(true))
+        if (_isBackendInitialized.getAndSet(true))
             return
 
         try {
-            host = IModelJsHost(appContext, forceExtractBackendAssets).apply {
+            /* Note: The right way to pass custom Authorization Client would be to implement getAuthClient() override.
+             * However, that is not available yet in mobile-sdk for Android.
+             * Using shortest-path change to get around it temporarily.
+             */
+            host = IModelJsHost(appContext, forceExtractBackendAssets, FieldAuthorizationClient()).apply {
                 setBackendPath(getBackendPath())
                 setHomePath(getBackendHomePath())
                 setEntryPointScript(getBackendEntryPointScript())
                 startup()
             }
             backendInitTask.complete()
-            Log.d(TAG, "imodeljs backend loaded.")
+            logger.log(ITMLogger.Severity.Debug, "imodeljs backend loaded.")
         } catch (e: Exception) {
             reset()
-            Log.e(TAG, "Error loading imodeljs backend: $e")
+            logger.log(ITMLogger.Severity.Error, "Error loading imodeljs backend: $e")
         }
     }
 
@@ -100,8 +101,9 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
                     }
                 })
             } catch (e: Exception) {
+                coMessenger?.frontendLaunchFailed(e)
                 reset()
-                Log.e(TAG, "Error loading imodeljs frontend: $e")
+                logger.log(ITMLogger.Severity.Error, "Error loading imodeljs frontend: $e")
             }
         }
     }
@@ -123,9 +125,10 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     private fun reset() {
         backendInitTask.cancel()
         backendInitTask = Job()
-        isBackendInitialized.set(false)
+        _isBackendInitialized.set(false)
         webView = null
         messenger = null
+        coMessenger = null
     }
 
     protected open fun setupWebView() {

@@ -29,7 +29,7 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
                 messenger.query(type, data, { data ->
                     block.resume(data)
                 }, { error ->
-                    throw error
+                    block.resumeWithException(error)
                 })
             } catch (error: Exception) {
                 block.resumeWithException(error)
@@ -68,5 +68,19 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
      */
     open fun removeListener(listener: ITMMessenger.ITMListener?) {
         messenger.removeListener(listener)
+    }
+
+    /**
+     * Wrapper around [[ITMMessenger.frontendLaunchSucceeded]]
+     */
+    open fun frontendLaunchSucceeded() {
+        messenger.frontendLaunchSucceeded()
+    }
+
+    /**
+     * Wrapper around [[ITMMessenger.frontendLaunchFailed]]
+     */
+    open fun frontendLaunchFailed(exception: Exception) {
+        messenger.frontendLaunchFailed(exception)
     }
 }
