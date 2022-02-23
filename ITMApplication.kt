@@ -2,6 +2,7 @@ package com.bentley.itmnativeui
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.Network
@@ -27,6 +28,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     val isBackendInitialized: Boolean get() = _isBackendInitialized.get()
 
     var webView: MobileFrontend? = null
+    var mobileUi: WebMobileUI? = null
     val isLoaded = MutableLiveData(false)
     var frontendBaseUrl = ""
     var messenger: ITMMessenger? = null
@@ -81,6 +83,13 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
                 val mobileFrontend = object : MobileFrontend(host, args) {
                     override fun supplyEntryPoint(): String {
                         return baseUrl
+                    }
+
+                    override fun onConfigurationChanged(newConfig: Configuration?) {
+                        super.onConfigurationChanged(newConfig)
+                        newConfig?.let {
+                            this@WmuApplication.mobileUi?.onConfigurationChanged(newConfig)
+                        }
                     }
                 }
                 webView = mobileFrontend

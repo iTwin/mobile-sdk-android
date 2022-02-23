@@ -1,6 +1,7 @@
 package com.bentley.itmnativeui
 
 import android.content.Context
+import android.content.res.Configuration
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
@@ -17,6 +18,7 @@ import kotlin.math.roundToInt
 class ITMActionSheet(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMComponent(context, webView, coMessenger) {
     var viewGroup: ViewGroup? = null
     var anchor: View? = null
+    var popupMenu: PopupMenu? = null
 
     class SourceRect(value: JsonValue, private val density: Float) {
         val x: Int
@@ -80,13 +82,20 @@ class ITMActionSheet(context: Context, webView: WebView, coMessenger: ITMCoMesse
                         menu.add(Menu.NONE, index, Menu.NONE, action.title)
                     }
                     show()
+                    popupMenu = this
                 }
             }
         } catch (ex: Exception) {
+            removePopupMenu()
             removeAnchor()
             // Note: this is caught by ITMCoMessenger and tells the TypeScript caller that there was an error.
             throw Exception("Invalid input to Bentley_ITM_presentActionSheet")
         }
+    }
+
+    private fun removePopupMenu() {
+        popupMenu?.dismiss()
+        popupMenu = null
     }
 
     private fun removeAnchor() {
@@ -94,5 +103,11 @@ class ITMActionSheet(context: Context, webView: WebView, coMessenger: ITMCoMesse
             viewGroup?.removeView(anchor)
         }
         anchor = null
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        removePopupMenu()
+        removeAnchor()
     }
 }

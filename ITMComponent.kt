@@ -10,4 +10,6 @@ open class ITMComponent(protected val context: Context, protected val webView: W
         coMessenger.removeListener(listener)
         listener = null
     }
+
+    open fun onConfigurationChanged(newConfig: Configuration) {}
 }
