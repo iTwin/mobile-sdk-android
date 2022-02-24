@@ -1,4 +1,4 @@
-package com.bentley.itmnativeui
+package org.itwinjs.mobilesdk
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -9,7 +9,6 @@ import android.net.Network
 import android.net.Uri
 import android.webkit.*
 import androidx.lifecycle.MutableLiveData
-import com.bentley.field.ui.controllers.model.FieldAuthorizationClient
 import com.bentley.itwin.IModelJsHost
 import com.bentley.itwin.MobileFrontend
 import kotlinx.coroutines.*
@@ -28,7 +27,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     val isBackendInitialized: Boolean get() = _isBackendInitialized.get()
 
     var webView: MobileFrontend? = null
-    var mobileUi: WebMobileUI? = null
+    var mobileUi: ITMNativeUI? = null
     val isLoaded = MutableLiveData(false)
     var frontendBaseUrl = ""
     var messenger: ITMMessenger? = null
@@ -49,7 +48,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
              * However, that is not available yet in mobile-sdk for Android.
              * Using shortest-path change to get around it temporarily.
              */
-            host = IModelJsHost(appContext, forceExtractBackendAssets, FieldAuthorizationClient()).apply {
+            host = IModelJsHost(appContext, forceExtractBackendAssets).apply {
                 setBackendPath(getBackendPath())
                 setHomePath(getBackendHomePath())
                 setEntryPointScript(getBackendEntryPointScript())
@@ -88,7 +87,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
                     override fun onConfigurationChanged(newConfig: Configuration?) {
                         super.onConfigurationChanged(newConfig)
                         newConfig?.let {
-                            this@WmuApplication.mobileUi?.onConfigurationChanged(newConfig)
+                            this@ITMApplication.mobileUi?.onConfigurationChanged(newConfig)
                         }
                     }
                 }

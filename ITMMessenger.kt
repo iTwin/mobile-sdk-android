@@ -1,4 +1,4 @@
-package com.bentley.itmnativeui
+package org.itwinjs.mobilesdk
 
 import android.util.Base64
 import android.webkit.JavascriptInterface

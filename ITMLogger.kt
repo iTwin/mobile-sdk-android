@@ -1,4 +1,4 @@
-package com.bentley.itmnativeui
+package org.itwinjs.mobilesdk
 
 import android.util.Log
 import java.util.*

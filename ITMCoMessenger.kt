@@ -1,4 +1,4 @@
-package com.bentley.itmnativeui
+package org.itwinjs.mobilesdk
 
 import com.eclipsesource.json.JsonValue
 import kotlinx.coroutines.MainScope

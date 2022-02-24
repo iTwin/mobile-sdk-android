@@ -1,4 +1,4 @@
-package com.bentley.itmnativeui
+package org.itwinjs.mobilesdk
 
 import android.content.Context
 import android.content.res.Configuration

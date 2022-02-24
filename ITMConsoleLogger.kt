@@ -1,4 +1,4 @@
-package com.bentley.itmnativeui
+package org.itwinjs.mobilesdk
 
 import android.webkit.JavascriptInterface
 import android.webkit.WebView

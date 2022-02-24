@@ -1,6 +1,6 @@
 @file:Suppress("SpellCheckingInspection") // We don't want to add the DateFormat strings to the custom spelling dictionary.
 
-package com.bentley.itmnativeui
+package org.itwinjs.mobilesdk
 
 import android.os.Build
 import com.eclipsesource.json.JsonObject
