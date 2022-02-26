@@ -53,7 +53,11 @@ open class ITMConsoleLogger(protected val webView: WebView, protected val callba
             @JavascriptInterface
             fun log(typeString: String, message: String) {
                 val type = try {
-                    LogType.valueOf(typeString.capitalize(Locale.ROOT))
+                    LogType.valueOf(typeString.replaceFirstChar {
+                        if (it.isLowerCase()) it.titlecase(
+                            Locale.ROOT
+                        ) else it.toString()
+                    })
                 } catch (ex: Exception) {
                     LogType.Error
                 }

@@ -16,9 +16,9 @@ import kotlin.coroutines.suspendCoroutine
 import kotlin.math.roundToInt
 
 class ITMActionSheet(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMComponent(context, webView, coMessenger) {
-    var viewGroup: ViewGroup? = null
-    var anchor: View? = null
-    var popupMenu: PopupMenu? = null
+    private var viewGroup: ViewGroup? = null
+    private var anchor: View? = null
+    private var popupMenu: PopupMenu? = null
 
     class SourceRect(value: JsonValue, private val density: Float) {
         val x: Int
@@ -76,7 +76,7 @@ class ITMActionSheet(context: Context, webView: WebView, coMessenger: ITMCoMesse
                     setOnDismissListener {
                         removeAnchor()
                         if (!resumed)
-                            continuation.resume(Json.value(cancelAction?.name ?: null))
+                            continuation.resume(Json.value(cancelAction?.name))
                     }
                     for ((index, action) in actions.withIndex()) {
                         menu.add(Menu.NONE, index, Menu.NONE, action.title)

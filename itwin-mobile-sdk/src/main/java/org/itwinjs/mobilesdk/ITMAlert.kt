@@ -41,7 +41,9 @@ class ITMAlert(context: Context, webView: WebView, coMessenger: ITMCoMessenger):
             val action = value.asObject()
             name = action["name"].asString()
             title = action["title"].asString()
-            style = ActionStyle.valueOf(action["style"].asString().capitalize(Locale.ROOT))
+            style = ActionStyle.valueOf(
+                action["style"].asString()
+                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() })
         }
     }
 
