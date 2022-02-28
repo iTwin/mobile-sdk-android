@@ -9,6 +9,7 @@ import android.net.Network
 import android.net.Uri
 import android.webkit.*
 import androidx.lifecycle.MutableLiveData
+import com.bentley.itwin.AuthorizationClient
 import com.bentley.itwin.IModelJsHost
 import com.bentley.itwin.MobileFrontend
 import kotlinx.coroutines.*
@@ -44,11 +45,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
             return
 
         try {
-            /* Note: The right way to pass custom Authorization Client would be to implement getAuthClient() override.
-             * However, that is not available yet in mobile-sdk for Android.
-             * Using shortest-path change to get around it temporarily.
-             */
-            host = IModelJsHost(appContext, forceExtractBackendAssets).apply {
+            host = IModelJsHost(appContext, forceExtractBackendAssets, getAuthorizationClient()).apply {
                 setBackendPath(getBackendPath())
                 setHomePath(getBackendHomePath())
                 setEntryPointScript(getBackendEntryPointScript())
@@ -234,6 +231,8 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     open suspend fun getUrlHashParams(): String {
         return ""
     }
+
+    abstract fun getAuthorizationClient(): AuthorizationClient
 
 //    private fun loadFrontend() {
 //        val host = this.host ?: return
