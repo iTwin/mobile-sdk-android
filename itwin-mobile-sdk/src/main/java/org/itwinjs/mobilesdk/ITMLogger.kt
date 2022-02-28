@@ -14,7 +14,7 @@ open class ITMLogger {
 
         companion object {
             fun fromString(value: String): Severity? {
-                var lowercaseValue = value.toLowerCase(Locale.ROOT)
+                var lowercaseValue = value.lowercase(Locale.ROOT)
                 lowercaseValue = when (lowercaseValue) {
                     "log" -> "debug"
                     "assert" -> "fatal"
@@ -22,11 +22,11 @@ open class ITMLogger {
                     else -> lowercaseValue
                 }
 
-                return values().firstOrNull { lowercaseValue == it.name.toLowerCase(Locale.ROOT) }
+                return values().firstOrNull { lowercaseValue == it.name.lowercase(Locale.ROOT) }
             }
         }
 
-        val description get() = name.toUpperCase(Locale.ROOT)
+        val description get() = name.uppercase(Locale.ROOT)
     }
 
     open fun log(severity: Severity?, message: String) {
