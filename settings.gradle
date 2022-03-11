@@ -23,9 +23,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        jcenter() // Warning: this repository is going to shut down soon
-        // Just until iTwin/mobile-native-android is public
-        flatDir { dirs localProperties.getProperty("iTwinMobileSdkDir") }
+        maven { url 'https://jitpack.io' }
     }
 }
 include ':itwin-mobile-sdk'
