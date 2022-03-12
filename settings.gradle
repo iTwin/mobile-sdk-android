@@ -1,29 +1,9 @@
-def LOCAL_PROPERTIES_FILENAME = "local.properties"
-
-def getFile = { dir, filename ->
-    File file = new File("$dir$File.separator$filename")
-    file?.exists() ? file : null
-}
-
-def getLocalProperties = { dir ->
-    def file = getFile(dir, LOCAL_PROPERTIES_FILENAME)
-    if (!file) {
-        return null
-    }
-
-    Properties properties = new Properties()
-    properties.load(file.newInputStream())
-    return properties
-}
-
-def localProperties = getLocalProperties(rootDir)
-
 dependencyResolutionManagement {    
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
-        mavenCentral()
         maven { url 'https://jitpack.io' }
+        mavenCentral()
     }
 }
 include ':itwin-mobile-sdk'
