@@ -3,6 +3,7 @@
 package org.itwinjs.mobilesdk
 
 import android.os.Build
+import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
 import com.eclipsesource.json.PrettyPrint
 import java.io.StringWriter
@@ -19,6 +20,22 @@ operator fun JsonValue.get(key: String): JsonValue? {
 
 fun JsonValue.getOptionalString(propertyName: String, defaultValue: String? = null): String? {
     return if (this[propertyName]?.isString == true) this[propertyName]!!.asString() else defaultValue
+}
+
+fun JsonValue.getOptionalBoolean(propertyName: String, defaultValue: Boolean? = null): Boolean? {
+    return if (this[propertyName]?.isBoolean == true) this[propertyName]!!.asBoolean() else defaultValue
+}
+
+fun JsonValue.getOptionalLong(propertyName: String, defaultValue: Long? = null): Long? {
+    return if (this[propertyName]?.isNumber == true) this[propertyName]!!.asLong() else defaultValue
+}
+
+fun JsonValue.getOptionalObject(propertyName: String, defaultValue: JsonObject? = null): JsonObject? {
+    return if (this[propertyName]?.isObject == true) this[propertyName]!!.asObject() else defaultValue
+}
+
+fun JsonValue.asOptionalObject(defaultValue: JsonObject? = null): JsonObject? {
+    return if (this.isObject) this.asObject() else defaultValue
 }
 
 fun JsonValue.toPrettyString(): String {
