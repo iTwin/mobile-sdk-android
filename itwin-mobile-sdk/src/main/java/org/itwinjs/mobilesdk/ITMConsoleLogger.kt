@@ -1,9 +1,14 @@
+/*---------------------------------------------------------------------------------------------
+* Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+* See LICENSE.md in the project root for license terms and full copyright notice.
+*--------------------------------------------------------------------------------------------*/
 package org.itwinjs.mobilesdk
 
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import java.util.*
 
+@Suppress("MemberVisibilityCanBePrivate", "unused")
 open class ITMConsoleLogger(protected val webView: WebView, protected val callback: (type: LogType, message: String) -> Unit) {
     enum class LogType {
         Assert,

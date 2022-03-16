@@ -1,8 +1,13 @@
+/*---------------------------------------------------------------------------------------------
+* Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+* See LICENSE.md in the project root for license terms and full copyright notice.
+*--------------------------------------------------------------------------------------------*/
 package org.itwinjs.mobilesdk
 
 import android.util.Log
 import java.util.*
 
+@Suppress("unused")
 open class ITMLogger {
     enum class Severity {
         Fatal,

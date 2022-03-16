@@ -1,14 +1,22 @@
+/*---------------------------------------------------------------------------------------------
+* Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+* See LICENSE.md in the project root for license terms and full copyright notice.
+*--------------------------------------------------------------------------------------------*/
 package org.itwinjs.mobilesdk
 
 import android.app.DatePickerDialog
 import android.content.Context
+import android.os.Build
 import android.webkit.WebView
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
+import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import org.itwinjs.mobilesdk.jsonvalue.*
 
 class ITMDatePicker(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMComponent(context, webView, coMessenger)  {
     init {
@@ -62,5 +70,31 @@ class ITMDatePicker(context: Context, webView: WebView, coMessenger: ITMCoMessen
             // Note: this is caught by ITMCoMessenger and tells the TypeScript caller that there was an error.
             throw Exception("Invalid input to Bentley_ITM_presentDatePicker")
         }
+    }
+}
+
+@Suppress("SpellCheckingInspection")
+fun String.iso8601ToDate(): Date? {
+    try {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Date(Instant.parse(this).toEpochMilli())
+        } else {
+            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault())
+            if (this.endsWith('Z')) {
+                format.timeZone = TimeZone.getTimeZone("UTC")
+            }
+            format.parse(this)
+        }
+    } catch (ex: Exception) {
+        // Ignore
+    }
+    return try {
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        if (this.endsWith('Z')) {
+            format.timeZone = TimeZone.getTimeZone("UTC")
+        }
+        format.parse(this)
+    } catch (ex: Exception) {
+        return null
     }
 }

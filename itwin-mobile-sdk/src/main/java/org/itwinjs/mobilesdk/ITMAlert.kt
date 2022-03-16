@@ -1,3 +1,7 @@
+/*---------------------------------------------------------------------------------------------
+* Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+* See LICENSE.md in the project root for license terms and full copyright notice.
+*--------------------------------------------------------------------------------------------*/
 package org.itwinjs.mobilesdk
 
 import android.app.AlertDialog
@@ -9,6 +13,7 @@ import com.eclipsesource.json.JsonValue
 import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import org.itwinjs.mobilesdk.jsonvalue.*
 
 class ITMAlert(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMComponent(context, webView, coMessenger)  {
     companion object {

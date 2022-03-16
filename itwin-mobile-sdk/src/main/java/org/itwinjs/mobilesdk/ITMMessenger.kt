@@ -1,3 +1,9 @@
+/*---------------------------------------------------------------------------------------------
+* Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+* See LICENSE.md in the project root for license terms and full copyright notice.
+*--------------------------------------------------------------------------------------------*/
+@file:Suppress("unused")
+
 package org.itwinjs.mobilesdk
 
 import android.util.Base64
@@ -8,11 +14,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
+import org.itwinjs.mobilesdk.jsonvalue.*
 
 typealias ITMQueryCallback = (JsonValue?, success: ((JsonValue?) -> Unit)?, failure: (() -> Unit)?) -> Unit
 typealias ITMSuccessCallback = (JsonValue?) -> Unit
 typealias ITMFailureCallback = (Exception) -> Unit
 
+@Suppress("MemberVisibilityCanBePrivate", "SpellCheckingInspection")
 open class ITMMessenger(private val ITMApplication: ITMApplication) {
     interface ITMListener
     private val webView = ITMApplication.webView

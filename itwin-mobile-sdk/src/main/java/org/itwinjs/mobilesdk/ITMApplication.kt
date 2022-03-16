@@ -1,3 +1,9 @@
+/*---------------------------------------------------------------------------------------------
+* Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+* See LICENSE.md in the project root for license terms and full copyright notice.
+*--------------------------------------------------------------------------------------------*/
+@file:Suppress("unused")
+
 package org.itwinjs.mobilesdk
 
 import android.annotation.SuppressLint
@@ -21,6 +27,7 @@ enum class ReachabilityStatus {
     ReachableViaWWAN,
 }
 
+@Suppress("MemberVisibilityCanBePrivate")
 abstract class ITMApplication(val appContext: Context, private val attachConsoleLogger: Boolean = false, private val forceExtractBackendAssets: Boolean = false) {
     protected var host: IModelJsHost? = null
     private var backendInitTask = Job()
@@ -44,6 +51,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
         if (_isBackendInitialized.getAndSet(true))
             return
 
+        @Suppress("SpellCheckingInspection")
         try {
             host = IModelJsHost(appContext, forceExtractBackendAssets, getAuthorizationClient()).apply {
                 setBackendPath(getBackendPath())
@@ -108,6 +116,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
             } catch (e: Exception) {
                 coMessenger?.frontendLaunchFailed(e)
                 reset()
+                @Suppress("SpellCheckingInspection")
                 logger.log(ITMLogger.Severity.Error, "Error loading imodeljs frontend: $e")
             }
         }

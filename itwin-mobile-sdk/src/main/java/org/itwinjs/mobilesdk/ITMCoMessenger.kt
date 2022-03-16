@@ -1,3 +1,7 @@
+/*---------------------------------------------------------------------------------------------
+* Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+* See LICENSE.md in the project root for license terms and full copyright notice.
+*--------------------------------------------------------------------------------------------*/
 package org.itwinjs.mobilesdk
 
 import com.eclipsesource.json.JsonValue
@@ -10,6 +14,7 @@ import kotlin.coroutines.suspendCoroutine
 /**
  * A wrapper around ITMMessenger that uses Kotlin Coroutines.
  */
+@Suppress("unused")
 open class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Convenience wrapper around [[ITMMessenger.send]]
