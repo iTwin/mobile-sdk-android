@@ -39,8 +39,8 @@ dependencies {
     implementation 'com.eclipsesource.minimal-json:minimal-json:0.9.5'
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.9"
-    // api 'iTwinJs:itwin-mobile-native-android:3.0.33'
-    api 'com.github.toddsouthenbentley:itwin-mobile-native-android:2.19.35'
+    api 'com.github.iTwin:itwin-mobile-native-android:2.19.35'
+
     // testImplementation 'junit:junit:4.+'
     // androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     // androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
