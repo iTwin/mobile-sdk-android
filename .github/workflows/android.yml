@@ -17,6 +17,7 @@ jobs:
       with:
         repository: iTwin/mobile-native-android
         ref: '3.2.3'
+        token: ${{ secrets.GH_PAT }}
         path: mobile-native-android
 
     - name: set up JDK 11
