@@ -37,6 +37,7 @@ cd mobile-native-android
 - The `assemble` task copies the AAR file using `wget` whereas the `assembleGitHub` task uses the `gh` CLI.
 - The file is large and is downloaded from the Releases, so it takes a little while.
 - The `publishToMavenLocal` tasks publishes the AAR file to the local Maven repo (`~/.m2/repository`) so it can be used by the next step.
+- If `gradlew` issues an error stating "Unable to locate a Java Runtime", you can try: `brew install --cask temurin`. Note that it will prompt you for a `sudo` password.
 
 ### mobile-sdk-android
 
