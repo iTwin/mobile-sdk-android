@@ -56,8 +56,8 @@ afterEvaluate {
             // Creates a Maven publication called 'release'.
             release(MavenPublication) {
                 from components.release
-                groupId = 'iTwinJs'
-                artifactId = 'mobile-sdk'
+                groupId = 'com.github.itwin'
+                artifactId = 'mobile-sdk-android'
                 version = '0.9.12'
             }
         }
