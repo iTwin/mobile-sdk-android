@@ -29,7 +29,7 @@ If you need to do local builds of the Mobile SDK instead of using JitPack, follo
 This is simply a publishing step, not actually compiling any code.
 
 ```sh
-git checkout https://github.com/iTwin/mobile-native-android
+git clone https://github.com/iTwin/mobile-native-android
 cd mobile-native-android
 ./gradlew --no-daemon assembleGitHub publishToMavenLocal
 ```
@@ -44,7 +44,7 @@ cd mobile-native-android
 In this step we will build the Mobile SDK Android code and publish it to the local Maven repo.
 
 ```sh
-git checkout https://github.com/iTwin/mobile-sdk-android
+git clone https://github.com/iTwin/mobile-sdk-android
 cd mobile-sdk-android
 echo sdk.dir=/Users/$USER/Libarary/Android/sdk > local.properties
 ./gradlew --no-daemon publishToMavenLocal
