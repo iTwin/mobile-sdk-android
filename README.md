@@ -11,7 +11,7 @@ This is pre-release software and provided as-is.
 This repository contains the Kotlin code used to build [iTwin.js](http://www.itwinjs.org) applications on Android devices.
 
 ## Note
-This package is designed to be used with the [@itwin/mobile-sdk-core](https://github.com/iTwin/mobile-sdk-core) and [@itwin/mobile-ui-react](https://github.com/iTwin/mobile-ui-react) packages. Those two packages are intended to be installed via npm, and their version number must match the version number of this package. Furthermore, they use __iTwin.js 3.0.0__, and your app must use that same version of iModel.js.
+This package is designed to be used with the [@itwin/mobile-sdk-core](https://github.com/iTwin/mobile-sdk-core) and [@itwin/mobile-ui-react](https://github.com/iTwin/mobile-ui-react) packages. Those two packages are intended to be installed via npm, and their version number must match the version number of this package. Furthermore, they use __iTwin.js 3.0.0__, and your app must use that same version of iTwin.js.
 
 ## Using JitPack
 
@@ -34,6 +34,7 @@ cd mobile-native-android
 ./gradlew --no-daemon assembleGitHub publishToMavenLocal
 ```
 #### Notes
+- These instructions are specific to MacOS (or Linux), on Windows use `gradle.bat` instead.
 - The `assemble` task copies the AAR file using `wget` whereas the `assembleGitHub` task uses the `gh` CLI.
 - The file is large and is downloaded from the Releases, so it takes a little while.
 - The `publishToMavenLocal` tasks publishes the AAR file to the local Maven repository (`~/.m2/repository`) so it can be used by the next step.
@@ -51,7 +52,7 @@ echo sdk.dir=/Users/$USER/Libarary/Android/sdk > local.properties
 ```
 
 #### Notes 
-- Creation of the `local.properties` file only needs to be done once and needs to point to the Android SDK you wish to use. As an alternative, you can set `ANDROID_SDK` in your shell.
+- Creation of the `local.properties` file only needs to be done once and needs to point to the Android SDK you wish to use. As an alternative, you can set `ANDROID_SDK` in your shell. On Windows, the echo line will need to be changed to reflect where Android Studio installs the SDK.
 - The `--no-daemon` option shouldn't be necessary but is required. There seems to be an incompatibility between the two `gradlew` copies (even though they're identical). Without this option the 2nd `gradlew` call will hang.
 - If you end up with a daemon running, you can do: `./gradlew --stop`
 
