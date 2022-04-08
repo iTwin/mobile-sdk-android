@@ -4,7 +4,7 @@
 *--------------------------------------------------------------------------------------------*/
 @file:Suppress("unused")
 
-package org.itwinjs.mobilesdk.jsonvalue
+package com.github.itwin.mobilesdk.jsonvalue
 
 import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue

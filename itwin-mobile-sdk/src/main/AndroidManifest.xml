@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 
+Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+See LICENSE.md in the project root for license terms and full copyright notice.
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.itwinjs.mobilesdk">
+    package="com.github.itwin.mobilesdk">
 
 </manifest>

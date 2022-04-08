@@ -4,7 +4,7 @@
 *--------------------------------------------------------------------------------------------*/
 @file:Suppress("unused")
 
-package org.itwinjs.mobilesdk
+package com.github.itwin.mobilesdk
 
 import android.annotation.SuppressLint
 import android.content.Context

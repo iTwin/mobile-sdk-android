@@ -4,7 +4,7 @@
 *--------------------------------------------------------------------------------------------*/
 @file:Suppress("unused")
 
-package org.itwinjs.mobilesdk
+package com.github.itwin.mobilesdk
 
 import android.util.Base64
 import android.webkit.JavascriptInterface
@@ -14,7 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
-import org.itwinjs.mobilesdk.jsonvalue.*
+import com.github.itwin.mobilesdk.jsonvalue.*
 
 typealias ITMQueryCallback = (JsonValue?, success: ((JsonValue?) -> Unit)?, failure: (() -> Unit)?) -> Unit
 typealias ITMSuccessCallback = (JsonValue?) -> Unit

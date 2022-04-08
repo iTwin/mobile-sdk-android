@@ -11,4 +11,4 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-include ':itwin-mobile-sdk'
+include ':mobile-sdk'

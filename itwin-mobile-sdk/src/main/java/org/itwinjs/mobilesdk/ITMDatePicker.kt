@@ -2,7 +2,7 @@
 * Copyright (c) Bentley Systems, Incorporated. All rights reserved.
 * See LICENSE.md in the project root for license terms and full copyright notice.
 *--------------------------------------------------------------------------------------------*/
-package org.itwinjs.mobilesdk
+package com.github.itwin.mobilesdk
 
 import android.app.DatePickerDialog
 import android.content.Context
@@ -16,7 +16,7 @@ import java.time.Instant
 import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
-import org.itwinjs.mobilesdk.jsonvalue.*
+import com.github.itwin.mobilesdk.jsonvalue.*
 
 class ITMDatePicker(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMComponent(context, webView, coMessenger)  {
     init {
