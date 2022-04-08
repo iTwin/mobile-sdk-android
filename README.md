@@ -6,7 +6,7 @@ Copyright © Bentley Systems, Incorporated. All rights reserved. See [LICENSE.md
 
 This is pre-release software and provided as-is.
 
-## About this Repository
+## About This Repository
 
 This repository contains the Kotlin code used to build [iTwin.js](http://www.itwinjs.org) applications on Android devices.
 
@@ -36,12 +36,12 @@ cd mobile-native-android
 #### Notes
 - The `assemble` task copies the AAR file using `wget` whereas the `assembleGitHub` task uses the `gh` CLI.
 - The file is large and is downloaded from the Releases, so it takes a little while.
-- The `publishToMavenLocal` tasks publishes the AAR file to the local Maven repo (`~/.m2/repository`) so it can be used by the next step.
+- The `publishToMavenLocal` tasks publishes the AAR file to the local Maven repository (`~/.m2/repository`) so it can be used by the next step.
 - If `gradlew` issues an error stating "Unable to locate a Java Runtime", you can try: `brew install --cask temurin`. Note that it will prompt you for a `sudo` password.
 
 ### mobile-sdk-android
 
-In this step we will build the Mobile SDK Android code and publish it to the local Maven repo.
+In this step we will build the Mobile SDK Android code and publish it to the local Maven repository.
 
 ```sh
 git clone https://github.com/iTwin/mobile-sdk-android
