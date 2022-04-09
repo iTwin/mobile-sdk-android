@@ -21,23 +21,23 @@ typealias ITMSuccessCallback = (JsonValue?) -> Unit
 typealias ITMFailureCallback = (Exception) -> Unit
 
 @Suppress("MemberVisibilityCanBePrivate", "SpellCheckingInspection")
-open class ITMMessenger(private val ITMApplication: ITMApplication) {
+open class ITMMessenger(private val itmApplication: ITMApplication) {
     interface ITMListener
-    private val webView = ITMApplication.webView
+    private val webView = itmApplication.webView
     private val frontendLaunchJob = Job()
     private val mainScope = MainScope()
     private val pendingQueries: MutableMap<Int, Pair<ITMSuccessCallback?, ITMFailureCallback?>> = mutableMapOf()
     private val listeners: MutableMap<String, MessageListener> = mutableMapOf()
 
-    private class MessageListener(val type: String, private val ITMMessenger: ITMMessenger, private val callback: ITMQueryCallback) : ITMListener {
+    private class MessageListener(val type: String, private val itmMessenger: ITMMessenger, private val callback: ITMQueryCallback) : ITMListener {
         fun handleMessage(queryId: Int, data: JsonValue?) {
-            ITMMessenger.logQuery("Request JS -> Kotlin", queryId, type, data)
+            itmMessenger.logQuery("Request JS -> Kotlin", queryId, type, data)
             callback.invoke(data, { result ->
                 if (result != null) {
-                    ITMMessenger.handleMessageSuccess(queryId, result)
+                    itmMessenger.handleMessageSuccess(queryId, result)
                 }
             }, {
-                ITMMessenger.handleMessageFailure(queryId)
+                itmMessenger.handleMessageFailure(queryId)
             })
         }
     }
@@ -170,7 +170,7 @@ open class ITMMessenger(private val ITMApplication: ITMApplication) {
      * @param message error message to log.
      */
     fun logError(message: String) {
-        ITMApplication.logger.log(ITMLogger.Severity.Error, message)
+        itmApplication.logger.log(ITMLogger.Severity.Error, message)
     }
 
     /**
@@ -178,7 +178,7 @@ open class ITMMessenger(private val ITMApplication: ITMApplication) {
      * @param message info message to log.
      */
     fun logInfo(message: String) {
-        ITMApplication.logger.log(ITMLogger.Severity.Info, message)
+        itmApplication.logger.log(ITMLogger.Severity.Info, message)
     }
 
     /**
