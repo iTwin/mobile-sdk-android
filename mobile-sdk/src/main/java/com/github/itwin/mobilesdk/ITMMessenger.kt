@@ -10,11 +10,11 @@ import android.util.Base64
 import android.webkit.JavascriptInterface
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonValue
+import com.github.itwin.mobilesdk.jsonvalue.toPrettyString
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicInteger
-import com.github.itwin.mobilesdk.jsonvalue.*
 
 typealias ITMQueryCallback = (JsonValue?, success: ((JsonValue?) -> Unit)?, failure: (() -> Unit)?) -> Unit
 typealias ITMSuccessCallback = (JsonValue?) -> Unit

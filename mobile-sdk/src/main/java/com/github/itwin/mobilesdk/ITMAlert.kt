@@ -10,10 +10,10 @@ import android.webkit.WebView
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonArray
 import com.eclipsesource.json.JsonValue
+import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
-import com.github.itwin.mobilesdk.jsonvalue.*
 
 class ITMAlert(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMComponent(context, webView, coMessenger)  {
     companion object {

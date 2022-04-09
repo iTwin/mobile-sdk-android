@@ -11,12 +11,12 @@ import android.webkit.WebView
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
+import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
-import com.github.itwin.mobilesdk.jsonvalue.*
 
 class ITMDatePicker(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMComponent(context, webView, coMessenger)  {
     init {
