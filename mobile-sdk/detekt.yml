@@ -1,0 +1,35 @@
+complexity:
+  TooManyFunctions:
+    active: false
+
+empty-blocks:
+  EmptyFinallyBlock:
+    active: false
+
+exceptions:
+  SwallowedException:
+    active: false
+  TooGenericExceptionCaught:
+    active: false
+  TooGenericExceptionThrown:
+    active: false
+
+naming:
+  MemberNameEqualsClassName:
+    active: false
+
+style:
+  ForbiddenComment:
+    active: false
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    active: false
+  NewLineAtEndOfFile:
+    active: false
+  ReturnCount:
+    active: false
+  ThrowsCount:
+    active: false
+  WildcardImport: 
+    active: false
