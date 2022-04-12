@@ -2,7 +2,7 @@
 
 We welcome all types of contribution.
 
-Need a feature or found a bug? Please create an [issue](hthttps://github.com/iTwin/itwinjs-core/issues) and add the `android` label.
+Need a feature or found a bug? Please create an [issue](https://github.com/iTwin/itwinjs-core/issues) and add the `android` label.
 
 Have a question or suggestion? Please create a [discussion](https://github.com/iTwin/itwinjs-core/discussions) and add the `android` label.
 
