@@ -28,7 +28,15 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Cache mobile-native-android
+      uses: actions/cache@v3
+      id: cache
+      with:
+        path: ~/.m2/repository/**/mobile-native-android
+        key: ${{ runner.os }}-${{ hashFiles('mobile-sdk/build.gradle') }}
+
     - name: Deploy mobile-native-android to maven local
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
         cd mobile-native-android
         gh release download 3.2.3 -p '*.aar'
