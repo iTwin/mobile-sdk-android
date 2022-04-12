@@ -51,6 +51,11 @@ dependencies {
     // androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 }
 
+task sourceJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier "sources"
+}
+
 afterEvaluate {
     publishing {
         repositories {
@@ -70,6 +75,14 @@ afterEvaluate {
                 groupId = 'com.github.itwin'
                 artifactId = 'mobile-sdk-android'
                 version = '0.9.12'
+            }
+            // Creates a Maven publication called 'debug'.
+            debug(MavenPublication) {
+                from components.debug
+                artifact(sourceJar)
+                groupId = 'com.github.itwin'
+                artifactId = 'mobile-sdk-android'
+                version = '0.9.12-debug'
             }
         }
     }
