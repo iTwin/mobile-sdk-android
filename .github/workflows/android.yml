@@ -49,7 +49,7 @@ jobs:
         cd mobile-native-android
         gh release download 3.2.3 -p '*.aar'
         chmod +x gradlew
-        ./gradlew --no-daemon publishToMavenLocal
+        ./gradlew publishToMavenLocal
         cd ..
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
@@ -58,4 +58,4 @@ jobs:
       run: |
         cd mobile-sdk-android
         chmod +x gradlew
-        ./gradlew --no-daemon detekt build
+        ./gradlew detekt build
