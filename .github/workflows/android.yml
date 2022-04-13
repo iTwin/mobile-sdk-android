@@ -30,7 +30,7 @@ jobs:
       id: cache
       with:
         path: ~/.m2/repository/**/mobile-native-android
-        key: ${{ runner.os }}-${{ hashFiles('mobile-sdk-android/mobile-sdk/build.gradle') }}
+        key: ${{ hashFiles('mobile-sdk-android/mobile-sdk/build.gradle') }}
 
     - name: Checkout mobile-native-android
       if: steps.cache.outputs.cache-hit != 'true'
