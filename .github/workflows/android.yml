@@ -13,13 +13,10 @@ jobs:
     environment: CI
 
     steps:
-    - name: Checkout mobile-native-android
+    - name: Checkout mobile-sdk-android
       uses: actions/checkout@v3
       with:
-        repository: iTwin/mobile-native-android
-        ref: '3.2.3'
-        token: ${{ secrets.GH_PAT }}
-        path: mobile-native-android
+        path: mobile-sdk-android
 
     - name: set up JDK 11
       uses: actions/setup-java@v3
@@ -28,7 +25,24 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Cache mobile-native-android
+      uses: actions/cache@v3
+      id: cache
+      with:
+        path: ~/.m2/repository/**/mobile-native-android
+        key: ${{ hashFiles('mobile-sdk-android/mobile-sdk/build.gradle') }}
+
+    - name: Checkout mobile-native-android
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: iTwin/mobile-native-android
+        ref: '3.2.3'
+        token: ${{ secrets.GH_PAT }}
+        path: mobile-native-android
+
     - name: Deploy mobile-native-android to maven local
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
         cd mobile-native-android
         gh release download 3.2.3 -p '*.aar'
@@ -38,11 +52,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         
-    - name: Checkout mobile-sdk-android
-      uses: actions/checkout@v3
-      with:
-        path: mobile-sdk-android
-
     - name: Build mobile-sdk-android
       run: |
         cd mobile-sdk-android
