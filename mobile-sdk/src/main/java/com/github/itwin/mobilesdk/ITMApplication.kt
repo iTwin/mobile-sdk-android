@@ -122,6 +122,14 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
         }
     }
 
+    open fun reinitializeFrontend() {
+        webView = null
+        messenger = null
+        coMessenger = null
+        isLoaded.value = false
+        initializeFrontend()
+    }
+
     @SuppressLint("MissingPermission")
     private fun updateAvailability(available: Boolean? = null) {
         available?.let {
@@ -186,6 +194,9 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
             }
 
             override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                if (this@ITMApplication.onRenderProcessGone(view, detail))
+                    return true
+
                 return super.onRenderProcessGone(view, detail)
             }
 
@@ -210,6 +221,10 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     }
 
     open fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+        return false
+    }
+
+    open fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
         return false
     }
 
