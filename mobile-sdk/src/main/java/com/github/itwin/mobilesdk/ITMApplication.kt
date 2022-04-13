@@ -31,6 +31,7 @@ enum class ReachabilityStatus {
 abstract class ITMApplication(val appContext: Context, private val attachConsoleLogger: Boolean = false, private val forceExtractBackendAssets: Boolean = false) {
     protected var host: IModelJsHost? = null
     private var backendInitTask = Job()
+    private var frontendInitTask = Job()
     private val _isBackendInitialized = AtomicBoolean(false)
     val isBackendInitialized: Boolean get() = _isBackendInitialized.get()
 
@@ -43,6 +44,10 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     var logger = ITMLogger()
     private var consoleLogger: ITMConsoleLogger? = null
     private var reachabilityStatus = ReachabilityStatus.NotReachable
+
+    suspend fun waitForFrontendInitialize() {
+        frontendInitTask.join()
+    }
 
     /**
      * Initialize the iModelJs backend if not initialized yet. This can be called from the launch activity.
@@ -113,6 +118,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
                         updateAvailability(false)
                     }
                 })
+                frontendInitTask.complete()
             } catch (e: Exception) {
                 coMessenger?.frontendLaunchFailed(e)
                 reset()
@@ -139,6 +145,8 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     private fun reset() {
         backendInitTask.cancel()
         backendInitTask = Job()
+        frontendInitTask.cancel()
+        frontendInitTask = Job()
         _isBackendInitialized.set(false)
         webView = null
         messenger = null
@@ -241,7 +249,9 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
         return ""
     }
 
-    abstract fun getAuthorizationClient(): AuthorizationClient
+    open fun getAuthorizationClient(): AuthorizationClient? {
+        return null
+    }
 
 //    private fun loadFrontend() {
 //        val host = this.host ?: return
