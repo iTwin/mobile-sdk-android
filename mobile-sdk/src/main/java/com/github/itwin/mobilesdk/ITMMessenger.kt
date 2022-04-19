@@ -16,7 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 
-typealias ITMQueryCallback = (JsonValue?, success: ((JsonValue?) -> Unit)?, failure: (() -> Unit)?) -> Unit
+typealias ITMQueryCallback = (JsonValue?, success: ((JsonValue?) -> Unit)?, failure: ((Exception) -> Unit)?) -> Unit
 typealias ITMSuccessCallback = (JsonValue?) -> Unit
 typealias ITMFailureCallback = (Exception) -> Unit
 
@@ -36,8 +36,8 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
                 if (result != null) {
                     itmMessenger.handleMessageSuccess(queryId, result)
                 }
-            }, {
-                itmMessenger.handleMessageFailure(queryId)
+            }, { error ->
+                itmMessenger.handleMessageFailure(queryId, error)
             })
         }
     }
@@ -91,11 +91,11 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
                 listener.handleMessage(queryId, request[messageKey])
             } else {
                 logError("Unhandled query [JS -> Kotlin] WKID$queryId: $name")
-                handleMessageFailure(queryId)
+                handleUnhandledMessage(queryId)
             }
         } catch (e: Exception) {
             logError("ITMMessenger.handleQuery exception: $e")
-            queryId?.let { handleMessageFailure(it) }
+            queryId?.let { handleMessageFailure(it, e) }
         }
     }
 
@@ -127,16 +127,30 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
     private fun handleMessageSuccess(queryId: Int, result: JsonValue) {
         logQuery("Response Kotlin -> JS", queryId, null, result)
         mainScope.launch {
-            val jsonString = result.toString()
+            val message = Json.`object`();
+            message["response"] = result;
+            val jsonString = message.toString()
             val dataString = Base64.encodeToString(jsonString.toByteArray(), Base64.NO_WRAP)
             webView?.evaluateJavascript("$queryResponseName$queryId('$dataString')", null)
         }
     }
 
-    private fun handleMessageFailure(queryId: Int) {
+    private fun handleUnhandledMessage(queryId: Int) {
+        mainScope.launch {
+            val jsonString = "{\"unhandled\":true}"
+            val dataString = Base64.encodeToString(jsonString.toByteArray(), Base64.NO_WRAP)
+            webView?.evaluateJavascript("$queryResponseName$queryId('$dataString')", null)
+        }
+    }
+
+    private fun handleMessageFailure(queryId: Int, error: Exception) {
         logQuery("Error Response Kotlin -> JS", queryId, null, null)
         mainScope.launch {
-            webView?.evaluateJavascript("$queryResponseName$queryId()", null)
+            val message = Json.`object`();
+            message["error"] = error?.message;
+            val jsonString = message.toString()
+            val dataString = Base64.encodeToString(jsonString.toByteArray(), Base64.NO_WRAP)
+            webView?.evaluateJavascript("$queryResponseName$queryId('$dataString')", null)
         }
     }
 

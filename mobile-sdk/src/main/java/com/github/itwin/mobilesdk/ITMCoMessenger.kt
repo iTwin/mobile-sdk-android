@@ -62,7 +62,7 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
                     val result = callback.invoke(value)
                     success?.invoke(result)
                 } catch (error: Exception) {
-                    failure?.invoke()
+                    failure?.invoke(error)
                 }
             }
         }
