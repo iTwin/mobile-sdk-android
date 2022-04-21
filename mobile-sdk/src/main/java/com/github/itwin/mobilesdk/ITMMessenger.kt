@@ -127,8 +127,8 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
     private fun handleMessageSuccess(queryId: Int, result: JsonValue) {
         logQuery("Response Kotlin -> JS", queryId, null, result)
         mainScope.launch {
-            val message = Json.`object`();
-            message["response"] = result;
+            val message = Json.`object`()
+            message["response"] = result
             val jsonString = message.toString()
             val dataString = Base64.encodeToString(jsonString.toByteArray(), Base64.NO_WRAP)
             webView?.evaluateJavascript("$queryResponseName$queryId('$dataString')", null)
@@ -146,8 +146,8 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
     private fun handleMessageFailure(queryId: Int, error: Exception) {
         logQuery("Error Response Kotlin -> JS", queryId, null, null)
         mainScope.launch {
-            val message = Json.`object`();
-            message["error"] = error?.message;
+            val message = Json.`object`()
+            message["error"] = error.message
             val jsonString = message.toString()
             val dataString = Base64.encodeToString(jsonString.toByteArray(), Base64.NO_WRAP)
             webView?.evaluateJavascript("$queryResponseName$queryId('$dataString')", null)
