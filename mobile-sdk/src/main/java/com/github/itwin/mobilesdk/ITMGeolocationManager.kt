@@ -131,6 +131,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
         }
     }
     private val sensorListener = object : SensorEventListener {
+        @Suppress("EmptyFunctionBlock")
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
         }
 

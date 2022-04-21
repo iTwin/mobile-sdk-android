@@ -1,6 +1,10 @@
 complexity:
   TooManyFunctions:
     active: false
+  ComplexMethod:
+    active: false
+  ComplexCondition:
+    active: false
 
 empty-blocks:
   EmptyFinallyBlock:
