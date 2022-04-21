@@ -172,10 +172,10 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
         webView.settings.setSupportZoom(false)
         webView.webViewClient = object : WebViewClient() {
             fun shouldIgnoreUrl(url: String): Boolean {
-                return url != null && url.startsWith("file:///android_asset/frontend")
+                return url.startsWith("file:///android_asset/frontend")
             }
 
-            override fun onPageStarted(view: WebView, url: String, favicon: Bitmap) {
+            override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                 if (shouldIgnoreUrl(url)) {
                     return
                 }
@@ -222,7 +222,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
         consoleLogger?.inject()
     }
 
-    open fun onPageStarted(view: WebView, url: String, favicon: Bitmap) {
+    open fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
         updateAvailability()
     }
 
