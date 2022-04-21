@@ -42,6 +42,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     var messenger: ITMMessenger? = null
     var coMessenger: ITMCoMessenger? = null
     var logger = ITMLogger()
+    var geolocationManager: ITMGeolocationManager? = null
     private var consoleLogger: ITMConsoleLogger? = null
     private var reachabilityStatus = ReachabilityStatus.NotReachable
 
@@ -128,6 +129,14 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
         }
     }
 
+    open fun reinitializeFrontend() {
+        webView = null
+        messenger = null
+        coMessenger = null
+        isLoaded.value = false
+        initializeFrontend()
+    }
+
     @SuppressLint("MissingPermission")
     private fun updateAvailability(available: Boolean? = null) {
         available?.let {
@@ -162,18 +171,18 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
         coMessenger = ITMCoMessenger(messenger!!)
         webView.settings.setSupportZoom(false)
         webView.webViewClient = object : WebViewClient() {
-            fun shouldIgnoreUrl(url: String?): Boolean {
+            fun shouldIgnoreUrl(url: String): Boolean {
                 return url != null && url.startsWith("file:///android_asset/frontend")
             }
 
-            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+            override fun onPageStarted(view: WebView, url: String, favicon: Bitmap) {
                 if (shouldIgnoreUrl(url)) {
                     return
                 }
                 this@ITMApplication.onPageStarted(view, url, favicon)
             }
 
-            override fun onPageFinished(view: WebView?, url: String?) {
+            override fun onPageFinished(view: WebView, url: String) {
                 if (shouldIgnoreUrl(url)) {
                     return
                 }
@@ -181,47 +190,55 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
                 this@ITMApplication.onPageFinished(view, url)
             }
 
-            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 val result = this@ITMApplication.shouldInterceptRequest(view, request)
                 return result ?: super.shouldInterceptRequest(view, request)
             }
 
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (this@ITMApplication.shouldOverrideUrlLoading(view, request)) {
                     return true
                 }
                 return super.shouldOverrideUrlLoading(view, request)
             }
 
-            override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                if (this@ITMApplication.onRenderProcessGone(view, detail)) {
+                    return true
+                }
                 return super.onRenderProcessGone(view, detail)
             }
 
-            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (!this@ITMApplication.onReceivedError(view, request, error)) {
                     super.onReceivedError(view, request, error)
                 }
             }
         }
+        geolocationManager = ITMGeolocationManager(appContext, webView)
     }
 
-    open fun onPageFinished(view: WebView?, url: String?) {
+    open fun onPageFinished(view: WebView, url: String) {
         consoleLogger?.inject()
     }
 
-    open fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+    open fun onPageStarted(view: WebView, url: String, favicon: Bitmap) {
         updateAvailability()
     }
 
-    open fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+    open fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
         return null
     }
 
-    open fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+    open fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         return false
     }
 
-    open fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?): Boolean {
+    open fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+        return false
+    }
+
+    open fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError): Boolean {
         return false
     }
 
