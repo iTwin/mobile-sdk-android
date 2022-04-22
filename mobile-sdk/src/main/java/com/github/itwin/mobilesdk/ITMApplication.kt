@@ -73,6 +73,13 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
         frontendInitTask.join()
     }
 
+    /**
+     * Finish initialization, calling functions that can't go into the constructor because they are open.
+     */
+    fun finishInit() {
+        loadITMAppConfig()
+    }
+
     open fun loadITMAppConfig() {
         val manager = appContext.assets
         try {
