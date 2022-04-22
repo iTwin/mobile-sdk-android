@@ -19,9 +19,12 @@ import androidx.lifecycle.MutableLiveData
 import com.bentley.itwin.AuthorizationClient
 import com.bentley.itwin.IModelJsHost
 import com.bentley.itwin.MobileFrontend
+import com.eclipsesource.json.Json
+import com.eclipsesource.json.JsonObject
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalLong
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import kotlinx.coroutines.*
+import java.io.InputStreamReader
 import java.util.concurrent.atomic.AtomicBoolean
 
 enum class ReachabilityStatus {
@@ -62,11 +65,22 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     var coMessenger: ITMCoMessenger? = null
     var logger = ITMLogger()
     var geolocationManager: ITMGeolocationManager? = null
+    var configData: JsonObject? = null
     private var consoleLogger: ITMConsoleLogger? = null
     private var reachabilityStatus = ReachabilityStatus.NotReachable
 
     suspend fun waitForFrontendInitialize() {
         frontendInitTask.join()
+    }
+
+    open fun loadITMAppConfig() {
+        val manager = appContext.assets
+        try {
+            val itmAppConfigStream = manager.open("ITMApplication/ITMAppConfig.json")
+            configData = Json.parse(InputStreamReader(itmAppConfigStream, "UTF-8")) as JsonObject
+        } catch (ex: Exception) {
+            // Ignore
+        }
     }
 
     /**
@@ -119,6 +133,26 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
                         newConfig?.let {
                             this@ITMApplication.mobileUi?.onConfigurationChanged(newConfig)
                         }
+                    }
+
+                    override fun overScrollBy(
+                        deltaX: Int,
+                        deltaY: Int,
+                        scrollX: Int,
+                        scrollY: Int,
+                        scrollRangeX: Int,
+                        scrollRangeY: Int,
+                        maxOverScrollX: Int,
+                        maxOverScrollY: Int,
+                        isTouchEvent: Boolean
+                    ): Boolean {
+                        return false
+                    }
+
+                    override fun scrollTo(x: Int, y: Int) {
+                    }
+
+                    override fun computeScroll() {
                     }
                 }
                 webView = mobileFrontend
@@ -286,6 +320,9 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     }
 
     open fun getBaseUrl(): String {
+        configData?.getOptionalString("ITMAPPLICATION_BASE_URL")?.let { baseUrl ->
+            return baseUrl
+        }
         return "file:///android_asset/ITMApplication/frontend/index.html"
     }
 
