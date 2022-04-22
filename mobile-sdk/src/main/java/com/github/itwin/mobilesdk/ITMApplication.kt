@@ -14,10 +14,13 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
 import android.webkit.*
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.MutableLiveData
 import com.bentley.itwin.AuthorizationClient
 import com.bentley.itwin.IModelJsHost
 import com.bentley.itwin.MobileFrontend
+import com.github.itwin.mobilesdk.jsonvalue.getOptionalLong
+import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -29,12 +32,28 @@ enum class ReachabilityStatus {
 
 @Suppress("MemberVisibilityCanBePrivate")
 abstract class ITMApplication(val appContext: Context, private val attachConsoleLogger: Boolean = false, private val forceExtractBackendAssets: Boolean = false) {
+    enum class PreferredColorScheme(val value: Long) {
+        Automatic(0),
+        Light(1),
+        Dark(2);
+
+        companion object {
+            private val allValues = values()
+            fun fromLong(value: Long) = allValues.firstOrNull { it.value == value }
+        }
+        fun toNightMode() = when (this) {
+            Automatic -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            Light -> AppCompatDelegate.MODE_NIGHT_NO
+            Dark -> AppCompatDelegate.MODE_NIGHT_YES
+        }
+    }
     protected var host: IModelJsHost? = null
     private var backendInitTask = Job()
     private var frontendInitTask = Job()
     private val _isBackendInitialized = AtomicBoolean(false)
     val isBackendInitialized: Boolean get() = _isBackendInitialized.get()
 
+    var preferredColorScheme = PreferredColorScheme.Automatic
     var webView: MobileFrontend? = null
     var mobileUi: ITMNativeUI? = null
     val isLoaded = MutableLiveData(false)
@@ -169,6 +188,14 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
             consoleLogger = ITMConsoleLogger(webView, ::onConsoleLog)
         }
         coMessenger = ITMCoMessenger(messenger!!)
+        messenger?.addMessageListener("Bentley_ITM_updatePreferredColorScheme") { value ->
+            value?.asObject()?.getOptionalLong("preferredColorScheme")?.let { longValue ->
+                preferredColorScheme = PreferredColorScheme.fromLong(longValue) ?: PreferredColorScheme.Automatic
+                MainScope().launch {
+                    AppCompatDelegate.setDefaultNightMode(preferredColorScheme.toNightMode())
+                }
+            }
+        }
         webView.settings.setSupportZoom(false)
         webView.webViewClient = object : WebViewClient() {
             fun shouldIgnoreUrl(url: String): Boolean {
