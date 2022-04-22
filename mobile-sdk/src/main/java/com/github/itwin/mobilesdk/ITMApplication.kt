@@ -149,9 +149,11 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
                         return false
                     }
 
+                    @Suppress("EmptyFunctionBlock")
                     override fun scrollTo(x: Int, y: Int) {
                     }
 
+                    @Suppress("EmptyFunctionBlock")
                     override fun computeScroll() {
                     }
                 }
