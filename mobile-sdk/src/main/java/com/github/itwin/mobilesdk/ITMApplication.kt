@@ -15,6 +15,7 @@ import android.net.Network
 import android.net.Uri
 import android.os.Build
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.*
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.MutableLiveData
@@ -245,10 +246,6 @@ abstract class ITMApplication(
             }
         }
         webView.settings.setSupportZoom(false)
-        webView.setOnApplyWindowInsetsListener { v, insets ->
-            updateSafeAreas(v)
-            v.onApplyWindowInsets(insets)
-        }
         webView.webViewClient = object : WebViewClient() {
             fun shouldIgnoreUrl(url: String): Boolean {
                 return url.startsWith("file:///android_asset/frontend")
@@ -297,14 +294,25 @@ abstract class ITMApplication(
         geolocationManager = ITMGeolocationManager(appContext, webView)
     }
 
+    open fun attachWebView(container: ViewGroup) {
+        webView?.let { webView ->
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            container.addView(webView)
+            webView.setOnApplyWindowInsetsListener { v, insets ->
+                updateSafeAreas(v)
+                v.onApplyWindowInsets(insets)
+            }
+        }
+    }
+
     private fun updateSafeAreas(view: View) {
-        val message = JsonObject()
-        message["left"] = 0
-        message["right"] = 0
-        message["top"] = 0
-        message["bottom"] = 0
-        (view.context as? Activity)?.let { activity ->
+        ((view.parent as? ViewGroup)?.context as? Activity)?.let { activity ->
             activity.window?.let { window ->
+                val message = JsonObject()
+                message["left"] = 0
+                message["right"] = 0
+                message["top"] = 0
+                message["bottom"] = 0
                 window.decorView.rootWindowInsets?.let { insets ->
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                         insets.displayCutout?.let { displayCutoutInsets ->
