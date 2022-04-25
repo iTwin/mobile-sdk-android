@@ -117,9 +117,7 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
      * Initialize the iModelJs frontend if not initialized yet.
      * This requires the Looper to be running, so cannot be called from the launch activity. If you have not already
      * called [initializeBackend], this will call it.
-     * Note: Your application must contain the ACCESS_NETWORK_STATE permission.
      */
-    @SuppressLint("MissingPermission")
     open fun initializeFrontend() {
         initializeBackend()
         MainScope().launch {
@@ -199,7 +197,6 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
         initializeFrontend()
     }
 
-    @SuppressLint("MissingPermission")
     private fun updateAvailability(available: Boolean? = null) {
         available?.let {
             reachabilityStatus = ReachabilityStatus.NotReachable
