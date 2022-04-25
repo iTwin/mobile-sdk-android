@@ -20,7 +20,6 @@ typealias ITMQueryCallback = (JsonValue?, success: ((JsonValue?) -> Unit)?, fail
 typealias ITMSuccessCallback = (JsonValue?) -> Unit
 typealias ITMFailureCallback = (Exception) -> Unit
 
-@Suppress("MemberVisibilityCanBePrivate", "SpellCheckingInspection")
 open class ITMMessenger(private val itmApplication: ITMApplication) {
     interface ITMListener
     private val webView = itmApplication.webView
@@ -90,7 +89,8 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
             if (listener != null) {
                 listener.handleMessage(queryId, request[messageKey])
             } else {
-                logError("Unhandled query [JS -> Kotlin] WKID$queryId: $name")
+                @Suppress("SpellCheckingInspection")
+                logError("Unhandled query [JS -> Kotlin] WVID$queryId: $name")
                 handleUnhandledMessage(queryId)
             }
         } catch (e: Exception) {
@@ -160,7 +160,8 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
         } finally {
         }
 
-        logQuery(title, "WKID$queryId", type, prettyDataString)
+        @Suppress("SpellCheckingInspection")
+        logQuery(title, "WVID$queryId", type, prettyDataString)
     }
 
     /**
@@ -170,6 +171,7 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
      * @param type type of the query.
      * @param prettyDataString pretty-printed JSON representation of the query data.
      */
+    @Suppress("MemberVisibilityCanBePrivate")
     fun logQuery(title: String, queryTag: String, type: String?, prettyDataString: String?) {
         val typeString = type ?: "(Match ID from Request above)"
         if (isFullLoggingEnabled) {
@@ -183,6 +185,7 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
      * Log an error message using parent `ITMApplication` logger.
      * @param message error message to log.
      */
+    @Suppress("MemberVisibilityCanBePrivate")
     fun logError(message: String) {
         itmApplication.logger.log(ITMLogger.Severity.Error, message)
     }
@@ -191,6 +194,7 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
      * Log an info message using parent `ITMApplication` logger.
      * @param message info message to log.
      */
+    @Suppress("MemberVisibilityCanBePrivate")
     fun logInfo(message: String) {
         itmApplication.logger.log(ITMLogger.Severity.Info, message)
     }

@@ -8,8 +8,10 @@ import android.content.Context
 import android.content.res.Configuration
 import android.webkit.WebView
 
-@Suppress("MemberVisibilityCanBePrivate")
-open class ITMComponent(protected val context: Context, protected val webView: WebView, protected val coMessenger: ITMCoMessenger) {
+open class ITMComponent(
+    protected val context: Context,
+    protected val webView: WebView,
+    @Suppress("MemberVisibilityCanBePrivate") protected val coMessenger: ITMCoMessenger) {
     var listener: ITMMessenger.ITMListener? = null
 
     fun detach() {

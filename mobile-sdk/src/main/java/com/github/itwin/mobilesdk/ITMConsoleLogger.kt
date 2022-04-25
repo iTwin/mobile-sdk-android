@@ -8,7 +8,6 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import java.util.*
 
-@Suppress("MemberVisibilityCanBePrivate", "unused")
 open class ITMConsoleLogger(protected val webView: WebView, protected val callback: (type: LogType, message: String) -> Unit) {
     enum class LogType {
         Assert,
@@ -75,6 +74,7 @@ open class ITMConsoleLogger(protected val webView: WebView, protected val callba
         webView.evaluateJavascript(injectedJs, null)
     }
 
+    @Suppress("unused")
     fun detach() {
         webView.removeJavascriptInterface(jsInterfaceName)
     }

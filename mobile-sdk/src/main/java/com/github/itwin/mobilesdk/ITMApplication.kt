@@ -6,13 +6,15 @@
 
 package com.github.itwin.mobilesdk
 
-import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
+import android.os.Build
+import android.view.View
 import android.webkit.*
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.MutableLiveData
@@ -33,8 +35,10 @@ enum class ReachabilityStatus {
     ReachableViaWWAN,
 }
 
-@Suppress("MemberVisibilityCanBePrivate")
-abstract class ITMApplication(val appContext: Context, private val attachConsoleLogger: Boolean = false, private val forceExtractBackendAssets: Boolean = false) {
+abstract class ITMApplication(
+    @Suppress("MemberVisibilityCanBePrivate") val appContext: Context,
+    private val attachConsoleLogger: Boolean = false,
+    private val forceExtractBackendAssets: Boolean = false) {
     enum class PreferredColorScheme(val value: Long) {
         Automatic(0),
         Light(1),
@@ -56,15 +60,21 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
     private val _isBackendInitialized = AtomicBoolean(false)
     val isBackendInitialized: Boolean get() = _isBackendInitialized.get()
 
+    @Suppress("MemberVisibilityCanBePrivate")
     var preferredColorScheme = PreferredColorScheme.Automatic
     var webView: MobileFrontend? = null
     var mobileUi: ITMNativeUI? = null
     val isLoaded = MutableLiveData(false)
+    @Suppress("MemberVisibilityCanBePrivate")
     var frontendBaseUrl = ""
+    @Suppress("MemberVisibilityCanBePrivate")
     var messenger: ITMMessenger? = null
+    @Suppress("MemberVisibilityCanBePrivate")
     var coMessenger: ITMCoMessenger? = null
     var logger = ITMLogger()
+    @Suppress("MemberVisibilityCanBePrivate")
     var geolocationManager: ITMGeolocationManager? = null
+    @Suppress("MemberVisibilityCanBePrivate")
     var configData: JsonObject? = null
     private var consoleLogger: ITMConsoleLogger? = null
     private var reachabilityStatus = ReachabilityStatus.NotReachable
@@ -97,7 +107,6 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
         if (_isBackendInitialized.getAndSet(true))
             return
 
-        @Suppress("SpellCheckingInspection")
         try {
             host = IModelJsHost(appContext, forceExtractBackendAssets, getAuthorizationClient()).apply {
                 setBackendPath(getBackendPath())
@@ -183,7 +192,6 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
             } catch (e: Exception) {
                 coMessenger?.frontendLaunchFailed(e)
                 reset()
-                @Suppress("SpellCheckingInspection")
                 logger.log(ITMLogger.Severity.Error, "Error loading imodeljs frontend: $e")
             }
         }
@@ -237,6 +245,10 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
             }
         }
         webView.settings.setSupportZoom(false)
+        webView.setOnApplyWindowInsetsListener { v, insets ->
+            updateSafeAreas(v)
+            v.onApplyWindowInsets(insets)
+        }
         webView.webViewClient = object : WebViewClient() {
             fun shouldIgnoreUrl(url: String): Boolean {
                 return url.startsWith("file:///android_asset/frontend")
@@ -283,6 +295,37 @@ abstract class ITMApplication(val appContext: Context, private val attachConsole
             }
         }
         geolocationManager = ITMGeolocationManager(appContext, webView)
+    }
+
+    private fun updateSafeAreas(view: View) {
+        val message = JsonObject()
+        message["left"] = 0
+        message["right"] = 0
+        message["top"] = 0
+        message["bottom"] = 0
+        (view.context as? Activity)?.let { activity ->
+            activity.window?.let { window ->
+                window.decorView.rootWindowInsets?.let { insets ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        insets.displayCutout?.let { displayCutoutInsets ->
+                            val density = activity.resources.displayMetrics.density
+                            // We want both sides to have the same safe area.
+                            val sides = Integer.max(
+                                displayCutoutInsets.safeInsetLeft,
+                                displayCutoutInsets.safeInsetRight
+                            ) / density
+                            val top = displayCutoutInsets.safeInsetTop / density
+                            val bottom = displayCutoutInsets.safeInsetBottom / density
+                            message["left"] = sides
+                            message["right"] = sides
+                            message["top"] = top
+                            message["bottom"] = bottom
+                        }
+                    }
+                }
+                messenger?.send("Bentley_ITM_muiUpdateSafeAreas", message)
+            }
+        }
     }
 
     open fun onPageFinished(view: WebView, url: String) {

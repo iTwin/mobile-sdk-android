@@ -73,12 +73,12 @@ class ITMDatePicker(context: Context, webView: WebView, coMessenger: ITMCoMessen
     }
 }
 
-@Suppress("SpellCheckingInspection")
 fun String.iso8601ToDate(): Date? {
     try {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Date(Instant.parse(this).toEpochMilli())
         } else {
+            @Suppress("SpellCheckingInspection")
             val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault())
             if (this.endsWith('Z')) {
                 format.timeZone = TimeZone.getTimeZone("UTC")
@@ -89,6 +89,7 @@ fun String.iso8601ToDate(): Date? {
         // Ignore
     }
     return try {
+        @Suppress("SpellCheckingInspection")
         val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
         if (this.endsWith('Z')) {
             format.timeZone = TimeZone.getTimeZone("UTC")

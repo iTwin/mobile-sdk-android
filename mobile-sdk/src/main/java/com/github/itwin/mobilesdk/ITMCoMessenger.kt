@@ -14,11 +14,11 @@ import kotlin.coroutines.suspendCoroutine
 /**
  * A wrapper around ITMMessenger that uses Kotlin Coroutines.
  */
-@Suppress("unused")
 open class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Convenience wrapper around [[ITMMessenger.send]]
      */
+    @Suppress("unused")
     open fun send(type: String, data: JsonValue? = null) {
         messenger.send(type, data)
     }
@@ -28,6 +28,7 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
      * @param type message type.
      * @param data optional request data to send.
      */
+    @Suppress("unused")
     open suspend fun query(type: String, data: JsonValue? = null): JsonValue? {
         return suspendCoroutine { block ->
             try {
@@ -45,6 +46,7 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Convenience wrapper around [[ITMMessenger.addMessageListener]]
      */
+    @Suppress("unused")
     open fun addMessageListener(type: String, callback: ITMSuccessCallback): ITMMessenger.ITMListener {
         return messenger.addMessageListener(type, callback)
     }
@@ -78,6 +80,7 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Wrapper around [[ITMMessenger.frontendLaunchSucceeded]]
      */
+    @Suppress("unused")
     open fun frontendLaunchSucceeded() {
         messenger.frontendLaunchSucceeded()
     }
