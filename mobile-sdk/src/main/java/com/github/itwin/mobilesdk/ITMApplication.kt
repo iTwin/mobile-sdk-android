@@ -28,6 +28,7 @@ import com.github.itwin.mobilesdk.jsonvalue.getOptionalLong
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import kotlinx.coroutines.*
 import java.io.InputStreamReader
+import java.lang.Float.max
 import java.util.concurrent.atomic.AtomicBoolean
 
 enum class ReachabilityStatus {
@@ -306,34 +307,32 @@ abstract class ITMApplication(
     }
 
     private fun updateSafeAreas(view: View) {
-        ((view.parent as? ViewGroup)?.context as? Activity)?.let { activity ->
-            activity.window?.let { window ->
-                val message = JsonObject()
-                message["left"] = 0
-                message["right"] = 0
-                message["top"] = 0
-                message["bottom"] = 0
-                window.decorView.rootWindowInsets?.let { insets ->
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        insets.displayCutout?.let { displayCutoutInsets ->
-                            val density = activity.resources.displayMetrics.density
-                            // We want both sides to have the same safe area.
-                            val sides = Integer.max(
-                                displayCutoutInsets.safeInsetLeft,
-                                displayCutoutInsets.safeInsetRight
-                            ) / density
-                            val top = displayCutoutInsets.safeInsetTop / density
-                            val bottom = displayCutoutInsets.safeInsetBottom / density
-                            message["left"] = sides
-                            message["right"] = sides
-                            message["top"] = top
-                            message["bottom"] = bottom
-                        }
-                    }
-                }
-                messenger?.send("Bentley_ITM_muiUpdateSafeAreas", message)
+        val activity = ((view.parent as? ViewGroup)?.context as? Activity) ?: return
+        val window = activity.window ?: return
+        val message = JsonObject()
+        message["left"] = 0
+        message["right"] = 0
+        message["top"] = 0
+        message["bottom"] = 0
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.decorView.rootWindowInsets?.displayCutout?.let { displayCutoutInsets ->
+                val density = activity.resources.displayMetrics.density
+                val top = displayCutoutInsets.safeInsetTop / density
+                val bottom = displayCutoutInsets.safeInsetBottom / density
+                val left = displayCutoutInsets.safeInsetLeft / density
+                val right = displayCutoutInsets.safeInsetRight / density
+                // Make both sides have the same safe area.
+                val sides = max(left, right)
+                message["left"] = sides
+                message["right"] = sides
+                // Include the actual left/right insets so developers can use them if desired.
+                message["minLeft"] = left
+                message["minRight"] = right
+                message["top"] = top
+                message["bottom"] = bottom
             }
         }
+        messenger?.send("Bentley_ITM_muiUpdateSafeAreas", message)
     }
 
     open fun onPageFinished(view: WebView, url: String) {
