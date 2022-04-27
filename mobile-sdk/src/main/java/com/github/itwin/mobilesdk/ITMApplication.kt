@@ -97,6 +97,15 @@ abstract class ITMApplication(
         try {
             val itmAppConfigStream = manager.open("ITMApplication/ITMAppConfig.json")
             configData = Json.parse(InputStreamReader(itmAppConfigStream, "UTF-8")) as JsonObject
+            configData?.let { configData ->
+                if (configData.getOptionalString("ITMAPPLICATION_MESSAGE_LOGGING") == "YES") {
+                    ITMMessenger.isLoggingEnabled = true
+                }
+                if (configData.getOptionalString("ITMAPPLICATION_FULL_MESSAGE_LOGGING") == "YES") {
+                    ITMMessenger.isLoggingEnabled = true
+                    ITMMessenger.isFullLoggingEnabled = true
+                }
+            }
         } catch (ex: Exception) {
             // Ignore
         }

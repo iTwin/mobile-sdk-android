@@ -43,6 +43,10 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
 
     companion object {
         /**
+         * Whether or not logging of all messages is enabled.
+         */
+        var isLoggingEnabled = false
+        /**
          * Whether or not full logging of all messages (with their optional bodies) is enabled.
          * WARNING - You should only enable this in debug builds, since message bodies may contain private information.
          */
@@ -173,6 +177,7 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
      */
     @Suppress("MemberVisibilityCanBePrivate")
     fun logQuery(title: String, queryTag: String, type: String?, prettyDataString: String?) {
+        if (!isLoggingEnabled) return
         val typeString = type ?: "(Match ID from Request above)"
         if (isFullLoggingEnabled) {
             logInfo("ITMMessenger [$title] $queryTag: $typeString\n${prettyDataString ?: "null"}")
