@@ -33,6 +33,11 @@ fun JsonValue.getOptionalObject(propertyName: String, defaultValue: JsonObject? 
     return if (this[propertyName]?.isObject == true) this[propertyName]!!.asObject() else defaultValue
 }
 
+fun JsonValue.isYes(propertyName: String): Boolean {
+    val value = getOptionalString(propertyName) ?: return false
+    return value.lowercase() == "yes"
+}
+
 fun JsonValue.asOptionalObject(defaultValue: JsonObject? = null): JsonObject? {
     return if (this.isObject) this.asObject() else defaultValue
 }

@@ -26,6 +26,7 @@ import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonObject
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalLong
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
+import com.github.itwin.mobilesdk.jsonvalue.isYes
 import kotlinx.coroutines.*
 import java.io.InputStreamReader
 import java.lang.Float.max
@@ -89,26 +90,27 @@ abstract class ITMApplication(
      * Finish initialization, calling functions that can't go into the constructor because they are open.
      */
     fun finishInit() {
-        loadITMAppConfig()
+        configData = loadITMAppConfig()
+        configData?.let { configData ->
+            if (configData.isYes("ITMAPPLICATION_MESSAGE_LOGGING")) {
+                ITMMessenger.isLoggingEnabled = true
+            }
+            if (configData.isYes("ITMAPPLICATION_FULL_MESSAGE_LOGGING")) {
+                ITMMessenger.isLoggingEnabled = true
+                ITMMessenger.isFullLoggingEnabled = true
+            }
+        }
     }
 
-    open fun loadITMAppConfig() {
+    open fun loadITMAppConfig(): JsonObject? {
         val manager = appContext.assets
         try {
             val itmAppConfigStream = manager.open("ITMApplication/ITMAppConfig.json")
-            configData = Json.parse(InputStreamReader(itmAppConfigStream, "UTF-8")) as JsonObject
-            configData?.let { configData ->
-                if (configData.getOptionalString("ITMAPPLICATION_MESSAGE_LOGGING") == "YES") {
-                    ITMMessenger.isLoggingEnabled = true
-                }
-                if (configData.getOptionalString("ITMAPPLICATION_FULL_MESSAGE_LOGGING") == "YES") {
-                    ITMMessenger.isLoggingEnabled = true
-                    ITMMessenger.isFullLoggingEnabled = true
-                }
-            }
+            return Json.parse(InputStreamReader(itmAppConfigStream, "UTF-8")) as JsonObject
         } catch (ex: Exception) {
             // Ignore
         }
+        return null
     }
 
     /**
