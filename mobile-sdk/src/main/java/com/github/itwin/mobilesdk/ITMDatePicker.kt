@@ -18,7 +18,7 @@ import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class ITMDatePicker(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMComponent(context, webView, coMessenger)  {
+class ITMDatePicker(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMNativeUIComponent(context, webView, coMessenger)  {
     init {
         listener = coMessenger.addQueryListener("Bentley_ITM_presentDatePicker") { value -> handleQuery(value) }
     }

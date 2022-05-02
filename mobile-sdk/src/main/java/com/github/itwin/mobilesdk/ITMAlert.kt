@@ -15,7 +15,7 @@ import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class ITMAlert(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMComponent(context, webView, coMessenger)  {
+class ITMAlert(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMNativeUIComponent(context, webView, coMessenger)  {
     companion object {
         fun readActions(actionsValue: JsonArray, actions: MutableList<Action>): Action? {
             var cancelAction: Action? = null

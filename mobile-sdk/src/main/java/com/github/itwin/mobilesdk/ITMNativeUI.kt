@@ -12,7 +12,7 @@ open class ITMNativeUI(
     @Suppress("CanBeParameter") protected val context: Context,
     protected val webView: WebView,
     @Suppress("CanBeParameter") protected val coMessenger: ITMCoMessenger) {
-    @Suppress("MemberVisibilityCanBePrivate") val components: MutableList<ITMComponent> = mutableListOf()
+    @Suppress("MemberVisibilityCanBePrivate") val components: MutableList<ITMNativeUIComponent> = mutableListOf()
 
     init {
         components.add(ITMActionSheet(context, webView, coMessenger))

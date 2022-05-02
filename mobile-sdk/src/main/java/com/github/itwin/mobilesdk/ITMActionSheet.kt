@@ -20,7 +20,7 @@ import kotlin.coroutines.suspendCoroutine
 import kotlin.math.roundToInt
 
 /**
- * [ITMComponent] that presents a [PopupMenu].
+ * [ITMNativeUIComponent] that presents a [PopupMenu].
  *
  * This class is used by the `ActionSheet` TypeScript class in `@itwin/mobile-core`.
  *
@@ -28,7 +28,7 @@ import kotlin.math.roundToInt
  * @param webView The [WebView] that requested the action sheet.
  * @param coMessenger The [ITMCoMessenger] used for communication with [webView].
  */
-class ITMActionSheet(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMComponent(context, webView, coMessenger) {
+class ITMActionSheet(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMNativeUIComponent(context, webView, coMessenger) {
     private var viewGroup: ViewGroup? = null
     private var anchor: View? = null
     private var popupMenu: PopupMenu? = null

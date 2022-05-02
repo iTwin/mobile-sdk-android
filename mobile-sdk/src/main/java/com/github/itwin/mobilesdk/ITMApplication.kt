@@ -76,14 +76,14 @@ fun HashParams.toUrlString(): String {
  * __Note:__ Most applications will override this class in order to customize the behavior and register for messages.
  *
  * @property appContext The Android Application object's `Context`.
- * @property attachConsoleLogger Whether or not to attach an [ITMConsoleLogger] to the application's
+ * @property attachWebViewLogger Whether or not to attach an [ITMWebViewLogger] to the application's
  * webView, default is `false`.
  * @property forceExtractBackendAssets Whether or not to always extract backend assets from during
  * application launch, default is `false`. Only set this to `true` for debug builds.
  */
 abstract class ITMApplication(
     @Suppress("MemberVisibilityCanBePrivate") val appContext: Context,
-    private val attachConsoleLogger: Boolean = false,
+    private val attachWebViewLogger: Boolean = false,
     private val forceExtractBackendAssets: Boolean = false) {
 
     /**
@@ -188,7 +188,7 @@ abstract class ITMApplication(
      */
     @Suppress("MemberVisibilityCanBePrivate")
     var configData: JsonObject? = null
-    private var consoleLogger: ITMConsoleLogger? = null
+    private var webViewLogger: ITMWebViewLogger? = null
     private var reachabilityStatus = ReachabilityStatus.NotReachable
 
     /**
@@ -387,8 +387,8 @@ abstract class ITMApplication(
     protected open fun setupWebView() {
         val webView = this.webView ?: return
         messenger = ITMMessenger(this)
-        if (attachConsoleLogger) {
-            consoleLogger = ITMConsoleLogger(webView, ::onConsoleLog)
+        if (attachWebViewLogger) {
+            webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
         }
         coMessenger = ITMCoMessenger(messenger!!)
         messenger?.addMessageListener("Bentley_ITM_updatePreferredColorScheme") { value ->
@@ -499,7 +499,7 @@ abstract class ITMApplication(
      * Make sure to call super if you override this function.
      */
     open fun onPageFinished(view: WebView, url: String) {
-        consoleLogger?.inject()
+        webViewLogger?.inject()
     }
 
     /**
@@ -548,9 +548,9 @@ abstract class ITMApplication(
     }
 
     /**
-     * Callback function for the [ITMConsoleLogger] attached to [webView] (if any).
+     * Callback function for the [ITMWebViewLogger] attached to [webView] (if any).
      */
-    open fun onConsoleLog(type: ITMConsoleLogger.LogType, message: String) {
+    open fun onWebViewLog(type: ITMWebViewLogger.LogType, message: String) {
         logger.log(ITMLogger.Severity.fromString(type.name), message)
     }
 

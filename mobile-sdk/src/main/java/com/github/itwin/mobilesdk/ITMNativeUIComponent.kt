@@ -8,7 +8,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.webkit.WebView
 
-open class ITMComponent(
+open class ITMNativeUIComponent(
     protected val context: Context,
     protected val webView: WebView,
     @Suppress("MemberVisibilityCanBePrivate") protected val coMessenger: ITMCoMessenger) {
