@@ -8,6 +8,12 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import java.util.*
 
+/**
+ * Logger that, when attached to a [WebView], redirects console messages from JavaScript to the given [callback].
+ *
+ * @property webView The [WebView] from which console output should be redirected.
+ * @property callback The callback function that is called when console output is received.
+ */
 open class ITMConsoleLogger(protected val webView: WebView, protected val callback: (type: LogType, message: String) -> Unit) {
     enum class LogType {
         Assert,

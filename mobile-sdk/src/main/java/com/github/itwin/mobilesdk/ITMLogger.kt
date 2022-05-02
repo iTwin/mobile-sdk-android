@@ -34,6 +34,10 @@ open class ITMLogger {
         val description get() = name.uppercase(Locale.ROOT)
     }
 
+    /**
+     * Logs the given message using a function from the [Log] class that is appropriate to the given
+     * [severity].
+     */
     open fun log(severity: Severity?, message: String) {
         val logger: (String?, String) -> Int = when (severity) {
             Severity.Fatal -> Log::e

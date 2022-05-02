@@ -30,18 +30,65 @@ import com.github.itwin.mobilesdk.jsonvalue.isYes
 import kotlinx.coroutines.*
 import java.io.InputStreamReader
 import java.lang.Float.max
+import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicBoolean
 
-enum class ReachabilityStatus {
+private enum class ReachabilityStatus {
     NotReachable,
     ReachableViaWiFi,
     ReachableViaWWAN,
 }
 
+/**
+ * Holder for hash parameters used in the frontend URL.
+ *
+ * @property name The name of the hash parameter.
+ * @property value The value of the hash parameter.
+ */
+class HashParam(val name: String, val value: String) {
+    /**
+     * @param name The name of the hash parameter.
+     * @param value The value of the hash parameter as a Boolean.
+     */
+    constructor(name: String, value: Boolean): this(name, if (value) "YES" else "NO")
+}
+
+/**
+ * Type alias for an array of HashParam values.
+ */
+typealias HashParams = Array<HashParam>
+
+/**
+ * Convert the array of HashParam values into a string suitable for use in a URL.
+ */
+fun HashParams.toUrlString(): String {
+    if (this.isEmpty()) {
+        return ""
+    }
+    return this.joinToString("&") { hashParam ->
+        "${hashParam.name}=${URLEncoder.encode(hashParam.value, "utf-8")}"
+    }
+}
+
+/**
+ * Main class for interacting with iTwin Mobile SDK-based web app.
+ *
+ * __Note:__ Most applications will override this class in order to customize the behavior and register for messages.
+ *
+ * @property appContext The Android Application object's `Context`.
+ * @property attachConsoleLogger Whether or not to attach an [ITMConsoleLogger] to the application's
+ * webView, default is `false`.
+ * @property forceExtractBackendAssets Whether or not to always extract backend assets from during
+ * application launch, default is `false`. Only set this to `true` for debug builds.
+ */
 abstract class ITMApplication(
     @Suppress("MemberVisibilityCanBePrivate") val appContext: Context,
     private val attachConsoleLogger: Boolean = false,
     private val forceExtractBackendAssets: Boolean = false) {
+
+    /**
+     * The `MobileUi.preferredColorScheme` value set by the TypeScript code.
+     */
     enum class PreferredColorScheme(val value: Long) {
         Automatic(0),
         Light(1),
@@ -49,39 +96,104 @@ abstract class ITMApplication(
 
         companion object {
             private val allValues = values()
+
+            /**
+             * Convert a [Long] into a [PreferredColorScheme].
+             *
+             * @param value The value to convert to a [PreferredColorScheme].
+             * @return The [PreferredColorScheme] corresponding to [value], or null.
+             */
             fun fromLong(value: Long) = allValues.firstOrNull { it.value == value }
         }
+
+        /**
+         * Converts this [PreferredColorScheme] into an Android `NightMode` value.
+         *
+         * @return The `NightMode` value corresponding to this [PreferredColorScheme].
+         */
         fun toNightMode() = when (this) {
             Automatic -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
             Light -> AppCompatDelegate.MODE_NIGHT_NO
             Dark -> AppCompatDelegate.MODE_NIGHT_YES
         }
     }
+
+    /**
+     * The [IModelJsHost] used by this [ITMApplication].
+     */
     protected var host: IModelJsHost? = null
     private var backendInitTask = Job()
     private var frontendInitTask = Job()
     private val _isBackendInitialized = AtomicBoolean(false)
+
+    /**
+     * Indicates whether or not the backend is done initializing.
+     */
     val isBackendInitialized: Boolean get() = _isBackendInitialized.get()
 
+    /**
+     * The `MobileUi.preferredColorScheme` value set by the TypeScript code, default is automatic.
+     */
     @Suppress("MemberVisibilityCanBePrivate")
     var preferredColorScheme = PreferredColorScheme.Automatic
+
+    /**
+     * The [WebView] that the web app runs in.
+     */
     var webView: MobileFrontend? = null
+
+    /**
+     * The [ITMNativeUI] for this app.
+     */
     var mobileUi: ITMNativeUI? = null
+
+    /**
+     * Whether or not the web app is loaded.
+     */
     val isLoaded = MutableLiveData(false)
+
+    /**
+     * The base URl used by the frontend, without any index.html suffix.
+     */
     @Suppress("MemberVisibilityCanBePrivate")
     var frontendBaseUrl = ""
+
+    /**
+     * The [ITMMessenger] for communication between native code and JavaScript code (and vice versa).
+     */
     @Suppress("MemberVisibilityCanBePrivate")
     var messenger: ITMMessenger? = null
+
+    /**
+     * The [ITMCoMessenger] associated with [messenger].
+     */
     @Suppress("MemberVisibilityCanBePrivate")
     var coMessenger: ITMCoMessenger? = null
+
+    /**
+     * The [ITMLogger] responsible for handling log messages (both from native code and JavaScript code). The default logger
+     * uses [Log][android.util.Log] for the messages. Replace this object with an [ITMLogger] subclass to change the logging behavior.
+     */
     var logger = ITMLogger()
+
+    /**
+     * The [ITMGeolocationManager] that handles Geolocation messages from the `navigator.geolocation` Polyfill in
+     * `@itwin/mobile-sdk-core`. This value is initialized in [setupWebView].
+     */
     @Suppress("MemberVisibilityCanBePrivate")
     var geolocationManager: ITMGeolocationManager? = null
+
+    /**
+     * The config data loaded from `ITMAppConfig.json`. This value is initialized in [finishInit].
+     */
     @Suppress("MemberVisibilityCanBePrivate")
     var configData: JsonObject? = null
     private var consoleLogger: ITMConsoleLogger? = null
     private var reachabilityStatus = ReachabilityStatus.NotReachable
 
+    /**
+     * Kotlin Coroutine that waits for frontend initialization to complete, if it has not already complete.
+     */
     suspend fun waitForFrontendInitialize() {
         frontendInitTask.join()
     }
@@ -89,7 +201,7 @@ abstract class ITMApplication(
     /**
      * Finish initialization, calling functions that can't go into the constructor because they are open.
      */
-    fun finishInit() {
+    open fun finishInit() {
         configData = loadITMAppConfig()
         configData?.let { configData ->
             if (configData.isYes("ITMAPPLICATION_MESSAGE_LOGGING")) {
@@ -102,6 +214,27 @@ abstract class ITMApplication(
         }
     }
 
+    /**
+     * Loads the contents of `ITMApplication/ITMAppConfig.json` from the app assets.
+     *
+     * Override this function to load the app config data in another way.
+     *
+     * The following keys in the returned value are used by iTwin Mobile SDK:
+     *
+     *     | Key                                 | Description                                                                                               |
+     *     |-------------------------------------|-----------------------------------------------------------------------------------------------------------|
+     *     | ITMAPPLICATION_CLIENT_ID            | ITMAuthorizationClient required value containing the app's client ID.                                     |
+     *     | ITMAPPLICATION_SCOPE                | ITMAuthorizationClient required value containing the app's scope.                                         |
+     *     | ITMAPPLICATION_ISSUER_UR            | ITMAuthorizationClient optional value containing the app's issuer URL.                                    |
+     *     | ITMAPPLICATION_REDIRECT_URI         | ITMAuthorizationClient optional value containing the app's redirect URL.                                  |
+     *     | ITMAPPLICATION_MESSAGE_LOGGING      | Set to YES to have ITMMessenger log message traffic between JavaScript and Swift.                         |
+     *     | ITMAPPLICATION_FULL_MESSAGE_LOGGING | Set to YES to include full message data in the ITMMessenger message logs. (__Do not use in production.__) |
+     *
+     * Note: Other keys may be present but are ignored by iTwin Mobile SDK. For example, the iTwin Mobile SDK sample apps include keys with an `ITMSAMPLE_` prefix.
+     *
+     * @return The parsed contents of `ITMApplication/ITMAppConfig.json`, or null if the file does not
+     * exist, or there is an error parsing the file.
+     */
     open fun loadITMAppConfig(): JsonObject? {
         val manager = appContext.assets
         try {
@@ -114,7 +247,7 @@ abstract class ITMApplication(
     }
 
     /**
-     * Initialize the iModelJs backend if not initialized yet. This can be called from the launch activity.
+     * Initialize the iModelJs backend if it is not initialized yet. This can be called from the launch activity.
      */
     open fun initializeBackend() {
         if (_isBackendInitialized.getAndSet(true))
@@ -136,7 +269,8 @@ abstract class ITMApplication(
     }
 
     /**
-     * Initialize the iModelJs frontend if not initialized yet.
+     * Initialize the iModelJs frontend if it is not initialized yet.
+     *
      * This requires the Looper to be running, so cannot be called from the launch activity. If you have not already
      * called [initializeBackend], this will call it.
      */
@@ -148,7 +282,7 @@ abstract class ITMApplication(
 
             try {
                 backendInitTask.join()
-                val args = getUrlHashParams()
+                val args = getUrlHashParams().toUrlString()
                 val baseUrl = getBaseUrl()
                 val mobileFrontend = object : MobileFrontend(host, args) {
                     override fun supplyEntryPoint(): String {
@@ -210,6 +344,11 @@ abstract class ITMApplication(
         }
     }
 
+    /**
+     * Clean up any existing frontend and initialize the frontend again.
+     *
+     * __Note:__ Call this if the [WebView] runs out of memory, killing the web app.
+     */
     open fun reinitializeFrontend() {
         webView = null
         messenger = null
@@ -242,6 +381,9 @@ abstract class ITMApplication(
         coMessenger = null
     }
 
+    /**
+     * Set up [webView] for usage with iTwin Mobile SDK.
+     */
     protected open fun setupWebView() {
         val webView = this.webView ?: return
         messenger = ITMMessenger(this)
@@ -306,6 +448,11 @@ abstract class ITMApplication(
         geolocationManager = ITMGeolocationManager(appContext, webView)
     }
 
+    /**
+     * Attach [webView] to the given [ViewGroup].
+     *
+     * @param container: The [ViewGroup] into which to place [webView].
+     */
     open fun attachWebView(container: ViewGroup) {
         webView?.let { webView ->
             (webView.parent as? ViewGroup)?.removeView(webView)
@@ -346,46 +493,110 @@ abstract class ITMApplication(
         messenger?.send("Bentley_ITM_muiUpdateSafeAreas", message)
     }
 
+    /**
+     * Called when the [webView]'s [WebViewClient] calls [WebViewClient.onPageFinished].
+     *
+     * Make sure to call super if you override this function.
+     */
     open fun onPageFinished(view: WebView, url: String) {
         consoleLogger?.inject()
     }
 
+    /**
+     * Called when the [webView]'s [WebViewClient] calls [WebViewClient.onPageStarted].
+     *
+     * Make sure to call super if you override this function.
+     */
     open fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
         updateAvailability()
     }
 
+    /**
+     * Called when the [webView]'s [WebViewClient] calls [WebViewClient.shouldInterceptRequest].
+     *
+     * This default implementation simply returns null.
+     */
     open fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
         return null
     }
 
+    /**
+     * Called when the [webView]'s [WebViewClient] calls [WebViewClient.shouldOverrideUrlLoading].
+     *
+     * This default implementation simply returns false.
+     */
     open fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         return false
     }
 
+    /**
+     * Called when the [webView]'s [WebViewClient] calls [WebViewClient.onRenderProcessGone].
+     *
+     * This default implementation simply returns false.
+     */
     open fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
         return false
     }
 
+    /**
+     * Called when the [webView]'s [WebViewClient] calls [WebViewClient.onReceivedError].
+     *
+     * This default implementation simply returns false.
+     */
     open fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError): Boolean {
         return false
     }
 
-    open fun onConsoleLog(type: ITMConsoleLogger.LogType, message: String) {}
+    /**
+     * Callback function for the [ITMConsoleLogger] attached to [webView] (if any).
+     */
+    open fun onConsoleLog(type: ITMConsoleLogger.LogType, message: String) {
+        logger.log(ITMLogger.Severity.fromString(type.name), message)
+    }
 
+    /**
+     * Override to open the given [Uri].
+     *
+     * @param uri The [Uri] to open
+     */
     abstract fun openUri(uri: Uri)
 
+    /**
+     * Get the relative path used as the home path for the backend.
+     *
+     * @return The relative path to where the backend home should go. The default implementation returns
+     * `"ITMApplication/home"`.
+     */
     open fun getBackendHomePath(): String {
         return "ITMApplication/home"
     }
 
+    /**
+     * Get the relative path used where the backend is stored in the app assets.
+     *
+     * @return The relative path to where the backend home should go. The default implementation returns
+     * `"ITMApplication/backend"`.
+     */
     open fun getBackendPath(): String {
         return "ITMApplication/backend"
     }
 
+    /**
+     * Get name of the entry point JavaScript file for the backend.
+     *
+     * @return The relative path to where the backend home should go. The default implementation returns
+     * `"main.js"`.
+     */
     open fun getBackendEntryPointScript(): String {
         return "main.js"
     }
 
+    /**
+     * Get the base URL for the frontend.
+     *
+     * @return The URL to use for the frontend. The default uses the `ITMAPPLICATION_BASE_URL` value from [configData],
+     * if present, or `"file:///android_asset/ITMApplication/frontend/index.html"` otherwise.
+     */
     open fun getBaseUrl(): String {
         configData?.getOptionalString("ITMAPPLICATION_BASE_URL")?.let { baseUrl ->
             return baseUrl
@@ -393,10 +604,22 @@ abstract class ITMApplication(
         return "file:///android_asset/ITMApplication/frontend/index.html"
     }
 
-    open suspend fun getUrlHashParams(): String {
-        return ""
+    /**
+     * Override to add custom hash parameters to the URL used to open the frontend.
+     */
+    open suspend fun getUrlHashParams(): HashParams {
+        return emptyArray()
     }
 
+    /**
+     * Gets the `AuthorizationClient` to be used for this iTwin Mobile web app.
+     *
+     * Override this function in a subclass in order to add custom behavior.
+     *
+     * If your application handles authorization on its own, create a subclass of [AuthorizationClient].
+     *
+     * @return And instance of [AuthorizationClient].
+     */
     open fun getAuthorizationClient(): AuthorizationClient? {
         return null
     }
