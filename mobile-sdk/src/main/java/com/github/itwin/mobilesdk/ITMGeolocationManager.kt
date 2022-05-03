@@ -164,7 +164,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
 
     //region Lifecycle & events
     init {
-        webView.addJavascriptInterface(GeolocationJsInterface(), "androidAppGeolocationInterface")
+        webView.addJavascriptInterface(GeolocationJsInterface(), "Bentley_ITMGeolocationInterface")
     }
 
     /**
