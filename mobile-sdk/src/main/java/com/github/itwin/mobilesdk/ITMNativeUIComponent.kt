@@ -8,16 +8,32 @@ import android.content.Context
 import android.content.res.Configuration
 import android.webkit.WebView
 
-open class ITMNativeUIComponent(
-    protected val context: Context,
-    protected val webView: WebView,
-    @Suppress("MemberVisibilityCanBePrivate") protected val coMessenger: ITMCoMessenger) {
+/**
+ * Parent class for native UI components.
+ *
+ * __Note__: The [nativeUI] passed into the constructor can come from the [ITMNativeUI] constructor itself.
+ * When this happens, it is illegal to down-cast to an [ITMNativeUI] subclass that you might implement.
+ *
+ * @param nativeUI The [ITMNativeUI] in which the component will display.
+ */
+open class ITMNativeUIComponent(@Suppress("MemberVisibilityCanBePrivate") protected val nativeUI: ITMNativeUI) {
+    protected val context: Context = nativeUI.context
+    protected val webView: WebView = nativeUI.webView
+    protected val coMessenger: ITMCoMessenger = nativeUI.coMessenger
     var listener: ITMMessenger.ITMListener? = null
 
-    fun detach() {
+    /**
+     * Detach this UI component from the native UI (stop listening for messages).
+     */
+    open fun detach() {
         coMessenger.removeListener(listener)
         listener = null
     }
 
+    /**
+     * Called by [nativeUI] when the device configuration changes in the application.
+     *
+     * @param newConfig The new device configuration.
+     */
     open fun onConfigurationChanged(newConfig: Configuration) {}
 }

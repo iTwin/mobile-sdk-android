@@ -5,9 +5,7 @@
 package com.github.itwin.mobilesdk
 
 import android.app.DatePickerDialog
-import android.content.Context
 import android.os.Build
-import android.webkit.WebView
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
@@ -18,7 +16,12 @@ import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class ITMDatePicker(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMNativeUIComponent(context, webView, coMessenger)  {
+/**
+ * [ITMNativeUIComponent] that presents a [DatePickerDialog].
+ *
+ * @param nativeUI The [ITMNativeUI] in which the [DatePickerDialog] will display.
+ */
+class ITMDatePicker(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
     init {
         listener = coMessenger.addQueryListener("Bentley_ITM_presentDatePicker") { value -> handleQuery(value) }
     }
@@ -73,6 +76,11 @@ class ITMDatePicker(context: Context, webView: WebView, coMessenger: ITMCoMessen
     }
 }
 
+/**
+ * Convenience function to convert string containing an ISO 8601 date into a [Date] object.
+ *
+ * @return The parsed [Date], or null if the receiver string could not be parsed into a valid [Date].
+ */
 fun String.iso8601ToDate(): Date? {
     try {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

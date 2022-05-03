@@ -7,8 +7,16 @@ package com.github.itwin.mobilesdk
 import android.util.Log
 import java.util.*
 
+/**
+ * Class used by iTwin Mobile SDK to log information during runtime. Replace the [logger][ITMApplication.logger]
+ * property on [ITMApplication] with a subclass of this class for custom logging. This default logger uses
+ * [Log] functions for logging.
+ */
 @Suppress("unused")
 open class ITMLogger {
+    /**
+     * The severity of a log message.
+     */
     enum class Severity {
         Fatal,
         Error,
@@ -18,6 +26,10 @@ open class ITMLogger {
         Trace;
 
         companion object {
+            /**
+             * Convert a string into a [Severity]. This has special cases to handle severities from
+             * [ITMWebViewLogger.LogType].
+             */
             fun fromString(value: String): Severity? {
                 var lowercaseValue = value.lowercase(Locale.ROOT)
                 lowercaseValue = when (lowercaseValue) {
@@ -31,12 +43,15 @@ open class ITMLogger {
             }
         }
 
+        /**
+         * Get the severity name in all upper case.
+         */
         val description get() = name.uppercase(Locale.ROOT)
     }
 
     /**
      * Logs the given message using a function from the [Log] class that is appropriate to the given
-     * [severity].
+     * [severity], with a tag of `"ITMLogger"`.
      */
     open fun log(severity: Severity?, message: String) {
         val logger: (String?, String) -> Int = when (severity) {

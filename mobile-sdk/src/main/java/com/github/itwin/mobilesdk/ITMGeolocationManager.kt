@@ -32,10 +32,14 @@ import kotlinx.coroutines.tasks.await
 import java.util.*
 import kotlin.concurrent.schedule
 
-// ITMGeolocationManager must be bound to ITMGeolocationFragment based fragment for showing permission and service dialogs and handling responses
-// Bind using ITMGeolocationFragment's setGeolocationManager
+/**
+ * Class for the native-side implementation of a `navigator.geolocation` polyfill.
+ *
+ * __Note:__ [ITMGeolocationManager] must be bound to an [ITMGeolocationFragment]-based fragment for showing permission
+ * and service dialogs and handling responses. Bind using [ITMGeolocationFragment.setGeolocationManager].
+ */
 class ITMGeolocationManager(private val appContext: Context, private val webView: WebView) {
-    inner class GeolocationJsInterface {
+    private inner class GeolocationJsInterface {
         @JavascriptInterface
         fun getCurrentPosition(positionId: Int) {
             scope.launch {
@@ -71,15 +75,15 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
         }
     }
 
-    data class GeolocationCoordinates(val latitude: Double, val longitude: Double, val accuracy: Double?, val heading: Double?)
-    data class GeolocationPosition(val coords: GeolocationCoordinates)
-    data class GeolocationRequestData(val positionId: String, val position: GeolocationPosition) {
+    private data class GeolocationCoordinates(val latitude: Double, val longitude: Double, val accuracy: Double?, val heading: Double?)
+    private data class GeolocationPosition(val coords: GeolocationCoordinates)
+    private data class GeolocationRequestData(val positionId: String, val position: GeolocationPosition) {
         fun toJsonString(): String {
             return Gson().toJson(this)
         }
     }
 
-    class GeolocationError(private val code: Code, message: String?) : Throwable(message) {
+    private class GeolocationError(private val code: Code, message: String?) : Throwable(message) {
         enum class Code(val value: Int) {
             PERMISSION_DENIED(1),
             POSITION_UNAVAILABLE(2),
@@ -163,21 +167,33 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
         webView.addJavascriptInterface(GeolocationJsInterface(), "androidAppGeolocationInterface")
     }
 
+    /**
+     * Called by [ITMGeolocationFragment] when the user grants location permission.
+     */
     fun onLocationPermissionGranted() {
         requestPermissionsTask?.complete(true)
         requestPermissionsTask = null
     }
 
+    /**
+     * Called by [ITMGeolocationFragment] when the user denies location permission.
+     */
     fun onLocationPermissionDenied() {
         requestPermissionsTask?.complete(false)
         requestPermissionsTask = null
     }
 
+    /**
+     * Called by [ITMGeolocationFragment] when the app enables location service.
+     */
     fun onLocationServiceEnabled() {
         requestLocationServiceTask?.complete(true)
         requestLocationServiceTask = null
     }
 
+    /**
+     * Called by [ITMGeolocationFragment] when the app denies location service.
+     */
     fun onLocationServiceEnableRequestDenied() {
         requestLocationServiceTask?.complete(false)
         requestLocationServiceTask = null
@@ -186,10 +202,16 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
     //endregion
 
     //region public functions
+    /**
+     * Set the [ITMGeolocationFragment] used by this manager.
+     */
     fun setGeolocationFragment(fragment: ITMGeolocationFragment?) {
         this.fragment = fragment
     }
 
+    /**
+     * Cancel all outstanding tasks, including any active watches.
+     */
     @Suppress("unused")
     fun cancelTasks() {
         scope.cancel()
@@ -200,11 +222,17 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
         }
     }
 
+    /**
+     * Stop all watches. Uses [resumeLocationUpdates] to resume.
+     */
     fun stopLocationUpdates() {
         fusedLocationClient.removeLocationUpdates(watchCallback)
         stopSensors()
     }
 
+    /**
+     * Resume watches stopped by [stopLocationUpdates].
+     */
     fun resumeLocationUpdates() {
         if (watchIds.isNotEmpty())
             requestLocationUpdates()

@@ -5,8 +5,6 @@
 package com.github.itwin.mobilesdk
 
 import android.app.AlertDialog
-import android.content.Context
-import android.webkit.WebView
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonArray
 import com.eclipsesource.json.JsonValue
@@ -15,7 +13,14 @@ import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class ITMAlert(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMNativeUIComponent(context, webView, coMessenger)  {
+/**
+ * [ITMNativeUIComponent] that presents an [AlertDialog].
+ *
+ * This class is used by the `presentAlert` TypeScript function in `@itwin/mobile-core`.
+ *
+ * @param nativeUI The [ITMNativeUI] in which the [AlertDialog] will display.
+ */
+class ITMAlert(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
     companion object {
         fun readActions(actionsValue: JsonArray, actions: MutableList<Action>): Action? {
             var cancelAction: Action? = null

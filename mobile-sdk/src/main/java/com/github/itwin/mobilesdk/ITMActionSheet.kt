@@ -4,12 +4,10 @@
 *--------------------------------------------------------------------------------------------*/
 package com.github.itwin.mobilesdk
 
-import android.content.Context
 import android.content.res.Configuration
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.WebView
 import android.widget.PopupMenu
 import android.widget.RelativeLayout
 import com.eclipsesource.json.Json
@@ -24,11 +22,9 @@ import kotlin.math.roundToInt
  *
  * This class is used by the `ActionSheet` TypeScript class in `@itwin/mobile-core`.
  *
- * @param context The [Context] in which to show the [PopupMenu].
- * @param webView The [WebView] that requested the action sheet.
- * @param coMessenger The [ITMCoMessenger] used for communication with [webView].
+     * @param nativeUI The [ITMNativeUI] in which the [PopupMenu] will display.
  */
-class ITMActionSheet(context: Context, webView: WebView, coMessenger: ITMCoMessenger): ITMNativeUIComponent(context, webView, coMessenger) {
+class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
     private var viewGroup: ViewGroup? = null
     private var anchor: View? = null
     private var popupMenu: PopupMenu? = null

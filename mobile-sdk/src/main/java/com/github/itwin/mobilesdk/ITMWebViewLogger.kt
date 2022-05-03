@@ -9,12 +9,14 @@ import android.webkit.WebView
 import java.util.*
 
 /**
- * Logger that, when attached to a [WebView], redirects console messages from JavaScript to the given [callback].
+ * Logger that, when attached to a [WebView], redirects console messages from that web view to the given [callback].
  *
- * @property webView The [WebView] from which console output should be redirected.
- * @property callback The callback function that is called when console output is received.
+ * @param webView The [WebView] from which console output should be redirected.
+ * @param callback The callback function that is called when console output is received.
  */
-open class ITMWebViewLogger(protected val webView: WebView, protected val callback: (type: LogType, message: String) -> Unit) {
+open class ITMWebViewLogger(
+    @Suppress("MemberVisibilityCanBePrivate") protected val webView: WebView,
+    protected val callback: (type: LogType, message: String) -> Unit) {
     enum class LogType {
         Assert,
         Error,
@@ -76,10 +78,16 @@ open class ITMWebViewLogger(protected val webView: WebView, protected val callba
         }, jsInterfaceName)
     }
 
-    fun inject() {
+    /**
+     * Inject the appropriate JavaScript code into [webView] to handle the console redirection.
+     */
+    open fun inject() {
         webView.evaluateJavascript(injectedJs, null)
     }
 
+    /**
+     * Detach from [webView].
+     */
     @Suppress("unused")
     fun detach() {
         webView.removeJavascriptInterface(jsInterfaceName)

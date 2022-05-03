@@ -71,14 +71,14 @@ fun HashParams.toUrlString(): String {
 }
 
 /**
- * Main class for interacting with iTwin Mobile SDK-based web app.
+ * Main class for interacting with an iTwin Mobile SDK-based web app.
  *
  * __Note:__ Most applications will override this class in order to customize the behavior and register for messages.
  *
- * @property appContext The Android Application object's `Context`.
- * @property attachWebViewLogger Whether or not to attach an [ITMWebViewLogger] to the application's
+ * @param appContext The Android Application object's `Context`.
+ * @param attachWebViewLogger Whether or not to attach an [ITMWebViewLogger] to the application's
  * webView, default is `false`.
- * @property forceExtractBackendAssets Whether or not to always extract backend assets from during
+ * @param forceExtractBackendAssets Whether or not to always extract backend assets from during
  * application launch, default is `false`. Only set this to `true` for debug builds.
  */
 abstract class ITMApplication(
@@ -382,11 +382,19 @@ abstract class ITMApplication(
     }
 
     /**
+     * Function that creates an [ITMMessenger] object for this [ITMApplication]. Override to return a
+     * custom [ITMMessenger] subclass.
+     */
+    open fun createMessenger(): ITMMessenger {
+        return ITMMessenger(this)
+    }
+
+    /**
      * Set up [webView] for usage with iTwin Mobile SDK.
      */
     protected open fun setupWebView() {
         val webView = this.webView ?: return
-        messenger = ITMMessenger(this)
+        messenger = createMessenger()
         if (attachWebViewLogger) {
             webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
         }
