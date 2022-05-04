@@ -164,7 +164,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
 
     //region Lifecycle & events
     init {
-        webView.addJavascriptInterface(GeolocationJsInterface(), "Bentley_ITMGeolocationInterface")
+        webView.addJavascriptInterface(GeolocationJsInterface(), "Bentley_ITMGeolocation")
     }
 
     /**
@@ -401,7 +401,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
     private fun sendPosition(position: GeolocationPosition, positionId: Int?, messageName: String) {
         val locationData = GeolocationRequestData(positionId.toString(), position).toJsonString()
         val encodedLocationData = Base64.encodeToString(locationData.toByteArray(), Base64.NO_WRAP)
-        val js = "window.Bentley_ITMGeolocation('$messageName', '$encodedLocationData')"
+        val js = "window.Bentley_ITMGeolocationResponse('$messageName', '$encodedLocationData')"
         webView.evaluateJavascript(js, null)
     }
 
@@ -411,7 +411,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
                 "error" to error.toJson()
         )
         val errorResponse = Base64.encodeToString(errorJson.toString().toByteArray(), Base64.NO_WRAP)
-        val js = "window.Bentley_ITMGeolocation('$messageName', '$errorResponse')"
+        val js = "window.Bentley_ITMGeolocationResponse('$messageName', '$errorResponse')"
         webView.evaluateJavascript(js, null)
     }
     //endregion
