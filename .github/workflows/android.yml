@@ -39,7 +39,7 @@ jobs:
       uses: actions/checkout@v3
       with:
         repository: iTwin/mobile-native-android
-        ref: '3.1.9'
+        ref: '3.1.10'
         token: ${{ secrets.GH_PAT }}
         path: mobile-native-android
 
@@ -47,7 +47,7 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
         cd mobile-native-android
-        gh release download 3.1.9 -p '*.aar'
+        gh release download 3.1.10 -p '*.aar'
         chmod +x gradlew
         ./gradlew publishToMavenLocal
         cd ..
