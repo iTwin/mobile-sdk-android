@@ -145,7 +145,7 @@ abstract class ITMApplication(
     /**
      * The [ITMNativeUI] for this app.
      */
-    var mobileUi: ITMNativeUI? = null
+    var nativeUI: ITMNativeUI? = null
 
     /**
      * Whether or not the web app is loaded.
@@ -192,7 +192,7 @@ abstract class ITMApplication(
     private var reachabilityStatus = ReachabilityStatus.NotReachable
 
     /**
-     * Kotlin Coroutine that waits for frontend initialization to complete, if it has not already complete.
+     * Kotlin Coroutine that waits for frontend initialization to complete, if it has not already completed.
      */
     suspend fun waitForFrontendInitialize() {
         frontendInitTask.join()
@@ -221,14 +221,14 @@ abstract class ITMApplication(
      *
      * The following keys in the returned value are used by iTwin Mobile SDK:
      *
-     *     | Key                                 | Description                                                                                               |
-     *     |-------------------------------------|-----------------------------------------------------------------------------------------------------------|
-     *     | ITMAPPLICATION_CLIENT_ID            | ITMAuthorizationClient required value containing the app's client ID.                                     |
-     *     | ITMAPPLICATION_SCOPE                | ITMAuthorizationClient required value containing the app's scope.                                         |
-     *     | ITMAPPLICATION_ISSUER_UR            | ITMAuthorizationClient optional value containing the app's issuer URL.                                    |
-     *     | ITMAPPLICATION_REDIRECT_URI         | ITMAuthorizationClient optional value containing the app's redirect URL.                                  |
-     *     | ITMAPPLICATION_MESSAGE_LOGGING      | Set to YES to have ITMMessenger log message traffic between JavaScript and Swift.                         |
-     *     | ITMAPPLICATION_FULL_MESSAGE_LOGGING | Set to YES to include full message data in the ITMMessenger message logs. (__Do not use in production.__) |
+     *     | Key                                 | Description                                                                                           |
+     *     |-------------------------------------|-------------------------------------------------------------------------------------------------------|
+     *     | ITMAPPLICATION_CLIENT_ID            | ITMAuthorizationClient required value containing the app's client ID.                                 |
+     *     | ITMAPPLICATION_SCOPE                | ITMAuthorizationClient required value containing the app's scope.                                     |
+     *     | ITMAPPLICATION_ISSUER_UR            | ITMAuthorizationClient optional value containing the app's issuer URL.                                |
+     *     | ITMAPPLICATION_REDIRECT_URI         | ITMAuthorizationClient optional value containing the app's redirect URL.                              |
+     *     | ITMAPPLICATION_MESSAGE_LOGGING      | Set to YES to have ITMMessenger log message traffic between JavaScript and Swift.                     |
+     *     | ITMAPPLICATION_FULL_MESSAGE_LOGGING | Set to YES to include full message data in the ITMMessenger message logs. (DO NOT USE IN PRODUCTION.) |
      *
      * Note: Other keys may be present but are ignored by iTwin Mobile SDK. For example, the iTwin Mobile SDK sample apps include keys with an `ITMSAMPLE_` prefix.
      *
@@ -273,8 +273,10 @@ abstract class ITMApplication(
      *
      * This requires the Looper to be running, so cannot be called from the launch activity. If you have not already
      * called [initializeBackend], this will call it.
+     *
+     * @param context The [Context] for the activity in which the frontend is running.
      */
-    open fun initializeFrontend() {
+    open fun initializeFrontend(context: Context) {
         initializeBackend()
         MainScope().launch {
             if (webView != null)
@@ -289,11 +291,9 @@ abstract class ITMApplication(
                         return baseUrl
                     }
 
-                    override fun onConfigurationChanged(newConfig: Configuration?) {
+                    override fun onConfigurationChanged(newConfig: Configuration) {
                         super.onConfigurationChanged(newConfig)
-                        newConfig?.let {
-                            this@ITMApplication.mobileUi?.onConfigurationChanged(newConfig)
-                        }
+                        this@ITMApplication.nativeUI?.onConfigurationChanged(newConfig)
                     }
 
                     override fun overScrollBy(
@@ -335,6 +335,7 @@ abstract class ITMApplication(
                         updateAvailability(false)
                     }
                 })
+                nativeUI = createNativeUI(context)
                 frontendInitTask.complete()
             } catch (e: Exception) {
                 coMessenger?.frontendLaunchFailed(e)
@@ -345,16 +346,44 @@ abstract class ITMApplication(
     }
 
     /**
+     * Call this from [onDestroy][Activity.onDestroy] in the activity that is showing the frontend.
+     *
+     * @param context The context for the [Activity] that is being destroyed.
+     */
+    open fun onActivityDestroy(context: Context) {
+        webView?.setOnApplyWindowInsetsListener(null)
+        geolocationManager?.stopLocationUpdates()
+        geolocationManager?.setGeolocationFragment(null)
+        nativeUI?.detach()
+        nativeUI = null
+    }
+
+    /**
+     * Function that creates an [ITMNativeUI] object for this [ITMApplication]. Override to return a
+     * custom [ITMNativeUI] subclass.
+     */
+    open fun createNativeUI(context: Context): ITMNativeUI? {
+        webView?.let { webView ->
+            coMessenger?.let { coMessenger ->
+                return ITMNativeUI(context, webView, coMessenger)
+            }
+        }
+        return null
+    }
+
+    /**
      * Clean up any existing frontend and initialize the frontend again.
      *
      * __Note:__ Call this if the [WebView] runs out of memory, killing the web app.
+     *
+     * @param context The [Context] for the activity in which the frontend is running.
      */
-    open fun reinitializeFrontend() {
+    open fun reinitializeFrontend(context: Context) {
         webView = null
         messenger = null
         coMessenger = null
         isLoaded.value = false
-        initializeFrontend()
+        initializeFrontend(context)
     }
 
     private fun updateAvailability(available: Boolean? = null) {
