@@ -107,7 +107,10 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
                 }
             }
         } catch (ex: Exception) {
-            abort()
+            removePopupMenu()
+            removeAnchor()
+            cancelAction = null
+            continuation = null
             // Note: this is caught by ITMCoMessenger and tells the TypeScript caller that there was an error.
             throw Exception("Invalid input to Bentley_ITM_presentActionSheet")
         }
@@ -125,19 +128,15 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
         anchor = null
     }
 
-    private fun abort() {
-        removePopupMenu()
-        removeAnchor()
-        continuation = null
-        cancelAction = null
-    }
-
     /**
      * Cancels the action sheet when the device configuration changes (for example during an orientation change).
      */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        removePopupMenu()
+        removeAnchor()
         continuation?.resume(Json.value(cancelAction?.name))
-        abort()
+        continuation = null
+        cancelAction = null
     }
 }
