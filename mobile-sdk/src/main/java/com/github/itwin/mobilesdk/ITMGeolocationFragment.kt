@@ -48,7 +48,7 @@ open class ITMGeolocationFragment : Fragment() {
      * Set the [ITMGeolocationManager] to which this fragment is attached.
      */
     @Suppress("unused")
-    fun setGeolocationManager(geolocationManager: ITMGeolocationManager) {
+    open fun setGeolocationManager(geolocationManager: ITMGeolocationManager) {
         this.geolocationManager = geolocationManager
         geolocationManager.setGeolocationFragment(this)
     }
