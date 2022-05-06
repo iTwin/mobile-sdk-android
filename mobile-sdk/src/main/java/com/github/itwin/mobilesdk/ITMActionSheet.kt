@@ -5,6 +5,7 @@
 package com.github.itwin.mobilesdk
 
 import android.content.res.Configuration
+import android.view.Gravity
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
@@ -13,6 +14,7 @@ import android.widget.RelativeLayout
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
+import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -80,7 +82,20 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
             return suspendCoroutine { continuation ->
                 this.continuation = continuation
                 var resumed = false
-                with(PopupMenu(context, anchor)) {
+                var popupGravity = Gravity.NO_GRAVITY
+                params.getOptionalString("gravity")?.let { gravity ->
+                    when (gravity) {
+                        "top" -> popupGravity = Gravity.TOP
+                        "bottom" -> popupGravity = Gravity.BOTTOM
+                        "left" -> popupGravity = Gravity.LEFT
+                        "right" -> popupGravity = Gravity.RIGHT
+                        "topLeft" -> popupGravity = Gravity.TOP or Gravity.LEFT
+                        "topRight" -> popupGravity = Gravity.TOP or Gravity.RIGHT
+                        "bottomLeft" -> popupGravity = Gravity.BOTTOM or Gravity.LEFT
+                        "bottomRight" -> popupGravity = Gravity.BOTTOM or Gravity.RIGHT
+                    }
+                }
+                with(PopupMenu(context, anchor, popupGravity)) {
                     setOnMenuItemClickListener { item ->
                         resumed = true
                         removeAnchor()
