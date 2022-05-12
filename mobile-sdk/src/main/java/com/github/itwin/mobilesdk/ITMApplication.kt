@@ -658,6 +658,9 @@ abstract class ITMApplication(
      * @return And instance of [AuthorizationClient].
      */
     open fun getAuthorizationClient(): AuthorizationClient? {
+        configData?.let { configData ->
+            return ITMAuthorizationClient(this, configData)
+        }
         return null
     }
 
