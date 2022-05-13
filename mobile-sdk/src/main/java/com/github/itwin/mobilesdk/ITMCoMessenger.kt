@@ -93,6 +93,13 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
     }
 
     /**
+     * Convenience wrapper around [ITMMessenger.isFrontendLaunchComplete].
+     */
+    @Suppress("unused")
+    open val isFrontendLaunchComplete: Boolean
+        get() = messenger.isFrontendLaunchComplete
+
+    /**
      * Convenience wrapper around [ITMMessenger.frontendLaunchFailed].
      */
     open fun frontendLaunchFailed(exception: Exception) {

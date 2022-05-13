@@ -50,7 +50,7 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0'
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.5.0"
-    api 'com.github.itwin:mobile-native-android:3.2.7'
+    api 'com.github.itwin:mobile-native-android:3.2.8'
 
     // testImplementation 'junit:junit:4.+'
     // androidTestImplementation 'androidx.test.ext:junit:1.1.3'

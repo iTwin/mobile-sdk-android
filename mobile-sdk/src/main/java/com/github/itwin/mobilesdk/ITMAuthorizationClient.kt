@@ -21,7 +21,16 @@ class ITMAuthorizationClient(@Suppress("unused") val itmApplication: ITMApplicat
 
     override fun getAccessToken(completion: AuthTokenCompletionAction) {
         MainScope().launch {
-            completion.resolve(null, null)
+            // Right now the frontend asks for a token when trying to send a message to the backend.
+            // That token is totally unused by the backend, so we can simply fail all requests that
+            // happen before the frontend launch has completed.
+            // We don't want to make any actual token requests until the user does something that
+            // requires a token.
+            if (itmApplication.messenger?.isFrontendLaunchComplete == true) {
+                completion.resolve("Bearer <TOKEN GOES HERE>", "<ISO 8601 Date String GOES HERE>")
+            } else {
+                completion.resolve(null, null)
+            }
         }
     }
 }
