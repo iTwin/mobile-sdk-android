@@ -1,3 +1,7 @@
+/*---------------------------------------------------------------------------------------------
+* Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+* See LICENSE.md in the project root for license terms and full copyright notice.
+*--------------------------------------------------------------------------------------------*/
 package com.github.itwin.mobilesdk
 
 import com.bentley.itwin.AuthTokenCompletionAction
@@ -9,14 +13,19 @@ import kotlinx.coroutines.launch
 
 data class ITMAuthSettings(val issuerUrl: String, val clientId: String, val redirectUrl: String, val scope: String)
 
-class ITMAuthorizationClient(@Suppress("unused") val itmApplication: ITMApplication, configData: JsonObject): AuthorizationClient() {
-    private val authSettings: ITMAuthSettings
+open class ITMAuthorizationClient(@Suppress("unused") val itmApplication: ITMApplication, configData: JsonObject): AuthorizationClient() {
+    val authSettings: ITMAuthSettings
+    private var fragment: ITMAuthorizationFragment? = null
     init {
         val issuerUrl = configData.getOptionalString("ITMAPPLICATION_ISSUER_URL") ?: "https://ims.bentley.com/"
         val clientId = configData.getOptionalString("ITMAPPLICATION_CLIENT_ID") ?: ""
         val redirectUrl = configData.getOptionalString("ITMAPPLICATION_REDIRECT_URI") ?: "imodeljs://app/signin-callback"
         val scope = configData.getOptionalString("ITMAPPLICATION_SCOPE") ?: "email openid profile organization itwinjs"
         authSettings = ITMAuthSettings(issuerUrl, clientId, redirectUrl, scope)
+    }
+
+    open fun setAuthorizationFragment(value: ITMAuthorizationFragment?) {
+        fragment = value
     }
 
     override fun getAccessToken(completion: AuthTokenCompletionAction) {
@@ -27,7 +36,12 @@ class ITMAuthorizationClient(@Suppress("unused") val itmApplication: ITMApplicat
             // We don't want to make any actual token requests until the user does something that
             // requires a token.
             if (itmApplication.messenger?.isFrontendLaunchComplete == true) {
-                completion.resolve("Bearer <TOKEN GOES HERE>", "<ISO 8601 Date String GOES HERE>")
+                val accessToken = fragment?.getAccessToken()
+                if (accessToken != null) {
+                    completion.resolve(accessToken.token, accessToken.expirationDate)
+                } else {
+                    completion.resolve(null, null)
+                }
             } else {
                 completion.resolve(null, null)
             }

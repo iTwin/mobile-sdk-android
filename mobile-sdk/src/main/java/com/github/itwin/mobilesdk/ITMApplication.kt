@@ -133,6 +133,12 @@ abstract class ITMApplication(
     protected var geolocationFragment: ITMGeolocationFragment? = null
 
     /**
+     * The fragment used to present a sign in UI to the user.
+     */
+    @Suppress("MemberVisibilityCanBePrivate")
+    protected var authorizationFragment: ITMAuthorizationFragment? = null
+
+    /**
      * The AuthorizationClient used for authentication.
      */
     @Suppress("MemberVisibilityCanBePrivate")
@@ -363,9 +369,13 @@ abstract class ITMApplication(
                         geolocationFragment = frag
                     }
                 }
-                (authorizationClient as? ITMAuthorizationClient)?.let { /*authorizationClient ->*/
-                    // Set up ITMAuthorizationFragment. (That class does not yet exist. It will be
-                    // similar to ITMGeolocationFragment.
+                (authorizationClient as? ITMAuthorizationClient)?.let { authorizationClient ->
+                    fragmentActivity.supportFragmentManager.commit {
+                        setReorderingAllowed(true)
+                        val frag = createAuthorizationFragment(authorizationClient)
+                        add(fragmentContainerId, frag)
+                        authorizationFragment = frag
+                    }
                 }
                 frontendInitTask.complete()
             } catch (e: Exception) {
@@ -711,6 +721,18 @@ abstract class ITMApplication(
         return ITMGeolocationFragment(geolocationManager)
     }
 
+    /**
+     * Creates the [ITMAuthorizationFragment] to be used for this iTwin Mobile web app.
+     *
+     * Override this function in a subclass in order to add custom behavior.
+     *
+     * @param client The [ITMAuthorizationClient] to use with the fragment.
+     *
+     * @return And instance of [ITMAuthorizationFragment] attached to [client].
+     */
+    open fun createAuthorizationFragment(client: ITMAuthorizationClient): ITMAuthorizationFragment {
+        return ITMAuthorizationFragment(client)
+    }
 //    private fun loadFrontend() {
 //        val host = this.host ?: return
 //        MainScope().launch {
