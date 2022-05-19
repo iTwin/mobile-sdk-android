@@ -15,11 +15,11 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 /**
- * [Fragment] used to present the signin UI for [ITMAuthorizationClient].
+ * [Fragment] used to present the signin UI for [ITMOIDCAuthorizationClient].
  *
- * @param client The [ITMAuthorizationClient] with which this fragment is associated.
+ * @param client The [ITMOIDCAuthorizationClient] with which this fragment is associated.
  */
-open class ITMAuthorizationFragment(private val client: ITMAuthorizationClient): Fragment() {
+open class ITMOIDCAuthorizationFragment(private val client: ITMOIDCAuthorizationClient): Fragment() {
     /**
      * Data class to hold a token string and its expiration date.
      *

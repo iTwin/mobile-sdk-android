@@ -13,9 +13,9 @@ import kotlinx.coroutines.launch
 
 data class ITMAuthSettings(val issuerUrl: String, val clientId: String, val redirectUrl: String, val scope: String)
 
-open class ITMAuthorizationClient(@Suppress("unused") val itmApplication: ITMApplication, configData: JsonObject): AuthorizationClient() {
+open class ITMOIDCAuthorizationClient(@Suppress("unused") val itmApplication: ITMApplication, configData: JsonObject): AuthorizationClient() {
     val authSettings: ITMAuthSettings
-    private var fragment: ITMAuthorizationFragment? = null
+    private var fragment: ITMOIDCAuthorizationFragment? = null
     init {
         val issuerUrl = configData.getOptionalString("ITMAPPLICATION_ISSUER_URL") ?: "https://ims.bentley.com/"
         val clientId = configData.getOptionalString("ITMAPPLICATION_CLIENT_ID") ?: ""
@@ -24,7 +24,7 @@ open class ITMAuthorizationClient(@Suppress("unused") val itmApplication: ITMApp
         authSettings = ITMAuthSettings(issuerUrl, clientId, redirectUrl, scope)
     }
 
-    open fun setAuthorizationFragment(value: ITMAuthorizationFragment?) {
+    open fun setAuthorizationFragment(value: ITMOIDCAuthorizationFragment?) {
         fragment = value
     }
 

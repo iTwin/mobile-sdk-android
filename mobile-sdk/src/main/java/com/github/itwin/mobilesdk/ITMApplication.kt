@@ -136,7 +136,7 @@ abstract class ITMApplication(
      * The fragment used to present a sign in UI to the user.
      */
     @Suppress("MemberVisibilityCanBePrivate")
-    protected var authorizationFragment: ITMAuthorizationFragment? = null
+    protected var authorizationFragment: ITMOIDCAuthorizationFragment? = null
 
     /**
      * The AuthorizationClient used for authentication.
@@ -245,10 +245,10 @@ abstract class ITMApplication(
      *
      *     | Key                                 | Description                                                                                           |
      *     |-------------------------------------|-------------------------------------------------------------------------------------------------------|
-     *     | ITMAPPLICATION_CLIENT_ID            | ITMAuthorizationClient required value containing the app's client ID.                                 |
-     *     | ITMAPPLICATION_SCOPE                | ITMAuthorizationClient required value containing the app's scope.                                     |
-     *     | ITMAPPLICATION_ISSUER_UR            | ITMAuthorizationClient optional value containing the app's issuer URL.                                |
-     *     | ITMAPPLICATION_REDIRECT_URI         | ITMAuthorizationClient optional value containing the app's redirect URL.                              |
+     *     | ITMAPPLICATION_CLIENT_ID            | ITMOIDCAuthorizationClient required value containing the app's client ID.                                 |
+     *     | ITMAPPLICATION_SCOPE                | ITMOIDCAuthorizationClient required value containing the app's scope.                                     |
+     *     | ITMAPPLICATION_ISSUER_UR            | ITMOIDCAuthorizationClient optional value containing the app's issuer URL.                                |
+     *     | ITMAPPLICATION_REDIRECT_URI         | ITMOIDCAuthorizationClient optional value containing the app's redirect URL.                              |
      *     | ITMAPPLICATION_MESSAGE_LOGGING      | Set to YES to have ITMMessenger log message traffic between JavaScript and Swift.                     |
      *     | ITMAPPLICATION_FULL_MESSAGE_LOGGING | Set to YES to include full message data in the ITMMessenger message logs. (DO NOT USE IN PRODUCTION.) |
      *
@@ -369,7 +369,7 @@ abstract class ITMApplication(
                         geolocationFragment = frag
                     }
                 }
-                (authorizationClient as? ITMAuthorizationClient)?.let { authorizationClient ->
+                (authorizationClient as? ITMOIDCAuthorizationClient)?.let { authorizationClient ->
                     fragmentActivity.supportFragmentManager.commit {
                         setReorderingAllowed(true)
                         val frag = createAuthorizationFragment(authorizationClient)
@@ -703,7 +703,7 @@ abstract class ITMApplication(
      */
     open fun createAuthorizationClient(): AuthorizationClient? {
         configData?.let { configData ->
-            return ITMAuthorizationClient(this, configData)
+            return ITMOIDCAuthorizationClient(this, configData)
         }
         return null
     }
@@ -722,16 +722,16 @@ abstract class ITMApplication(
     }
 
     /**
-     * Creates the [ITMAuthorizationFragment] to be used for this iTwin Mobile web app.
+     * Creates the [ITMOIDCAuthorizationFragment] to be used for this iTwin Mobile web app.
      *
      * Override this function in a subclass in order to add custom behavior.
      *
-     * @param client The [ITMAuthorizationClient] to use with the fragment.
+     * @param client The [ITMOIDCAuthorizationClient] to use with the fragment.
      *
-     * @return And instance of [ITMAuthorizationFragment] attached to [client].
+     * @return And instance of [ITMOIDCAuthorizationFragment] attached to [client].
      */
-    open fun createAuthorizationFragment(client: ITMAuthorizationClient): ITMAuthorizationFragment {
-        return ITMAuthorizationFragment(client)
+    open fun createAuthorizationFragment(client: ITMOIDCAuthorizationClient): ITMOIDCAuthorizationFragment {
+        return ITMOIDCAuthorizationFragment(client)
     }
 //    private fun loadFrontend() {
 //        val host = this.host ?: return
