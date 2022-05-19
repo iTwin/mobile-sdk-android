@@ -136,7 +136,7 @@ abstract class ITMApplication(
      * The fragment used to present a sign in UI to the user.
      */
     @Suppress("MemberVisibilityCanBePrivate")
-    protected var authorizationFragment: ITMOIDCAuthorizationFragment? = null
+    protected var authorizationFragment: ITMAuthorizationFragment? = null
 
     /**
      * The AuthorizationClient used for authentication.
@@ -369,7 +369,7 @@ abstract class ITMApplication(
                         geolocationFragment = frag
                     }
                 }
-                (authorizationClient as? ITMOIDCAuthorizationClient)?.let { authorizationClient ->
+                (authorizationClient as? ITMAuthorizationClient)?.let { authorizationClient ->
                     fragmentActivity.supportFragmentManager.commit {
                         setReorderingAllowed(true)
                         val frag = createAuthorizationFragment(authorizationClient)
@@ -697,9 +697,10 @@ abstract class ITMApplication(
      *
      * Override this function in a subclass in order to add custom behavior.
      *
-     * If your application handles authorization on its own, create a subclass of [AuthorizationClient].
+     * If your application handles authorization on its own, create a subclass of [AuthorizationClient] or
+     * [ITMAuthorizationClient].
      *
-     * @return And instance of [AuthorizationClient], or null if you don't want any authentication in your app.
+     * @return An instance of [AuthorizationClient], or null if you don't want any authentication in your app.
      */
     open fun createAuthorizationClient(): AuthorizationClient? {
         configData?.let { configData ->
@@ -715,23 +716,30 @@ abstract class ITMApplication(
      *
      * @param geolocationManager The [ITMGeolocationManager] to use with the fragment.
      *
-     * @return And instance of [ITMGeolocationFragment] attached to [geolocationManager].
+     * @return An instance of [ITMGeolocationFragment] attached to [geolocationManager].
      */
     open fun createGeolocationFragment(geolocationManager: ITMGeolocationManager): ITMGeolocationFragment {
         return ITMGeolocationFragment(geolocationManager)
     }
 
     /**
-     * Creates the [ITMOIDCAuthorizationFragment] to be used for this iTwin Mobile web app.
+     * Creates the [ITMAuthorizationFragment] to be used for this iTwin Mobile web app.
      *
      * Override this function in a subclass in order to add custom behavior.
      *
-     * @param client The [ITMOIDCAuthorizationClient] to use with the fragment.
+     * __Note:__ If your [AuthorizationClient] is not a subclass of [ITMAuthorizationClient], this function
+     * will never be called. If you need a fragment to go with it, you are reponsible for setting it up yourself.
+     * If your [AuthorizationClient] _is_ a subclass of [ITMAuthorizationClient], then the [client] param
+     * passed here will be an instance of that class.
      *
-     * @return And instance of [ITMOIDCAuthorizationFragment] attached to [client].
+     * @param client The [ITMAuthorizationClient] to use with the fragment.
+     *
+     * @return An instance of [ITMOIDCAuthorizationFragment] attached to [client]. If this default implementation
+     * is called, [authorizationClient] __must__ be an [ITMOIDCAuthorizationClient].
      */
-    open fun createAuthorizationFragment(client: ITMOIDCAuthorizationClient): ITMOIDCAuthorizationFragment {
-        return ITMOIDCAuthorizationFragment(client)
+    open fun createAuthorizationFragment(client: ITMAuthorizationClient): ITMAuthorizationFragment {
+        val oidcClient = client as? ITMOIDCAuthorizationClient ?: throw Error("client is not ITMOIDCAuthorizationClient.")
+        return ITMOIDCAuthorizationFragment(oidcClient)
     }
 //    private fun loadFrontend() {
 //        val host = this.host ?: return
