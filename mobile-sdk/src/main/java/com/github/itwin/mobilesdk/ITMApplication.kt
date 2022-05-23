@@ -728,7 +728,7 @@ abstract class ITMApplication(
      * Override this function in a subclass in order to add custom behavior.
      *
      * __Note:__ If your [AuthorizationClient] is not a subclass of [ITMAuthorizationClient], this function
-     * will never be called. If you need a fragment to go with it, you are reponsible for setting it up yourself.
+     * will never be called. If you need a fragment to go with it, you are responsible for setting it up yourself.
      * If your [AuthorizationClient] _is_ a subclass of [ITMAuthorizationClient], then the [client] param
      * passed here will be an instance of that class.
      *

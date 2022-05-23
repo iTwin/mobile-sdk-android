@@ -4,13 +4,14 @@
 *--------------------------------------------------------------------------------------------*/
 package com.github.itwin.mobilesdk
 
+import android.net.Uri
 import com.bentley.itwin.AuthTokenCompletionAction
 import com.eclipsesource.json.JsonObject
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 
-data class ITMAuthSettings(val issuerUrl: String, val clientId: String, val redirectUrl: String, val scope: String)
+data class ITMAuthSettings(val issuerUri: Uri, val clientId: String, val redirectUri: Uri, val scope: String)
 
 open class ITMOIDCAuthorizationClient(itmApplication: ITMApplication, configData: JsonObject):
     ITMAuthorizationClient(itmApplication, configData) {
@@ -20,7 +21,7 @@ open class ITMOIDCAuthorizationClient(itmApplication: ITMApplication, configData
         val clientId = configData.getOptionalString("ITMAPPLICATION_CLIENT_ID") ?: ""
         val redirectUrl = configData.getOptionalString("ITMAPPLICATION_REDIRECT_URI") ?: "imodeljs://app/signin-callback"
         val scope = configData.getOptionalString("ITMAPPLICATION_SCOPE") ?: "email openid profile organization itwinjs"
-        authSettings = ITMAuthSettings(issuerUrl, clientId, redirectUrl, scope)
+        authSettings = ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
     }
 
     override fun getAccessToken(completion: AuthTokenCompletionAction) {
