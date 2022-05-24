@@ -17,7 +17,7 @@ android {
         minSdk 24
         targetSdk 31
         versionCode 1
-        versionName '0.10.23'
+        versionName '0.10.24'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         consumerProguardFiles 'consumer-rules.pro'
@@ -82,7 +82,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.itwin'
                 artifactId = 'mobile-sdk-android'
-                version = '0.10.23'
+                version = '0.10.24'
             }
             // Creates a Maven publication called 'debug'.
             debug(MavenPublication) {
@@ -90,7 +90,7 @@ afterEvaluate {
                 artifact(sourceJar)
                 groupId = 'com.github.itwin'
                 artifactId = 'mobile-sdk-android'
-                version = '0.10.23-debug'
+                version = '0.10.24-debug'
             }
         }
     }
