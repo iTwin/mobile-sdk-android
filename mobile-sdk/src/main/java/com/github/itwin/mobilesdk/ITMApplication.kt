@@ -133,7 +133,7 @@ abstract class ITMApplication(
     protected var geolocationFragment: ITMGeolocationFragment? = null
 
     /**
-     * The fragment used to present a sign in UI to the user.
+     * The fragment used to present a signin UI to the user.
      */
     @Suppress("MemberVisibilityCanBePrivate")
     protected var authorizationFragment: ITMAuthorizationFragment? = null

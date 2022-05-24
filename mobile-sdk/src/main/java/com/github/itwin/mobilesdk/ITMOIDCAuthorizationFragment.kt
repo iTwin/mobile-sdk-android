@@ -132,6 +132,7 @@ open class ITMOIDCAuthorizationFragment(oidcClient: ITMOIDCAuthorizationClient):
             resume(AccessToken())
         }
     }
+
     /**
      * Clean up by removing ourself from [client].
      */
@@ -141,6 +142,12 @@ open class ITMOIDCAuthorizationFragment(oidcClient: ITMOIDCAuthorizationClient):
     }
 }
 
+/**
+ * Convenience function convert a [Long] containing the number of milliseconds since the epoch into an
+ * ISO 8601-formatted [String].
+ *
+ * @return A [String] containing an ISO 8601 format date.
+ */
 fun Long.epochMillisToISO8601(): String {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         Instant.ofEpochMilli(this).toString()

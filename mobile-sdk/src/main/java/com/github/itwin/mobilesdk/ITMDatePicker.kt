@@ -77,7 +77,7 @@ class ITMDatePicker(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
 }
 
 /**
- * Convenience function to convert string containing an ISO 8601 date into a [Date] object.
+ * Convenience function to convert a [String] containing an ISO 8601 date into a [Date] object.
  *
  * @return The parsed [Date], or null if the receiver string could not be parsed into a valid [Date].
  */

@@ -13,6 +13,23 @@ import kotlinx.coroutines.launch
 
 data class ITMAuthSettings(val issuerUri: Uri, val clientId: String, val redirectUri: Uri, val scope: String)
 
+/**
+ * [ITMAuthorizationClient] subclass that is used to perform authorization via OIDC in conjunction with
+ * [ITMOIDCAuthorizationFragment] to present the UI to the user.
+ *
+ * In order to use this, you must add the following to the `defaultConfig` section of the `android` section
+ * of your app's build.gradle:
+ *
+ * ```
+ *     manifestPlaceholders = ['appAuthRedirectScheme': 'imodeljs']
+ * ```
+ *
+ * @param itmApplication The [ITMApplication] that will be needing authorization.
+ * @param configData A JSON object containing at least an `ITMAPPLICATION_CLIENT_ID` value, and optionally
+ * `ITMAPPLICATION_ISSUER_URL`, `ITMAPPLICATION_REDIRECT_URI`, and/or `ITMAPPLICATION_SCOPE` values. If
+ * `ITMAPPLICATION_CLIENT_ID` is not present this initializer will fail. This is be populated by
+ * [ITMApplication.loadITMAppConfig].
+ */
 open class ITMOIDCAuthorizationClient(itmApplication: ITMApplication, configData: JsonObject):
     ITMAuthorizationClient(itmApplication, configData) {
     val authSettings: ITMAuthSettings
@@ -24,6 +41,13 @@ open class ITMOIDCAuthorizationClient(itmApplication: ITMApplication, configData
         authSettings = ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
     }
 
+    /**
+     * Function that is called by the iTwin backend to get an access token, along with its expiration date.
+     *
+     * @param completion Action that will have resolve called with the token and expiration date, or null values if
+     * a token is not available. Note that the `expirationDate` parameter of `resolve` is expected to be an ISO
+     * 8601 date string.
+     */
     override fun getAccessToken(completion: AuthTokenCompletionAction) {
         MainScope().launch {
             // Right now the frontend asks for a token when trying to send a message to the backend.

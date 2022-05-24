@@ -6,6 +6,8 @@ import java.util.*
 /**
  * Abstract base class for a [Fragment] used to present the signin UI for [ITMAuthorizationClient].
  *
+ * __Note:__ The constructor automatically attaches this instance to [client].
+ *
  * @param client The [ITMAuthorizationClient] with which this fragment is associated.
  */
 abstract class ITMAuthorizationFragment(protected val client: ITMAuthorizationClient): Fragment() {

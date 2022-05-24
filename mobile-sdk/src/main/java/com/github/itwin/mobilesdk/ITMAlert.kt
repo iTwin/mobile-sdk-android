@@ -42,6 +42,12 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
         Destructive
     }
 
+    /**
+     * Class representing an action that the user can select.
+     *
+     * @param value [JsonValue] containing required `name` and `title` values, as well as optionally a
+     * `style` value.
+     */
     class Action(value: JsonValue) {
         val name: String
         val title: String
