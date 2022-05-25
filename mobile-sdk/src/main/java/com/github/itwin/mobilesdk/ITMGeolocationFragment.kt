@@ -12,8 +12,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 /**
  * [Fragment] used by [ITMGeolocationManager] to present location access permissions requests to the user.
  */
-open class ITMGeolocationFragment : Fragment() {
-    private var geolocationManager: ITMGeolocationManager? = null
+open class ITMGeolocationFragment(private val geolocationManager: ITMGeolocationManager) : Fragment() {
+    init {
+        @Suppress("LeakingThis")
+        geolocationManager.setGeolocationFragment(this)
+    }
 
     /**
      * [ActivityResultLauncher][androidx.activity.result.ActivityResultLauncher] used to request location permissions.
@@ -23,9 +26,9 @@ open class ITMGeolocationFragment : Fragment() {
      */
     val requestPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
-            geolocationManager?.onLocationPermissionGranted()
+            geolocationManager.onLocationPermissionGranted()
         } else {
-            geolocationManager?.onLocationPermissionDenied()
+            geolocationManager.onLocationPermissionDenied()
             Toast.makeText(requireContext(), getString(R.string.location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
         }
     }
@@ -38,19 +41,10 @@ open class ITMGeolocationFragment : Fragment() {
      */
     val requestLocationService = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { activityResult ->
         if (activityResult.resultCode == Activity.RESULT_OK) {
-            geolocationManager?.onLocationServiceEnabled()
+            geolocationManager.onLocationServiceEnabled()
         } else {
-            geolocationManager?.onLocationServiceEnableRequestDenied()
+            geolocationManager.onLocationServiceEnableRequestDenied()
         }
-    }
-
-    /**
-     * Set the [ITMGeolocationManager] to which this fragment is attached.
-     */
-    @Suppress("unused")
-    open fun setGeolocationManager(geolocationManager: ITMGeolocationManager) {
-        this.geolocationManager = geolocationManager
-        geolocationManager.setGeolocationFragment(this)
     }
 
     /**
@@ -58,7 +52,7 @@ open class ITMGeolocationFragment : Fragment() {
      */
     override fun onStart() {
         super.onStart()
-        geolocationManager?.resumeLocationUpdates()
+        geolocationManager.resumeLocationUpdates()
     }
 
     /**
@@ -66,6 +60,14 @@ open class ITMGeolocationFragment : Fragment() {
      */
     override fun onStop() {
         super.onStop()
-        geolocationManager?.stopLocationUpdates()
+        geolocationManager.stopLocationUpdates()
+    }
+
+    /**
+     * Removes this fragment from [geolocationManager].
+     */
+    override fun onDestroy() {
+        super.onDestroy()
+        geolocationManager.setGeolocationFragment(null)
     }
 }

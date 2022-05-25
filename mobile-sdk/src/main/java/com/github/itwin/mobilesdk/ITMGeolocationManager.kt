@@ -36,7 +36,7 @@ import kotlin.concurrent.schedule
  * Class for the native-side implementation of a `navigator.geolocation` polyfill.
  *
  * __Note:__ [ITMGeolocationManager] must be bound to an [ITMGeolocationFragment]-based fragment for showing permission
- * and service dialogs and handling responses. Bind using [ITMGeolocationFragment.setGeolocationManager].
+ * and service dialogs and handling responses. This happens automatically in the [ITMGeolocationFragment] constructor.
  */
 class ITMGeolocationManager(private val appContext: Context, private val webView: WebView) {
     private inner class GeolocationJsInterface {

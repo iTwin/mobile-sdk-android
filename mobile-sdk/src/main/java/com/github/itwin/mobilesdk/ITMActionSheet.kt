@@ -82,19 +82,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
             return suspendCoroutine { continuation ->
                 this.continuation = continuation
                 var resumed = false
-                var popupGravity = Gravity.NO_GRAVITY
-                params.getOptionalString("gravity")?.let { gravity ->
-                    when (gravity) {
-                        "top" -> popupGravity = Gravity.TOP
-                        "bottom" -> popupGravity = Gravity.BOTTOM
-                        "left" -> popupGravity = Gravity.LEFT
-                        "right" -> popupGravity = Gravity.RIGHT
-                        "topLeft" -> popupGravity = Gravity.TOP or Gravity.LEFT
-                        "topRight" -> popupGravity = Gravity.TOP or Gravity.RIGHT
-                        "bottomLeft" -> popupGravity = Gravity.BOTTOM or Gravity.LEFT
-                        "bottomRight" -> popupGravity = Gravity.BOTTOM or Gravity.RIGHT
-                    }
-                }
+                val popupGravity = params.getOptionalString("gravity")?.toGravity() ?: Gravity.NO_GRAVITY
                 with(PopupMenu(context, anchor, popupGravity)) {
                     setOnMenuItemClickListener { item ->
                         resumed = true
@@ -153,5 +141,19 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
         continuation?.resume(Json.value(cancelAction?.name))
         continuation = null
         cancelAction = null
+    }
+}
+
+private fun String.toGravity(): Int {
+    return when (this) {
+        "top" -> Gravity.TOP
+        "bottom" -> Gravity.BOTTOM
+        "left" -> Gravity.LEFT
+        "right" -> Gravity.RIGHT
+        "topLeft" -> Gravity.TOP or Gravity.LEFT
+        "topRight" -> Gravity.TOP or Gravity.RIGHT
+        "bottomLeft" -> Gravity.BOTTOM or Gravity.LEFT
+        "bottomRight" -> Gravity.BOTTOM or Gravity.RIGHT
+        else -> Gravity.NO_GRAVITY
     }
 }

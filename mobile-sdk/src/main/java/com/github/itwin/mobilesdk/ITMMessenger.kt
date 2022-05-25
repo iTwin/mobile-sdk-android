@@ -413,6 +413,12 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
     }
 
     /**
+     * Indicates if the frontend launch has completed.
+     */
+    open val isFrontendLaunchComplete: Boolean
+        get() = frontendLaunchJob.isCompleted
+
+    /**
      * Called if the frontend fails to launch. This prevents any queries from being sent to the web view.
      *
      * @param exception The reason for the failure.

@@ -17,7 +17,10 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.*
+import androidx.annotation.IdRes
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.fragment.app.commit
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.MutableLiveData
 import com.bentley.itwin.AuthorizationClient
 import com.bentley.itwin.IModelJsHost
@@ -122,6 +125,25 @@ abstract class ITMApplication(
      * The [IModelJsHost] used by this [ITMApplication].
      */
     protected var host: IModelJsHost? = null
+
+    /**
+     * The fragment used to present geolocation permissions requests to the user.
+     */
+    @Suppress("MemberVisibilityCanBePrivate")
+    protected var geolocationFragment: ITMGeolocationFragment? = null
+
+    /**
+     * The fragment used to present a signin UI to the user.
+     */
+    @Suppress("MemberVisibilityCanBePrivate")
+    protected var authorizationFragment: ITMAuthorizationFragment? = null
+
+    /**
+     * The AuthorizationClient used for authentication.
+     */
+    @Suppress("MemberVisibilityCanBePrivate")
+    protected var authorizationClient: AuthorizationClient? = null
+
     private var backendInitTask = Job()
     private var frontendInitTask = Job()
     private val _isBackendInitialized = AtomicBoolean(false)
@@ -223,10 +245,10 @@ abstract class ITMApplication(
      *
      *     | Key                                 | Description                                                                                           |
      *     |-------------------------------------|-------------------------------------------------------------------------------------------------------|
-     *     | ITMAPPLICATION_CLIENT_ID            | ITMAuthorizationClient required value containing the app's client ID.                                 |
-     *     | ITMAPPLICATION_SCOPE                | ITMAuthorizationClient required value containing the app's scope.                                     |
-     *     | ITMAPPLICATION_ISSUER_UR            | ITMAuthorizationClient optional value containing the app's issuer URL.                                |
-     *     | ITMAPPLICATION_REDIRECT_URI         | ITMAuthorizationClient optional value containing the app's redirect URL.                              |
+     *     | ITMAPPLICATION_CLIENT_ID            | ITMOIDCAuthorizationClient required value containing the app's client ID.                                 |
+     *     | ITMAPPLICATION_SCOPE                | ITMOIDCAuthorizationClient required value containing the app's scope.                                     |
+     *     | ITMAPPLICATION_ISSUER_UR            | ITMOIDCAuthorizationClient optional value containing the app's issuer URL.                                |
+     *     | ITMAPPLICATION_REDIRECT_URI         | ITMOIDCAuthorizationClient optional value containing the app's redirect URL.                              |
      *     | ITMAPPLICATION_MESSAGE_LOGGING      | Set to YES to have ITMMessenger log message traffic between JavaScript and Swift.                     |
      *     | ITMAPPLICATION_FULL_MESSAGE_LOGGING | Set to YES to include full message data in the ITMMessenger message logs. (DO NOT USE IN PRODUCTION.) |
      *
@@ -254,7 +276,8 @@ abstract class ITMApplication(
             return
 
         try {
-            host = IModelJsHost(appContext, forceExtractBackendAssets, getAuthorizationClient()).apply {
+            authorizationClient = createAuthorizationClient()
+            host = IModelJsHost(appContext, forceExtractBackendAssets, authorizationClient).apply {
                 setBackendPath(getBackendPath())
                 setHomePath(getBackendHomePath())
                 setEntryPointScript(getBackendEntryPointScript())
@@ -274,9 +297,11 @@ abstract class ITMApplication(
      * This requires the Looper to be running, so cannot be called from the launch activity. If you have not already
      * called [initializeBackend], this will call it.
      *
-     * @param context The [Context] for the activity in which the frontend is running.
+     * @param fragmentActivity The [FragmentActivity] for the activity in which the frontend is running.
+     * @param fragmentContainerId The resource ID of the [FragmentContainerView][androidx.fragment.app.FragmentContainerView]
+     * into which to place UI fragments.
      */
-    open fun initializeFrontend(context: Context) {
+    open fun initializeFrontend(fragmentActivity: FragmentActivity, @IdRes fragmentContainerId: Int) {
         initializeBackend()
         MainScope().launch {
             if (webView != null)
@@ -335,7 +360,23 @@ abstract class ITMApplication(
                         updateAvailability(false)
                     }
                 })
-                nativeUI = createNativeUI(context)
+                nativeUI = createNativeUI(fragmentActivity)
+                geolocationManager?.let { geolocationManager ->
+                    fragmentActivity.supportFragmentManager.commit {
+                        setReorderingAllowed(true)
+                        val frag = createGeolocationFragment(geolocationManager)
+                        add(fragmentContainerId, frag)
+                        geolocationFragment = frag
+                    }
+                }
+                (authorizationClient as? ITMAuthorizationClient)?.let { authorizationClient ->
+                    fragmentActivity.supportFragmentManager.commit {
+                        setReorderingAllowed(true)
+                        val frag = createAuthorizationFragment(authorizationClient)
+                        add(fragmentContainerId, frag)
+                        authorizationFragment = frag
+                    }
+                }
                 frontendInitTask.complete()
             } catch (e: Exception) {
                 coMessenger?.frontendLaunchFailed(e)
@@ -354,6 +395,7 @@ abstract class ITMApplication(
         webView?.setOnApplyWindowInsetsListener(null)
         geolocationManager?.stopLocationUpdates()
         geolocationManager?.setGeolocationFragment(null)
+        geolocationFragment = null
         nativeUI?.detach()
         nativeUI = null
     }
@@ -376,14 +418,16 @@ abstract class ITMApplication(
      *
      * __Note:__ Call this if the [WebView] runs out of memory, killing the web app.
      *
-     * @param context The [Context] for the activity in which the frontend is running.
+     * @param fragmentActivity The [FragmentActivity] for the activity in which the frontend is running.
+     * @param fragmentContainerId The resource ID of the [FragmentContainerView][androidx.fragment.app.FragmentContainerView]
+     * into which to place UI fragments.
      */
-    open fun reinitializeFrontend(context: Context) {
+    open fun reinitializeFrontend(fragmentActivity: FragmentActivity, @IdRes fragmentContainerId: Int) {
         webView = null
         messenger = null
         coMessenger = null
         isLoaded.value = false
-        initializeFrontend(context)
+        initializeFrontend(fragmentActivity, fragmentContainerId)
     }
 
     private fun updateAvailability(available: Boolean? = null) {
@@ -649,18 +693,54 @@ abstract class ITMApplication(
     }
 
     /**
-     * Gets the `AuthorizationClient` to be used for this iTwin Mobile web app.
+     * Creates the [AuthorizationClient] to be used for this iTwin Mobile web app.
      *
      * Override this function in a subclass in order to add custom behavior.
      *
-     * If your application handles authorization on its own, create a subclass of [AuthorizationClient].
+     * If your application handles authorization on its own, create a subclass of [AuthorizationClient] or
+     * [ITMAuthorizationClient].
      *
-     * @return And instance of [AuthorizationClient].
+     * @return An instance of [AuthorizationClient], or null if you don't want any authentication in your app.
      */
-    open fun getAuthorizationClient(): AuthorizationClient? {
+    open fun createAuthorizationClient(): AuthorizationClient? {
+        configData?.let { configData ->
+            return ITMOIDCAuthorizationClient(this, configData)
+        }
         return null
     }
 
+    /**
+     * Creates the [ITMGeolocationFragment] to be used for this iTwin Mobile web app.
+     *
+     * Override this function in a subclass in order to add custom behavior.
+     *
+     * @param geolocationManager The [ITMGeolocationManager] to use with the fragment.
+     *
+     * @return An instance of [ITMGeolocationFragment] attached to [geolocationManager].
+     */
+    open fun createGeolocationFragment(geolocationManager: ITMGeolocationManager): ITMGeolocationFragment {
+        return ITMGeolocationFragment(geolocationManager)
+    }
+
+    /**
+     * Creates the [ITMAuthorizationFragment] to be used for this iTwin Mobile web app.
+     *
+     * Override this function in a subclass in order to add custom behavior.
+     *
+     * __Note:__ If your [AuthorizationClient] is not a subclass of [ITMAuthorizationClient], this function
+     * will never be called. If you need a fragment to go with it, you are responsible for setting it up yourself.
+     * If your [AuthorizationClient] _is_ a subclass of [ITMAuthorizationClient], then the [client] param
+     * passed here will be an instance of that class.
+     *
+     * @param client The [ITMAuthorizationClient] to use with the fragment.
+     *
+     * @return An instance of [ITMOIDCAuthorizationFragment] attached to [client]. If this default implementation
+     * is called, [authorizationClient] __must__ be an [ITMOIDCAuthorizationClient].
+     */
+    open fun createAuthorizationFragment(client: ITMAuthorizationClient): ITMAuthorizationFragment {
+        val oidcClient = client as? ITMOIDCAuthorizationClient ?: throw Error("client is not ITMOIDCAuthorizationClient.")
+        return ITMOIDCAuthorizationFragment(oidcClient)
+    }
 //    private fun loadFrontend() {
 //        val host = this.host ?: return
 //        MainScope().launch {
