@@ -47,9 +47,9 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
         cd mobile-native-android
-        gh release download 3.2.8 -p '*.aar'
+        rm -f iTwinAndroidLibrary.aar
         chmod +x gradlew
-        ./gradlew publishToMavenLocal
+        ./gradlew assembleGitHub publishToMavenLocal
         cd ..
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
