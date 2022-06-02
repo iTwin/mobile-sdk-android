@@ -7,6 +7,7 @@
 package com.github.itwin.mobilesdk
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
@@ -143,6 +144,12 @@ abstract class ITMApplication(
      */
     @Suppress("MemberVisibilityCanBePrivate")
     protected var authorizationClient: AuthorizationClient? = null
+
+    /**
+     * Tracks whether the frontend URL is on a remote server (used for debugging via react-scripts).
+     */
+    @Suppress("MemberVisibilityCanBePrivate")
+    var usingRemoteServer = false
 
     private var backendInitTask = Job()
     private var frontendInitTask = Job()
@@ -375,6 +382,20 @@ abstract class ITMApplication(
                         val frag = createAuthorizationFragment(authorizationClient)
                         add(fragmentContainerId, frag)
                         authorizationFragment = frag
+                    }
+                }
+                if (usingRemoteServer) {
+                    MainScope().launch {
+                        delay(10000)
+                        if (messenger?.isFrontendLaunchComplete != true) {
+                            with(AlertDialog.Builder(fragmentActivity)) {
+                                setTitle(R.string.itm_error)
+                                setMessage(fragmentActivity.getString(R.string.itm_debug_server_error, baseUrl))
+                                setCancelable(false)
+                                setPositiveButton(R.string.itm_ok) { _, _ -> }
+                                show()
+                            }
+                        }
                     }
                 }
                 frontendInitTask.complete()
@@ -680,8 +701,10 @@ abstract class ITMApplication(
      */
     open fun getBaseUrl(): String {
         configData?.getOptionalString("ITMAPPLICATION_BASE_URL")?.let { baseUrl ->
+            usingRemoteServer = true
             return baseUrl
         }
+        usingRemoteServer = false
         return "file:///android_asset/ITMApplication/frontend/index.html"
     }
 

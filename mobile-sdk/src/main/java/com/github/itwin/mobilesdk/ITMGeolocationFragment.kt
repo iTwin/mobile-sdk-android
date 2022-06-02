@@ -29,7 +29,7 @@ open class ITMGeolocationFragment(private val geolocationManager: ITMGeolocation
             geolocationManager.onLocationPermissionGranted()
         } else {
             geolocationManager.onLocationPermissionDenied()
-            Toast.makeText(requireContext(), getString(R.string.location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
+            Toast.makeText(requireContext(), getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
         }
     }
 
