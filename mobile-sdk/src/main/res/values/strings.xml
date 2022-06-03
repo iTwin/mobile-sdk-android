@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="location_permissions_error_toast_text">Please approve required permissions to show your location.</string>
+    <string name="itm_location_permissions_error_toast_text">Please approve required permissions to show your location.</string>
+    <string name="itm_error">Error</string>
+    <string name="itm_ok">OK</string>
+    <string name="itm_debug_server_error">Could not connect to React debug server at URL %1$s.</string>
 </resources>
