@@ -61,4 +61,4 @@ jobs:
         ./gradlew detekt build
       env:
         USERNAME: toddsouthenbentley
-        TOKEN: ${{ secrets.GH_PAT }}
+        TOKEN: ${{ secrets.GITHUB_TOKEN }}
