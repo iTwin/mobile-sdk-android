@@ -33,4 +33,5 @@ jobs:
         chmod +x gradlew
         ./gradlew detekt build
       env:
+        USERNAME: ${{ github.actor }}
         TOKEN: ${{ secrets.GITHUB_TOKEN }}
