@@ -33,5 +33,4 @@ jobs:
         chmod +x gradlew
         ./gradlew detekt build
       env:
-#        USERNAME: toddsouthenbentley
         TOKEN: ${{ secrets.GITHUB_TOKEN }}
