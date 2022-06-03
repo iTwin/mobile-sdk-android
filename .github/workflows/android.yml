@@ -27,35 +27,10 @@ jobs:
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
 
-    - name: Cache mobile-native-android
-      uses: actions/cache@v3
-      id: cache
-      with:
-        path: ~/.m2/repository/**/mobile-native-android
-        key: ${{ hashFiles('mobile-sdk-android/mobile-sdk/build.gradle') }}
-
-    - name: Checkout mobile-native-android
-      if: steps.cache.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: iTwin/mobile-native-android
-        ref: '3.2.8'
-        token: ${{ secrets.GH_PAT }}
-        path: mobile-native-android
-
-    - name: Deploy mobile-native-android to maven local
-      if: steps.cache.outputs.cache-hit != 'true'
-      run: |
-        cd mobile-native-android
-        rm -f iTwinAndroidLibrary.aar
-        chmod +x gradlew
-        ./gradlew assembleGitHub publishToMavenLocal
-        cd ..
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-        
     - name: Build mobile-sdk-android
       run: |
         cd mobile-sdk-android
         chmod +x gradlew
         ./gradlew detekt build
+      env:
+        TOKEN: ${{ secrets.GITHUB_TOKEN }}
