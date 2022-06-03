@@ -24,15 +24,10 @@ jobs:
         java-version: '11'
         distribution: 'temurin'
         
-    - name: Download release
-      uses: gradle/gradle-build-action@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
     - name: Publish to GitHub Packages
       uses: gradle/gradle-build-action@v2
       with:
         arguments: publish
       env:
-        USERNAME: 'token'
+        USERNAME: ${{ github.actor }}
         TOKEN: ${{ secrets.GITHUB_TOKEN }}
