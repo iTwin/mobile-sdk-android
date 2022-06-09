@@ -10,6 +10,7 @@ import android.os.Build
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import net.openid.appauth.*
+import java.lang.Error
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.*
@@ -27,24 +28,46 @@ import kotlin.coroutines.suspendCoroutine
  * ```
  *     manifestPlaceholders = ['appAuthRedirectScheme': 'imodeljs']
  * ```
- *
- * @param oidcClient The [ITMOIDCAuthorizationClient] with which this fragment is associated.
  */
-open class ITMOIDCAuthorizationFragment(oidcClient: ITMOIDCAuthorizationClient): ITMAuthorizationFragment(oidcClient) {
-    private val authSettings = oidcClient.authSettings
+open class ITMOIDCAuthorizationFragment : ITMAuthorizationFragment() {
+    private val authSettings = (client as? ITMOIDCAuthorizationClient)?.authSettings
     private var authState: AuthState? = null
     private var authService: AuthorizationService? = null
     private var continuation: Continuation<AccessToken>? = null
+
+    companion object {
+        /**
+         * Create an [ITMOIDCAuthorizationFragment] connected to the given [ITMOIDCAuthorizationClient].
+         *
+         * __Note:__ [oidcClient] is stored in the companion object so that any [ITMOIDCAuthorizationFragment]
+         * objects created during the application life cycle will have access to it.
+         *
+         * @param oidcClient The [ITMOIDCAuthorizationClient] with which the new fragment is associated.
+         * @return An [ITMOIDCAuthorizationFragment] connected to [oidcClient].
+         */
+        fun newInstance(oidcClient: ITMOIDCAuthorizationClient): ITMOIDCAuthorizationFragment {
+            client = oidcClient
+            return ITMOIDCAuthorizationFragment()
+        }
+
+        /**
+         * Clear the active [client][ITMAuthorizationFragment.client] that is used when fragments are created.
+         */
+        fun clearClient() {
+            client = null
+        }
+    }
 
     private suspend fun initAuthState(): AuthState {
         authState?.let { authState ->
             return authState
         }
         return suspendCoroutine { continuation ->
-            AuthorizationServiceConfiguration.fetchFromIssuer(authSettings.issuerUri) { config, error ->
+            val issuerUri = authSettings?.issuerUri ?: throw Error("No settings")
+            AuthorizationServiceConfiguration.fetchFromIssuer(issuerUri) { config, error ->
                 @Suppress("NAME_SHADOWING")
                 error?.let { error ->
-                    client.itmApplication.logger.log(
+                    client?.itmApplication?.logger?.log(
                         ITMLogger.Severity.Warning,
                         "Error fetching OIDC service config: $error"
                     )
@@ -64,6 +87,7 @@ open class ITMOIDCAuthorizationFragment(oidcClient: ITMOIDCAuthorizationClient):
     }
 
     private fun launchRequestAuthorization(authState: AuthState) {
+        val authSettings = this.authSettings ?: return
         val authReqBuilder = AuthorizationRequest.Builder(
             authState.authorizationServiceConfiguration!!,
             authSettings.clientId,
@@ -134,11 +158,11 @@ open class ITMOIDCAuthorizationFragment(oidcClient: ITMOIDCAuthorizationClient):
     }
 
     /**
-     * Clean up by removing ourself from [client].
+     * Clean up by removing ourself from [client][ITMAuthorizationFragment.client].
      */
     override fun onDestroy() {
         super.onDestroy()
-        client.setAuthorizationFragment(null)
+        client?.setAuthorizationFragment(null)
     }
 }
 

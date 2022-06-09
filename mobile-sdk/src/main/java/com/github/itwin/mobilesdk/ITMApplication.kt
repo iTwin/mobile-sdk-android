@@ -298,6 +298,27 @@ abstract class ITMApplication(
         }
     }
 
+    open fun finishInitializeFrontend(fragmentActivity: FragmentActivity, @IdRes fragmentContainerId: Int) {
+        nativeUI = createNativeUI(fragmentActivity)
+        geolocationManager?.let { geolocationManager ->
+            fragmentActivity.supportFragmentManager.commit {
+                setReorderingAllowed(true)
+                val frag = createGeolocationFragment(geolocationManager)
+                add(fragmentContainerId, frag)
+                geolocationFragment = frag
+            }
+        }
+        (authorizationClient as? ITMAuthorizationClient)?.let { authorizationClient ->
+            fragmentActivity.supportFragmentManager.commit {
+                setReorderingAllowed(true)
+                val frag = createAuthorizationFragment(authorizationClient)
+                add(fragmentContainerId, frag)
+                authorizationFragment = frag
+            }
+        }
+        frontendInitTask.complete()
+    }
+
     /**
      * Initialize the iModelJs frontend if it is not initialized yet.
      *
@@ -310,10 +331,15 @@ abstract class ITMApplication(
      */
     open fun initializeFrontend(fragmentActivity: FragmentActivity, @IdRes fragmentContainerId: Int) {
         initializeBackend()
+        if (webView != null) {
+            frontendInitTask.cancel()
+            frontendInitTask = Job()
+        }
         MainScope().launch {
-            if (webView != null)
+            if (webView != null) {
+                finishInitializeFrontend(fragmentActivity, fragmentContainerId)
                 return@launch
-
+            }
             try {
                 backendInitTask.join()
                 val args = getUrlHashParams().toUrlString()
@@ -367,23 +393,6 @@ abstract class ITMApplication(
                         updateAvailability(false)
                     }
                 })
-                nativeUI = createNativeUI(fragmentActivity)
-                geolocationManager?.let { geolocationManager ->
-                    fragmentActivity.supportFragmentManager.commit {
-                        setReorderingAllowed(true)
-                        val frag = createGeolocationFragment(geolocationManager)
-                        add(fragmentContainerId, frag)
-                        geolocationFragment = frag
-                    }
-                }
-                (authorizationClient as? ITMAuthorizationClient)?.let { authorizationClient ->
-                    fragmentActivity.supportFragmentManager.commit {
-                        setReorderingAllowed(true)
-                        val frag = createAuthorizationFragment(authorizationClient)
-                        add(fragmentContainerId, frag)
-                        authorizationFragment = frag
-                    }
-                }
                 if (usingRemoteServer) {
                     MainScope().launch {
                         delay(10000)
@@ -398,7 +407,7 @@ abstract class ITMApplication(
                         }
                     }
                 }
-                frontendInitTask.complete()
+                finishInitializeFrontend(fragmentActivity, fragmentContainerId)
             } catch (e: Exception) {
                 coMessenger?.frontendLaunchFailed(e)
                 reset()
@@ -416,7 +425,12 @@ abstract class ITMApplication(
         webView?.setOnApplyWindowInsetsListener(null)
         geolocationManager?.stopLocationUpdates()
         geolocationManager?.setGeolocationFragment(null)
+        ITMGeolocationFragment.clearGeolocationManager()
         geolocationFragment = null
+        (authorizationFragment as? ITMOIDCAuthorizationFragment)?.let {
+            ITMOIDCAuthorizationFragment.clearClient()
+        }
+        authorizationFragment = null
         nativeUI?.detach()
         nativeUI = null
     }
@@ -742,7 +756,7 @@ abstract class ITMApplication(
      * @return An instance of [ITMGeolocationFragment] attached to [geolocationManager].
      */
     open fun createGeolocationFragment(geolocationManager: ITMGeolocationManager): ITMGeolocationFragment {
-        return ITMGeolocationFragment(geolocationManager)
+        return ITMGeolocationFragment.newInstance(geolocationManager)
     }
 
     /**
@@ -762,7 +776,7 @@ abstract class ITMApplication(
      */
     open fun createAuthorizationFragment(client: ITMAuthorizationClient): ITMAuthorizationFragment {
         val oidcClient = client as? ITMOIDCAuthorizationClient ?: throw Error("client is not ITMOIDCAuthorizationClient.")
-        return ITMOIDCAuthorizationFragment(oidcClient)
+        return ITMOIDCAuthorizationFragment.newInstance(oidcClient)
     }
 //    private fun loadFrontend() {
 //        val host = this.host ?: return
