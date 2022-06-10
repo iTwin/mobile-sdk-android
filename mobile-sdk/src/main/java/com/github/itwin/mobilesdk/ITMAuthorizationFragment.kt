@@ -7,10 +7,14 @@ import java.util.*
  * Abstract base class for a [Fragment] used to present the signin UI for [ITMAuthorizationClient].
  *
  * __Note:__ The constructor automatically attaches this instance to [client].
- *
- * @param client The [ITMAuthorizationClient] with which this fragment is associated.
  */
-abstract class ITMAuthorizationFragment(protected val client: ITMAuthorizationClient): Fragment() {
+abstract class ITMAuthorizationFragment : Fragment() {
+    companion object {
+        /**
+         * The [ITMAuthorizationClient] with which each fragment is associated.
+         */
+        var client: ITMAuthorizationClient? = null
+    }
     /**
      * Data class to hold a token string and its expiration date.
      *
@@ -39,7 +43,7 @@ abstract class ITMAuthorizationFragment(protected val client: ITMAuthorizationCl
 
     init {
         @Suppress("LeakingThis")
-        client.setAuthorizationFragment(this)
+        client?.setAuthorizationFragment(this)
     }
 
     /**
