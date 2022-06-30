@@ -23,6 +23,8 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.commit
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.MutableLiveData
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import com.bentley.itwin.AuthorizationClient
 import com.bentley.itwin.IModelJsHost
 import com.bentley.itwin.MobileFrontend
@@ -498,6 +500,26 @@ abstract class ITMApplication(
     }
 
     /**
+     * Update the application to conform to the [preferredColorScheme].
+     * WebViews do not automatically follow the system choice for dark theme, so this needs to be called after system dark mode changes
+     */
+    open fun applyPreferredColorScheme() {
+        AppCompatDelegate.setDefaultNightMode(preferredColorScheme.toNightMode());
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) return
+        val webView = this.webView ?: return
+
+        val systemDarkMode = (appContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+        val forceDarkMode = when (preferredColorScheme) {
+            PreferredColorScheme.Dark -> WebSettingsCompat.FORCE_DARK_ON
+            PreferredColorScheme.Light -> WebSettingsCompat.FORCE_DARK_OFF
+            PreferredColorScheme.Automatic -> if (systemDarkMode) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
+        }
+
+        WebSettingsCompat.setForceDark(webView.settings, forceDarkMode)
+    }
+
+    /**
      * Set up [webView] for usage with iTwin Mobile SDK.
      */
     protected open fun setupWebView() {
@@ -511,7 +533,7 @@ abstract class ITMApplication(
             value?.asObject()?.getOptionalLong("preferredColorScheme")?.let { longValue ->
                 preferredColorScheme = PreferredColorScheme.fromLong(longValue) ?: PreferredColorScheme.Automatic
                 MainScope().launch {
-                    AppCompatDelegate.setDefaultNightMode(preferredColorScheme.toNightMode())
+                    applyPreferredColorScheme()
                 }
             }
         }
