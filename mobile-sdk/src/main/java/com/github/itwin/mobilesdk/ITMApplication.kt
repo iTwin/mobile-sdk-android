@@ -504,19 +504,22 @@ abstract class ITMApplication(
      * WebViews do not automatically follow the system choice for dark theme, so this needs to be called after system dark mode changes
      */
     open fun applyPreferredColorScheme() {
-        AppCompatDelegate.setDefaultNightMode(preferredColorScheme.toNightMode());
+        val systemDarkMode = (appContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        // MODE_NIGHT_FOLLOW_SYSTEM doesn't work consistently, so we are forcing dark or light mode.
+        val systemUiScheme = when (preferredColorScheme) {
+            PreferredColorScheme.Automatic -> if (systemDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+            else -> preferredColorScheme.toNightMode()
+        }
+        AppCompatDelegate.setDefaultNightMode(systemUiScheme)
+
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) return
         val webView = this.webView ?: return
-
-        val systemDarkMode = (appContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-
-        val forceDarkMode = when (preferredColorScheme) {
+        val webViewScheme = when (preferredColorScheme) {
             PreferredColorScheme.Dark -> WebSettingsCompat.FORCE_DARK_ON
             PreferredColorScheme.Light -> WebSettingsCompat.FORCE_DARK_OFF
             PreferredColorScheme.Automatic -> if (systemDarkMode) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
         }
-
-        WebSettingsCompat.setForceDark(webView.settings, forceDarkMode)
+        WebSettingsCompat.setForceDark(webView.settings, webViewScheme)
     }
 
     /**
