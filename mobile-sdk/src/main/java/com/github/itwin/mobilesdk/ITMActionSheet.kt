@@ -12,18 +12,24 @@ import android.view.ViewGroup
 import android.widget.PopupMenu
 import android.widget.RelativeLayout
 import com.eclipsesource.json.Json
-import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
-import kotlin.math.roundToInt
 
 /**
  * [ITMNativeUIComponent] that presents a [PopupMenu].
  *
  * This class is used by the `presentActionSheet` TypeScript function in `@itwin/mobile-core`.
+ *
+ * __Note:__ Due to the cross-platform nature of `@itwin/mobile-core`, functionality like this that
+ * is designed to use native underlying features runs into a possible confusion over different naming
+ * on iOS vs. Android. On iOS, the `presentActionSheet` TypeScript function results in an alert
+ * controller with a style of `actionSheet`. Functionally, that uses a popover on iPads and full screen
+ * on iPhones. Android doesn't have the exact equivalent, but its [PopupMenu] provides comparable
+ * functionality. We decided that naming this class to match the name of the TypeScript function
+ * made more sense than naming it ITMPopupMenu.
  *
  * @param nativeUI The [ITMNativeUI] in which the [PopupMenu] will display.
  */
@@ -33,25 +39,6 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
     private var popupMenu: PopupMenu? = null
     private var cancelAction: ITMAlert.Action? = null
     private var continuation: Continuation<JsonValue>? = null
-
-    class SourceRect(value: JsonValue, private val density: Float) {
-        val x: Int
-        val y: Int
-        val width: Int
-        val height: Int
-        private val sourceRect: JsonObject = value.asObject()
-
-        init {
-            x = getField("x")
-            y = getField("y")
-            width = getField("width")
-            height = getField("height")
-        }
-
-        private fun getField(fieldName: String): Int {
-            return (sourceRect[fieldName].asFloat() * density).roundToInt()
-        }
-    }
 
     init {
         listener = coMessenger.addQueryListener("Bentley_ITM_presentActionSheet") { value -> handleQuery(value) }
@@ -69,8 +56,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
             // NOTE: viewGroup will change every time the Model Web App is closed and reopened, so we do NOT want to grab the value
             // during our initialization.
             viewGroup = webView.parent as ViewGroup
-            val density = webView.resources.displayMetrics.density
-            val sourceRect = SourceRect(params["sourceRect"], density)
+            val sourceRect = ITMRect(params["sourceRect"], webView)
             anchor = View(context)
             anchor?.let { anchor ->
                 anchor.alpha = 0.0f

@@ -7,6 +7,51 @@ package com.github.itwin.mobilesdk
 import android.content.Context
 import android.content.res.Configuration
 import android.webkit.WebView
+import com.eclipsesource.json.JsonObject
+import com.eclipsesource.json.JsonValue
+import kotlin.math.roundToInt
+
+/**
+ * Class for converting between JSON dictionary in [WebView] coordinates and Kotlin representing a rectangle
+ * in UI coordinates.
+ *
+ * @param value: The JSON value containing the rectangle. This must include `x`, `y`, `width`, and `height` fields.
+ * @param webView: The [WebView] that the rectangle is in.
+ */
+class ITMRect(value: JsonValue, webView: WebView) {
+    /**
+     * The x coordinate of the rectangle in [WebView] coordinates.
+     */
+    val x: Int
+
+    /**
+     * The y coordinate of the rectangle in [WebView] coordinates.
+     */
+    val y: Int
+
+    /**
+     * The width of the rectangle in [WebView] coordinates.
+     */
+    val width: Int
+
+    /**
+     * The height of the rectangle in [WebView] coordinates.
+     */
+    val height: Int
+    private val density = webView.resources.displayMetrics.density
+    private val sourceRect: JsonObject = value.asObject()
+
+    init {
+        x = getField("x")
+        y = getField("y")
+        width = getField("width")
+        height = getField("height")
+    }
+
+    private fun getField(fieldName: String): Int {
+        return (sourceRect[fieldName].asFloat() * density).roundToInt()
+    }
+}
 
 /**
  * Container class for custom [ITMNativeUIComponents][ITMNativeUIComponent].
