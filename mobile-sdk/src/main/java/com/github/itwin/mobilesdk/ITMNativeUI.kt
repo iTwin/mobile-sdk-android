@@ -38,18 +38,17 @@ class ITMRect(value: JsonValue, webView: WebView) {
      * The height of the rectangle in [WebView] coordinates.
      */
     val height: Int
-    private val density = webView.resources.displayMetrics.density
-    private val sourceRect: JsonObject = value.asObject()
 
     init {
+        val density = webView.resources.displayMetrics.density
+        val sourceRect: JsonObject = value.asObject()
+        fun getField(fieldName: String): Int {
+            return (sourceRect[fieldName].asFloat() * density).roundToInt()
+        }
         x = getField("x")
         y = getField("y")
         width = getField("width")
         height = getField("height")
-    }
-
-    private fun getField(fieldName: String): Int {
-        return (sourceRect[fieldName].asFloat() * density).roundToInt()
     }
 }
 
