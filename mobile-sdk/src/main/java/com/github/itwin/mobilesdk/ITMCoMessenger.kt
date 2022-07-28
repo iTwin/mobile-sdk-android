@@ -35,15 +35,15 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
      */
     @Suppress("unused")
     open suspend fun query(type: String, data: JsonValue? = null): JsonValue? {
-        return suspendCoroutine { block ->
+        return suspendCoroutine { continuation ->
             try {
                 messenger.query(type, data, { data ->
-                    block.resume(data)
+                    continuation.resume(data)
                 }, { error ->
-                    block.resumeWithException(error)
+                    continuation.resumeWithException(error)
                 })
             } catch (error: Exception) {
-                block.resumeWithException(error)
+                continuation.resumeWithException(error)
             }
         }
     }
