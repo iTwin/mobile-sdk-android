@@ -67,6 +67,7 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
         listener = coMessenger.addQueryListener("Bentley_ITM_presentAlert") { value -> handleQuery(value) }
     }
 
+    @Suppress("LongMethod")
     private suspend fun handleQuery(value: JsonValue?): JsonValue {
         try {
             // Note: no input validation is intentional. If the input is malformed, it will trigger the exception handler, which will send
@@ -76,47 +77,63 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
             val cancelAction = readActions(params["actions"].asArray(), actions)
             val title = params.getOptionalString("title")
             val message = params.getOptionalString("message")
-            if (actions.size > 3) throw Exception("Too many actions.")
             if (actions.size == 0 && cancelAction == null) throw Exception("No actions")
             var index = 0
             var neutralAction: Action? = null
             var negativeAction: Action? = null
             var positiveAction: Action? = null
-            // TODO: Allow explicit control over which action goes to which button?
-            if (actions.size == 3) {
-                neutralAction = actions[index]
-                ++index
-            }
-            if (actions.size >= 2) {
-                negativeAction = actions[index]
-                ++index
-            }
-            if (actions.size >= 1) {
-                positiveAction = actions[index]
+            var items: MutableList<CharSequence>? = null
+            if (actions.size > 3) {
+                items = mutableListOf()
+                actions.forEach { action ->
+                    items += action.title
+                }
+            } else {
+                // Note: The mapping of actions to buttons is documented in mobile-sdk-core.
+                if (actions.size == 3) {
+                    neutralAction = actions[index]
+                    ++index
+                }
+                if (actions.size >= 2) {
+                    negativeAction = actions[index]
+                    ++index
+                }
+                if (actions.size >= 1) {
+                    positiveAction = actions[index]
+                }
             }
             return suspendCoroutine { continuation ->
                 with(AlertDialog.Builder(context)) {
                     setTitle(title)
-                    setMessage(message)
+                    if (items != null) {
+                        setItems(items.toTypedArray()) { _, index ->
+                            continuation.resume(Json.value(actions[index].name))
+                        }
+                    } else {
+                        // Items and Message are mutually exclusive. If items are needed (more than three
+                        // actions), ignore the message. Note that on iOS a message can be shown with any
+                        // number of actions, so it is not invalid to have more than three items and a message.
+                        setMessage(message)
+                    }
                     setCancelable(cancelAction != null)
-                    cancelAction?.let { cancelAction ->
+                    if (cancelAction != null) {
                         setOnCancelListener {
                             continuation.resume(Json.value(cancelAction.name))
                         }
                     }
-                    neutralAction?.let { action ->
-                        setNeutralButton(action.title) { _, _ ->
-                            continuation.resume(Json.value(action.name))
+                    if (neutralAction != null) {
+                        setNeutralButton(neutralAction.title) { _, _ ->
+                            continuation.resume(Json.value(neutralAction.name))
                         }
                     }
-                    negativeAction?.let { action ->
-                        setNegativeButton(action.title) { _, _ ->
-                            continuation.resume(Json.value(action.name))
+                    if (negativeAction != null) {
+                        setNegativeButton(negativeAction.title) { _, _ ->
+                            continuation.resume(Json.value(negativeAction.name))
                         }
                     }
-                    positiveAction?.let { action ->
-                        setPositiveButton(action.title) { _, _ ->
-                            continuation.resume(Json.value(action.name))
+                    if (positiveAction != null) {
+                        setPositiveButton(positiveAction.title) { _, _ ->
+                            continuation.resume(Json.value(positiveAction.name))
                         }
                     }
                     show()
