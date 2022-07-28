@@ -67,6 +67,7 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
         listener = coMessenger.addQueryListener("Bentley_ITM_presentAlert") { value -> handleQuery(value) }
     }
 
+    @Suppress("LongMethod")
     private suspend fun handleQuery(value: JsonValue?): JsonValue {
         try {
             // Note: no input validation is intentional. If the input is malformed, it will trigger the exception handler, which will send
