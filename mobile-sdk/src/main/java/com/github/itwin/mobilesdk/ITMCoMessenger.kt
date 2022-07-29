@@ -49,23 +49,23 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
     }
 
     /**
-     * Convenience wrapper around [ITMMessenger.addMessageListener]
+     * Convenience wrapper around [ITMMessenger.registerMessageHandler]
      */
     @Suppress("unused")
-    open fun addMessageListener(type: String, callback: ITMSuccessCallback): ITMMessenger.ITMListener {
-        return messenger.addMessageListener(type, callback)
+    open fun registerMessageHandler(type: String, callback: ITMSuccessCallback): ITMMessenger.ITMHandler {
+        return messenger.registerMessageHandler(type, callback)
     }
 
     /**
-     * Add a coroutine-based listener for queries from the [web view][ITMApplication.webView].
+     * Add a coroutine-based handler for queries from the [web view][ITMApplication.webView].
      *
      * @param type Query type.
      * @param callback Coroutine function to respond to the query. Throws in the case of error, otherwise optionally return a value.
      *
-     * @return The [ITMMessenger.ITMListener] value to subsequently pass into [removeListener].
+     * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
-    open fun addQueryListener(type: String, callback: suspend (JsonValue?) -> JsonValue?): ITMMessenger.ITMListener {
-        return messenger.addQueryListener(type) { value, success, failure ->
+    open fun registerQueryHandler(type: String, callback: suspend (JsonValue?) -> JsonValue?): ITMMessenger.ITMHandler {
+        return messenger.registerQueryHandler(type) { value, success, failure ->
             MainScope().launch {
                 try {
                     val result = callback.invoke(value)
@@ -78,10 +78,10 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
     }
 
     /**
-     * Convenience wrapper around [ITMMessenger.removeListener].
+     * Convenience wrapper around [ITMMessenger.removeHandler].
      */
-    open fun removeListener(listener: ITMMessenger.ITMListener?) {
-        messenger.removeListener(listener)
+    open fun removeHandler(handler: ITMMessenger.ITMHandler?) {
+        messenger.removeHandler(handler)
     }
 
     /**

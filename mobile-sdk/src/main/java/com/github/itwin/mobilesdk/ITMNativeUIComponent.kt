@@ -20,14 +20,14 @@ open class ITMNativeUIComponent(@Suppress("MemberVisibilityCanBePrivate") protec
     protected val context: Context = nativeUI.context
     protected val webView: WebView = nativeUI.webView
     protected val coMessenger: ITMCoMessenger = nativeUI.coMessenger
-    var listener: ITMMessenger.ITMListener? = null
+    var handler: ITMMessenger.ITMHandler? = null
 
     /**
      * Detach this UI component from the native UI (stop listening for messages).
      */
     open fun detach() {
-        coMessenger.removeListener(listener)
-        listener = null
+        coMessenger.removeHandler(handler)
+        handler = null
     }
 
     /**

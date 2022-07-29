@@ -23,7 +23,7 @@ import kotlin.coroutines.suspendCoroutine
  */
 class ITMDatePicker(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
     init {
-        listener = coMessenger.addQueryListener("Bentley_ITM_presentDatePicker") { value -> handleQuery(value) }
+        handler = coMessenger.registerQueryHandler("Bentley_ITM_presentDatePicker") { value -> handleQuery(value) }
     }
 
     private fun getDateParam(params: JsonObject, field: String): Date? {

@@ -28,9 +28,9 @@ typealias ITMFailureCallback = (Exception) -> Unit
  */
 open class ITMMessenger(private val itmApplication: ITMApplication) {
     /**
-     * Empty interface used for message listeners.
+     * Empty interface used for message handlers.
      */
-    interface ITMListener
+    interface ITMHandler
 
     /**
      * The [WebView][android.webkit.WebView] with which this [ITMMessenger] communicates.
@@ -60,10 +60,10 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
     protected val pendingQueries: MutableMap<Int, Pair<ITMSuccessCallback?, ITMFailureCallback?>> = mutableMapOf()
 
     /**
-     * Listeners waiting for queries from the web view. The key is the query name, and the value is the listener.
+     * Handlers waiting for queries from the web view. The key is the query name, and the value is the handler.
      */
     @Suppress("MemberVisibilityCanBePrivate")
-    protected val listeners: MutableMap<String, MessageListener> = mutableMapOf()
+    protected val handlers: MutableMap<String, MessageHandler> = mutableMapOf()
 
     /**
      * Class for handling queries from the web view.
@@ -72,7 +72,7 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
      * @param itmMessenger The [ITMMessenger] listening for the query.
      * @param callback The [ITMQueryCallback] callback object for the query.
      */
-    protected open class MessageListener(val type: String, private val itmMessenger: ITMMessenger, private val callback: ITMQueryCallback) : ITMListener {
+    protected open class MessageHandler(val type: String, private val itmMessenger: ITMMessenger, private val callback: ITMQueryCallback) : ITMHandler {
         /**
          * Function that is called when a query is received of the specified [type].
          *
@@ -185,9 +185,9 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
                 return
             queryId = request[queryIdKey].asInt()
             val name = request[nameKey].asString()
-            val listener = listeners[name]
-            if (listener != null) {
-                listener.handleMessage(queryId, request[messageKey])
+            val handler = handlers[name]
+            if (handler != null) {
+                handler.handleMessage(queryId, request[messageKey])
             } else {
                 @Suppress("SpellCheckingInspection")
                 logError("Unhandled query [JS -> Kotlin] WVID$queryId: $name")
@@ -230,7 +230,7 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
     }
 
     /**
-     * Called by a [MessageListener] to indicate success.
+     * Called by a [MessageHandler] to indicate success.
      *
      * __Note:__ If you plan to override this without calling super, you need to inspect this source code.
      *
@@ -249,7 +249,7 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
     }
 
     /**
-     * Called when a query is received whose query name does not have a registered listener.
+     * Called when a query is received whose query name does not have a registered handler.
      *
      * __Note:__ If you plan to override this without calling super, you need to inspect this source code.
      *
@@ -364,43 +364,43 @@ open class ITMMessenger(private val itmApplication: ITMApplication) {
     }
 
     /**
-     * Add a listener for queries from the web view that do not include a response.
+     * Add a handler for queries from the web view that do not include a response.
      *
      * @param type Query type.
      * @param callback Function called when a message is received.
      *
-     * @return The [ITMMessenger.ITMListener] value to subsequently pass into [removeListener]
+     * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler]
      */
-    open fun addMessageListener(type: String, callback: ITMSuccessCallback): ITMListener {
-        return addQueryListener(type) { value, _, _ ->
+    open fun registerMessageHandler(type: String, callback: ITMSuccessCallback): ITMHandler {
+        return registerQueryHandler(type) { value, _, _ ->
             callback.invoke(value)
         }
     }
 
     /**
-     * Add a listener for queries from the web view that include a response.
+     * Add a handler for queries from the web view that include a response.
      *
      * @param type Query type.
      * @param callback Function called to respond to query. Call success param upon success, or failure param upon error.
      *
-     * @return The [ITMMessenger.ITMListener] value to subsequently pass into [removeListener]
+     * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler]
      */
-    open fun addQueryListener(type: String, callback: ITMQueryCallback): ITMListener {
-        val listener = MessageListener(type, this) { data, success, failure ->
+    open fun registerQueryHandler(type: String, callback: ITMQueryCallback): ITMHandler {
+        val handler = MessageHandler(type, this) { data, success, failure ->
             callback.invoke(data, success, failure)
         }
-        listeners[type] = listener
-        return listener
+        handlers[type] = handler
+        return handler
     }
 
     /**
-     * Remove the specified [ITMListener].
+     * Remove the specified [ITMHandler].
      *
-     * @param listener The listener to remove.
+     * @param handler The handler to remove.
      */
-    open fun removeListener(listener: ITMListener?) {
-        if (listener is MessageListener) {
-            listeners.remove(listener.type)
+    open fun removeHandler(handler: ITMHandler?) {
+        if (handler is MessageHandler) {
+            handlers.remove(handler.type)
         }
     }
 

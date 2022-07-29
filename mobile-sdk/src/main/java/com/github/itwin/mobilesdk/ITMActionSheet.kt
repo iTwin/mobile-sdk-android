@@ -41,7 +41,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
     private var continuation: Continuation<JsonValue>? = null
 
     init {
-        listener = coMessenger.addQueryListener("Bentley_ITM_presentActionSheet") { value -> handleQuery(value) }
+        handler = coMessenger.registerQueryHandler("Bentley_ITM_presentActionSheet") { value -> handleQuery(value) }
     }
 
     private suspend fun handleQuery(value: JsonValue?): JsonValue {
