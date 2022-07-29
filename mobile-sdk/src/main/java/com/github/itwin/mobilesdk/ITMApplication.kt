@@ -532,7 +532,7 @@ abstract class ITMApplication(
             webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
         }
         coMessenger = ITMCoMessenger(messenger!!)
-        messenger?.addMessageListener("Bentley_ITM_updatePreferredColorScheme") { value ->
+        messenger?.registerMessageHandler("Bentley_ITM_updatePreferredColorScheme") { value ->
             value?.asObject()?.getOptionalLong("preferredColorScheme")?.let { longValue ->
                 preferredColorScheme = PreferredColorScheme.fromLong(longValue) ?: PreferredColorScheme.Automatic
                 MainScope().launch {

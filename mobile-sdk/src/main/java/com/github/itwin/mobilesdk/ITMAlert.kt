@@ -64,7 +64,7 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
     }
 
     init {
-        listener = coMessenger.addQueryListener("Bentley_ITM_presentAlert") { value -> handleQuery(value) }
+        handler = coMessenger.registerQueryHandler("Bentley_ITM_presentAlert") { value -> handleQuery(value) }
     }
 
     @Suppress("LongMethod")
