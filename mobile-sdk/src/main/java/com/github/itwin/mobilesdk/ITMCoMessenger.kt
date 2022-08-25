@@ -16,12 +16,12 @@ import kotlin.coroutines.suspendCoroutine
  *
  * @param messenger The [ITMMessenger] that this wraps.
  */
-open class ITMCoMessenger(private val messenger: ITMMessenger) {
+class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Convenience wrapper around [ITMMessenger.send].
      */
     @Suppress("unused")
-    open fun send(type: String, data: JsonValue? = null) {
+    fun send(type: String, data: JsonValue? = null) {
         messenger.send(type, data)
     }
 
@@ -34,7 +34,7 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
      * @return The result from the web app.
      */
     @Suppress("unused")
-    open suspend fun query(type: String, data: JsonValue? = null): JsonValue? {
+    suspend fun query(type: String, data: JsonValue? = null): JsonValue? {
         return suspendCoroutine { continuation ->
             try {
                 messenger.query(type, data, { data ->
@@ -52,7 +52,7 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
      * Convenience wrapper around [ITMMessenger.registerMessageHandler]
      */
     @Suppress("unused")
-    open fun registerMessageHandler(type: String, callback: ITMSuccessCallback): ITMMessenger.ITMHandler {
+    fun registerMessageHandler(type: String, callback: ITMSuccessCallback): ITMMessenger.ITMHandler {
         return messenger.registerMessageHandler(type, callback)
     }
 
@@ -64,7 +64,7 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
      *
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
-    open fun registerQueryHandler(type: String, callback: suspend (JsonValue?) -> JsonValue?): ITMMessenger.ITMHandler {
+    fun registerQueryHandler(type: String, callback: suspend (JsonValue?) -> JsonValue?): ITMMessenger.ITMHandler {
         return messenger.registerQueryHandler(type) { value, success, failure ->
             MainScope().launch {
                 try {
@@ -80,7 +80,7 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Convenience wrapper around [ITMMessenger.removeHandler].
      */
-    open fun removeHandler(handler: ITMMessenger.ITMHandler?) {
+    fun removeHandler(handler: ITMMessenger.ITMHandler?) {
         messenger.removeHandler(handler)
     }
 
@@ -88,7 +88,7 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
      * Convenience wrapper around [ITMMessenger.frontendLaunchSucceeded].
      */
     @Suppress("unused")
-    open fun frontendLaunchSucceeded() {
+    fun frontendLaunchSucceeded() {
         messenger.frontendLaunchSucceeded()
     }
 
@@ -96,13 +96,21 @@ open class ITMCoMessenger(private val messenger: ITMMessenger) {
      * Convenience wrapper around [ITMMessenger.isFrontendLaunchComplete].
      */
     @Suppress("unused")
-    open val isFrontendLaunchComplete: Boolean
+    val isFrontendLaunchComplete: Boolean
         get() = messenger.isFrontendLaunchComplete
 
     /**
      * Convenience wrapper around [ITMMessenger.frontendLaunchFailed].
      */
-    open fun frontendLaunchFailed(exception: Exception) {
+    fun frontendLaunchFailed(exception: Exception) {
         messenger.frontendLaunchFailed(exception)
+    }
+
+    /**
+     * Call to join the frontend launch job (wait for the frontend to launch).
+     */
+    @Suppress("unused")
+    suspend fun frontendLaunchJoin() {
+        messenger.frontendLaunchJob.join()
     }
 }

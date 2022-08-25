@@ -192,14 +192,14 @@ abstract class ITMApplication(
     /**
      * The [ITMMessenger] for communication between native code and JavaScript code (and vice versa).
      */
-    @Suppress("MemberVisibilityCanBePrivate")
-    var messenger: ITMMessenger? = null
+    @Suppress("MemberVisibilityCanBePrivate", "LeakingThis")
+    var messenger = ITMMessenger(this)
 
     /**
      * The [ITMCoMessenger] associated with [messenger].
      */
     @Suppress("MemberVisibilityCanBePrivate")
-    var coMessenger: ITMCoMessenger? = null
+    var coMessenger = ITMCoMessenger(messenger)
 
     /**
      * The [ITMLogger] responsible for handling log messages (both from native code and JavaScript code). The default logger
@@ -398,7 +398,7 @@ abstract class ITMApplication(
                 if (usingRemoteServer) {
                     MainScope().launch {
                         delay(10000)
-                        if (messenger?.isFrontendLaunchComplete != true) {
+                        if (messenger.isFrontendLaunchComplete) {
                             with(AlertDialog.Builder(fragmentActivity)) {
                                 setTitle(R.string.itm_error)
                                 setMessage(fragmentActivity.getString(R.string.itm_debug_server_error, baseUrl))
@@ -411,7 +411,7 @@ abstract class ITMApplication(
                 }
                 finishInitializeFrontend(fragmentActivity, fragmentContainerId)
             } catch (e: Exception) {
-                coMessenger?.frontendLaunchFailed(e)
+                coMessenger.frontendLaunchFailed(e)
                 reset()
                 logger.log(ITMLogger.Severity.Error, "Error loading imodeljs frontend: $e")
             }
@@ -443,7 +443,7 @@ abstract class ITMApplication(
      */
     open fun createNativeUI(context: Context): ITMNativeUI? {
         webView?.let { webView ->
-            coMessenger?.let { coMessenger ->
+            coMessenger.let { coMessenger ->
                 return ITMNativeUI(context, webView, coMessenger)
             }
         }
@@ -461,8 +461,8 @@ abstract class ITMApplication(
      */
     open fun reinitializeFrontend(fragmentActivity: FragmentActivity, @IdRes fragmentContainerId: Int) {
         webView = null
-        messenger = null
-        coMessenger = null
+        messenger = ITMMessenger(this)
+        coMessenger = ITMCoMessenger(messenger)
         isLoaded.value = false
         initializeFrontend(fragmentActivity, fragmentContainerId)
     }
@@ -487,8 +487,8 @@ abstract class ITMApplication(
         frontendInitTask = Job()
         _isBackendInitialized.set(false)
         webView = null
-        messenger = null
-        coMessenger = null
+        messenger = ITMMessenger(this)
+        coMessenger = ITMCoMessenger(messenger)
     }
 
     /**
@@ -525,14 +525,14 @@ abstract class ITMApplication(
     /**
      * Set up [webView] for usage with iTwin Mobile SDK.
      */
+    @Suppress("LeakingThis")
     protected open fun setupWebView() {
         val webView = this.webView ?: return
-        messenger = createMessenger()
+        messenger.webView = webView
         if (attachWebViewLogger) {
             webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
         }
-        coMessenger = ITMCoMessenger(messenger!!)
-        messenger?.registerMessageHandler("Bentley_ITM_updatePreferredColorScheme") { value ->
+        messenger.registerMessageHandler("Bentley_ITM_updatePreferredColorScheme") { value ->
             value?.asObject()?.getOptionalLong("preferredColorScheme")?.let { longValue ->
                 preferredColorScheme = PreferredColorScheme.fromLong(longValue) ?: PreferredColorScheme.Automatic
                 MainScope().launch {
@@ -631,7 +631,7 @@ abstract class ITMApplication(
                 message["bottom"] = bottom
             }
         }
-        messenger?.send("Bentley_ITM_muiUpdateSafeAreas", message)
+        messenger.send("Bentley_ITM_muiUpdateSafeAreas", message)
     }
 
     /**
