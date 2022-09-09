@@ -398,7 +398,7 @@ abstract class ITMApplication(
                 if (usingRemoteServer) {
                     MainScope().launch {
                         delay(10000)
-                        if (messenger.isFrontendLaunchComplete) {
+                        if (!messenger.isFrontendLaunchComplete) {
                             with(AlertDialog.Builder(fragmentActivity)) {
                                 setTitle(R.string.itm_error)
                                 setMessage(fragmentActivity.getString(R.string.itm_debug_server_error, baseUrl))
