@@ -280,13 +280,13 @@ abstract class ITMApplication(
     /**
      * Initialize the iModelJs backend if it is not initialized yet. This can be called from the launch activity.
      */
-    open fun initializeBackend() {
+    open fun initializeBackend(allowInspectBackend: Boolean = false) {
         if (_isBackendInitialized.getAndSet(true))
             return
 
         try {
             authorizationClient = createAuthorizationClient()
-            host = IModelJsHost(appContext, forceExtractBackendAssets, authorizationClient).apply {
+            host = IModelJsHost(appContext, forceExtractBackendAssets, authorizationClient, allowInspectBackend).apply {
                 setBackendPath(getBackendPath())
                 setHomePath(getBackendHomePath())
                 setEntryPointScript(getBackendEntryPointScript())
@@ -331,8 +331,8 @@ abstract class ITMApplication(
      * @param fragmentContainerId The resource ID of the [FragmentContainerView][androidx.fragment.app.FragmentContainerView]
      * into which to place UI fragments.
      */
-    open fun initializeFrontend(fragmentActivity: FragmentActivity, @IdRes fragmentContainerId: Int) {
-        initializeBackend()
+    open fun initializeFrontend(fragmentActivity: FragmentActivity, @IdRes fragmentContainerId: Int, allowInspectBackend: Boolean = false) {
+        initializeBackend(allowInspectBackend)
         if (webView != null) {
             frontendInitTask.cancel()
             frontendInitTask = Job()
