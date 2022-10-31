@@ -60,10 +60,10 @@ open class ITMOIDCAuthorizationClient(itmApplication: ITMApplication, configData
                 if (accessToken != null) {
                     completion.resolve(accessToken.token, accessToken.expirationDate)
                 } else {
-                    completion.resolve(null, null)
+                    completion.resolve(null, null as? String?)
                 }
             } else {
-                completion.resolve(null, null)
+                completion.resolve(null, null as? String?)
             }
         }
     }
