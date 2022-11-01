@@ -223,6 +223,14 @@ abstract class ITMApplication(
     private var reachabilityStatus = ReachabilityStatus.NotReachable
 
     /**
+     * An [ITMWebAssetLoader] that intercepts https requests that begin with
+     * https://appassets.itwinjs.org/assets and loads the local files in the app assets. All other
+     * requests are ignored (meaning that th default behavior happens).
+     */
+    @Suppress("MemberVisibilityCanBePrivate")
+    val assetLoader = ITMWebAssetLoader(appContext)
+
+    /**
      * Kotlin Coroutine that waits for frontend initialization to complete, if it has not already completed.
      */
     suspend fun waitForFrontendInitialize() {
@@ -658,7 +666,7 @@ abstract class ITMApplication(
      * This default implementation simply returns null.
      */
     open fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-        return null
+        return assetLoader.shouldInterceptRequest(request.url)
     }
 
     /**
@@ -736,7 +744,9 @@ abstract class ITMApplication(
      * Get the base URL for the frontend.
      *
      * @return The URL to use for the frontend. The default uses the `ITMAPPLICATION_BASE_URL` value from [configData],
-     * if present, or `"file:///android_asset/ITMApplication/frontend/index.html"` otherwise.
+     * if present, or `"https://appassets.itwinjs.org/assets/ITMApplication/frontend/index.html` otherwise.
+     *
+     * __Note:__ The default URL is designed to work with [ITMWebAssetLoader].
      */
     open fun getBaseUrl(): String {
         configData?.getOptionalString("ITMAPPLICATION_BASE_URL")?.let { baseUrl ->
@@ -744,7 +754,7 @@ abstract class ITMApplication(
             return baseUrl
         }
         usingRemoteServer = false
-        return "file:///android_asset/ITMApplication/frontend/index.html"
+        return "${ITMWebAssetLoader.URL_PREFIX}ITMApplication/frontend/index.html"
     }
 
     /**
