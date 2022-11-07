@@ -14,7 +14,6 @@ import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
-import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.*
@@ -621,23 +620,21 @@ abstract class ITMApplication(
         message["right"] = 0
         message["top"] = 0
         message["bottom"] = 0
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            window.decorView.rootWindowInsets?.displayCutout?.let { displayCutoutInsets ->
-                val density = activity.resources.displayMetrics.density
-                val top = displayCutoutInsets.safeInsetTop / density
-                val bottom = displayCutoutInsets.safeInsetBottom / density
-                val left = displayCutoutInsets.safeInsetLeft / density
-                val right = displayCutoutInsets.safeInsetRight / density
-                // Make both sides have the same safe area.
-                val sides = max(left, right)
-                message["left"] = sides
-                message["right"] = sides
-                // Include the actual left/right insets so developers can use them if desired.
-                message["minLeft"] = left
-                message["minRight"] = right
-                message["top"] = top
-                message["bottom"] = bottom
-            }
+        window.decorView.rootWindowInsets?.displayCutout?.let { displayCutoutInsets ->
+            val density = activity.resources.displayMetrics.density
+            val top = displayCutoutInsets.safeInsetTop / density
+            val bottom = displayCutoutInsets.safeInsetBottom / density
+            val left = displayCutoutInsets.safeInsetLeft / density
+            val right = displayCutoutInsets.safeInsetRight / density
+            // Make both sides have the same safe area.
+            val sides = max(left, right)
+            message["left"] = sides
+            message["right"] = sides
+            // Include the actual left/right insets so developers can use them if desired.
+            message["minLeft"] = left
+            message["minRight"] = right
+            message["top"] = top
+            message["bottom"] = bottom
         }
         messenger.send("Bentley_ITM_muiUpdateSafeAreas", message)
     }

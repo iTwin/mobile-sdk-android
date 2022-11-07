@@ -6,14 +6,11 @@ package com.github.itwin.mobilesdk
 
 import android.app.Activity
 import android.content.Intent
-import android.os.Build
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import net.openid.appauth.*
 import java.lang.Error
-import java.text.SimpleDateFormat
 import java.time.Instant
-import java.util.*
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -173,12 +170,5 @@ open class ITMOIDCAuthorizationFragment : ITMAuthorizationFragment() {
  * @return A [String] containing an ISO 8601 format date.
  */
 fun Long.epochMillisToISO8601(): String {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        Instant.ofEpochMilli(this).toString()
-    } else {
-        val epochDate = Date(this)
-        @Suppress("SpellCheckingInspection")
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault())
-        return sdf.format(epochDate)
-    }
+    return Instant.ofEpochMilli(this).toString()
 }
