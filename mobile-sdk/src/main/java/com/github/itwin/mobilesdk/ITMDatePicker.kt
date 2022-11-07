@@ -5,7 +5,6 @@
 package com.github.itwin.mobilesdk
 
 import android.app.DatePickerDialog
-import android.os.Build
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
@@ -83,16 +82,7 @@ class ITMDatePicker(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
  */
 fun String.iso8601ToDate(): Date? {
     try {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Date(Instant.parse(this).toEpochMilli())
-        } else {
-            @Suppress("SpellCheckingInspection")
-            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault())
-            if (this.endsWith('Z')) {
-                format.timeZone = TimeZone.getTimeZone("UTC")
-            }
-            format.parse(this)
-        }
+        return Date(Instant.parse(this).toEpochMilli())
     } catch (ex: Exception) {
         // Ignore
     }
