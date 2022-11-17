@@ -224,7 +224,7 @@ abstract class ITMApplication(
     /**
      * An [ITMWebAssetLoader] that intercepts https requests that begin with
      * https://appassets.itwinjs.org/assets and loads the local files in the app assets. All other
-     * requests are ignored (meaning that th default behavior happens).
+     * requests are ignored (meaning that the default behavior happens).
      */
     @Suppress("MemberVisibilityCanBePrivate")
     val assetLoader = ITMWebAssetLoader(appContext)
