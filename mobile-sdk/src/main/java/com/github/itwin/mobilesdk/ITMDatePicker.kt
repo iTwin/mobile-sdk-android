@@ -26,10 +26,7 @@ class ITMDatePicker(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
     }
 
     private fun getDateParam(params: JsonObject, field: String): Date? {
-        params.getOptionalString(field)?.let { dateString ->
-            return dateString.iso8601ToDate()
-        }
-        return null
+        return params.getOptionalString(field)?.iso8601ToDate()
     }
 
     private suspend fun handleQuery(jsonValue: JsonValue?): JsonValue {

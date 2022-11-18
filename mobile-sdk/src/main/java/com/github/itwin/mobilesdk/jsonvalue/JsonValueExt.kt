@@ -11,35 +11,27 @@ import java.io.StringWriter
 import java.lang.Exception
 
 operator fun JsonValue.get(key: String): JsonValue? {
-    if (!this.isObject)
-        return null
-
-    return this.asObject()[key]
+    return this.takeIf { isObject }?.asObject()?.get(key)
 }
 
-fun JsonValue.getOptionalString(propertyName: String, defaultValue: String? = null): String? {
-    return if (this[propertyName]?.isString == true) this[propertyName]!!.asString() else defaultValue
+fun JsonValue.getOptionalString(propertyName: String): String? {
+    return this[propertyName]?.takeIf { it.isString }?.asString()
 }
 
-fun JsonValue.getOptionalBoolean(propertyName: String, defaultValue: Boolean? = null): Boolean? {
-    return if (this[propertyName]?.isBoolean == true) this[propertyName]!!.asBoolean() else defaultValue
+fun JsonValue.getOptionalBoolean(propertyName: String): Boolean? {
+    return this[propertyName]?.takeIf { it.isBoolean }?.asBoolean()
 }
 
-fun JsonValue.getOptionalLong(propertyName: String, defaultValue: Long? = null): Long? {
-    return if (this[propertyName]?.isNumber == true) this[propertyName]!!.asLong() else defaultValue
+fun JsonValue.getOptionalLong(propertyName: String): Long? {
+    return this[propertyName]?.takeIf { it.isNumber }?.asLong()
 }
 
-fun JsonValue.getOptionalObject(propertyName: String, defaultValue: JsonObject? = null): JsonObject? {
-    return if (this[propertyName]?.isObject == true) this[propertyName]!!.asObject() else defaultValue
+fun JsonValue.getOptionalObject(propertyName: String): JsonObject? {
+    return this[propertyName]?.takeIf { it.isObject }?.asObject()
 }
 
 fun JsonValue.isYes(propertyName: String): Boolean {
-    val value = getOptionalString(propertyName) ?: return false
-    return value.lowercase() == "yes"
-}
-
-fun JsonValue.asOptionalObject(defaultValue: JsonObject? = null): JsonObject? {
-    return if (this.isObject) this.asObject() else defaultValue
+    return getOptionalString(propertyName)?.lowercase() == "yes"
 }
 
 fun JsonValue.toPrettyString(): String {

@@ -772,10 +772,9 @@ abstract class ITMApplication(
      * @return An instance of [AuthorizationClient], or null if you don't want any authentication in your app.
      */
     open fun createAuthorizationClient(): AuthorizationClient? {
-        configData?.let { configData ->
-            return ITMOIDCAuthorizationClient(this, configData)
+        return configData?.let { configData ->
+            ITMOIDCAuthorizationClient(this, configData)
         }
-        return null
     }
 
     /**
@@ -810,13 +809,4 @@ abstract class ITMApplication(
         val oidcClient = client as? ITMOIDCAuthorizationClient ?: throw Error("client is not ITMOIDCAuthorizationClient.")
         return ITMOIDCAuthorizationFragment.newInstance(oidcClient)
     }
-//    private fun loadFrontend() {
-//        val host = this.host ?: return
-//        MainScope().launch {
-//            val baseUrl = getBaseUrl()
-//            val fullUrl = baseUrl + "#&platform=android&port=" + host.port + getUrlHashParams()
-//            webView?.loadUrl(fullUrl)
-//            frontendBaseUrl = baseUrl.removeSuffix("index.html")
-//        }
-//    }
 }
