@@ -34,11 +34,7 @@ abstract class ITMAuthorizationFragment : Fragment() {
      * @return true if we have a non-expired cached token, or false otherwise.
      */
     open fun haveCachedToken(): Boolean {
-        cachedToken?.expirationDate?.let { expirationDateString ->
-            val expirationDate = expirationDateString.iso8601ToDate() ?: return false
-            return Date().time < expirationDate.time
-        }
-        return false
+        return Date().time < (cachedToken?.expirationDate?.iso8601ToDate()?.time ?: 0)
     }
 
     init {

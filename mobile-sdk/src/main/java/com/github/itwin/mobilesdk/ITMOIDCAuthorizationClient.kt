@@ -55,16 +55,8 @@ open class ITMOIDCAuthorizationClient(itmApplication: ITMApplication, configData
             // happen before the frontend launch has completed.
             // We don't want to make any actual token requests until the user does something that
             // requires a token.
-            if (itmApplication.messenger.isFrontendLaunchComplete) {
-                val accessToken = fragment?.getAccessToken()
-                if (accessToken != null) {
-                    completion.resolve(accessToken.token, accessToken.expirationDate)
-                } else {
-                    completion.resolve(null, null as? String?)
-                }
-            } else {
-                completion.resolve(null, null as? String?)
-            }
+            val accessToken = fragment?.takeIf { itmApplication.messenger.isFrontendLaunchComplete }?.getAccessToken() ?: ITMAuthorizationFragment.AccessToken()
+            completion.resolve(accessToken.token, accessToken.expirationDate)
         }
     }
 }
