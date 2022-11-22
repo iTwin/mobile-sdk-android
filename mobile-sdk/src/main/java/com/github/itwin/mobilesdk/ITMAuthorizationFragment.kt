@@ -8,7 +8,7 @@ import java.util.*
  *
  * __Note:__ The constructor automatically attaches this instance to [client].
  */
-abstract class ITMAuthorizationFragment : Fragment() {
+abstract class ITMAuthorizationFragment {
     companion object {
         /**
          * The [ITMAuthorizationClient] with which each fragment is associated.

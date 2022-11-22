@@ -6,8 +6,11 @@ package com.github.itwin.mobilesdk
 
 import android.app.Activity
 import android.content.Intent
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
 import net.openid.appauth.*
 import java.lang.Error
 import java.time.Instant
@@ -26,11 +29,24 @@ import kotlin.coroutines.suspendCoroutine
  *     manifestPlaceholders = ['appAuthRedirectScheme': 'imodeljs']
  * ```
  */
-open class ITMOIDCAuthorizationFragment : ITMAuthorizationFragment() {
+open class ITMOIDCAuthorizationFragment(private val activity: FragmentActivity) : ITMAuthorizationFragment() {
     private val authSettings = (client as? ITMOIDCAuthorizationClient)?.authSettings
     private var authState: AuthState? = null
     private var authService: AuthorizationService? = null
     private var continuation: Continuation<AccessToken>? = null
+    private var requestAuthorization: ActivityResultLauncher<Intent>
+
+    init {
+        requestAuthorization = activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                result.data?.let { data ->
+                    handleAuthorizationResponse(data)
+                } ?: resume(AccessToken())
+            } else {
+                resume(AccessToken())
+            }
+        }
+    }
 
     companion object {
         /**
@@ -42,9 +58,9 @@ open class ITMOIDCAuthorizationFragment : ITMAuthorizationFragment() {
          * @param oidcClient The [ITMOIDCAuthorizationClient] with which the new fragment is associated.
          * @return An [ITMOIDCAuthorizationFragment] connected to [oidcClient].
          */
-        fun newInstance(oidcClient: ITMOIDCAuthorizationClient): ITMOIDCAuthorizationFragment {
+        fun newInstance(oidcClient: ITMOIDCAuthorizationClient, activity: FragmentActivity): ITMOIDCAuthorizationFragment {
             client = oidcClient
-            return ITMOIDCAuthorizationFragment()
+            return ITMOIDCAuthorizationFragment(activity)
         }
 
         /**
@@ -94,7 +110,7 @@ open class ITMOIDCAuthorizationFragment : ITMAuthorizationFragment() {
         authReqBuilder.setScope(authSettings.scope)
             .setCodeVerifier(CodeVerifierUtil.generateRandomCodeVerifier())
         if (authService == null) {
-            authService = AuthorizationService(requireContext())
+            authService = AuthorizationService(activity)
         }
         authService!!.getAuthorizationRequestIntent(authReqBuilder.build())?.let { intent ->
             requestAuthorization.launch(intent)
@@ -144,23 +160,13 @@ open class ITMOIDCAuthorizationFragment : ITMAuthorizationFragment() {
         }
     }
 
-    private var requestAuthorization = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.let { data ->
-                handleAuthorizationResponse(data)
-            } ?: resume(AccessToken())
-        } else {
-            resume(AccessToken())
-        }
-    }
-
     /**
      * Clean up by removing ourself from [client][ITMAuthorizationFragment.client].
      */
-    override fun onDestroy() {
-        super.onDestroy()
-        client?.setAuthorizationFragment(null)
-    }
+//    override fun onDestroy() {
+//        super.onDestroy()
+//        client?.setAuthorizationFragment(null)
+//    }
 }
 
 /**

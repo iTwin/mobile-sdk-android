@@ -317,14 +317,14 @@ abstract class ITMApplication(
                 geolocationFragment = frag
             }
         }
-        (authorizationClient as? ITMAuthorizationClient)?.let { authorizationClient ->
-            fragmentActivity.supportFragmentManager.commit {
-                setReorderingAllowed(true)
-                val frag = createAuthorizationFragment(authorizationClient)
-                add(fragmentContainerId, frag)
-                authorizationFragment = frag
-            }
-        }
+//        (authorizationClient as? ITMAuthorizationClient)?.let { authorizationClient ->
+//            fragmentActivity.supportFragmentManager.commit {
+//                setReorderingAllowed(true)
+//                val frag = createAuthorizationFragment(authorizationClient)
+//                add(fragmentContainerId, frag)
+//                authorizationFragment = frag
+//            }
+//        }
         frontendInitTask.complete()
     }
 
@@ -344,6 +344,11 @@ abstract class ITMApplication(
             frontendInitTask.cancel()
             frontendInitTask = Job()
         }
+
+        (authorizationClient as? ITMAuthorizationClient)?.let { authorizationClient ->
+            createAuthorizationFragment(authorizationClient, fragmentActivity)
+        }
+
         MainScope().launch {
             if (webView != null) {
                 finishInitializeFrontend(fragmentActivity, fragmentContainerId)
@@ -805,8 +810,8 @@ abstract class ITMApplication(
      * @return An instance of [ITMOIDCAuthorizationFragment] attached to [client]. If this default implementation
      * is called, [authorizationClient] __must__ be an [ITMOIDCAuthorizationClient].
      */
-    open fun createAuthorizationFragment(client: ITMAuthorizationClient): ITMAuthorizationFragment {
+    open fun createAuthorizationFragment(client: ITMAuthorizationClient, activity: FragmentActivity): ITMAuthorizationFragment {
         val oidcClient = client as? ITMOIDCAuthorizationClient ?: throw Error("client is not ITMOIDCAuthorizationClient.")
-        return ITMOIDCAuthorizationFragment.newInstance(oidcClient)
+        return ITMOIDCAuthorizationFragment.newInstance(oidcClient, activity)
     }
 }
