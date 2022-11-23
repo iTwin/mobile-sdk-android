@@ -423,7 +423,7 @@ abstract class ITMApplication(
         geolocationManager?.setGeolocationFragment(null)
         ITMGeolocationFragment.clearGeolocationManager()
         geolocationFragment = null
-        (authorizationClient as? ITMOIDCAuthorization)?.dispose()
+        (authorizationClient as? ITMOIDCAuthorizationClient)?.dispose()
         authorizationClient = null
         nativeUI?.detach()
         nativeUI = null
@@ -757,7 +757,7 @@ abstract class ITMApplication(
      */
     open fun createAuthorizationClient(fragmentActivity: FragmentActivity): AuthorizationClient? {
         return configData?.let { configData ->
-            ITMOIDCAuthorization(this, configData, fragmentActivity)
+            ITMOIDCAuthorizationClient(this, configData, fragmentActivity)
         }
     }
 

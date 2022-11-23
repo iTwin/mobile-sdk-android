@@ -42,7 +42,7 @@ import kotlin.coroutines.suspendCoroutine
  *
  *
  */
-open class ITMOIDCAuthorization(private val itmApplication: ITMApplication, configData: JsonObject, resultCaller: ActivityResultCaller, private val context: Context) : AuthorizationClient() {
+open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication, configData: JsonObject, resultCaller: ActivityResultCaller, private val context: Context) : AuthorizationClient() {
     private data class ITMAuthSettings(val issuerUri: Uri, val clientId: String, val redirectUri: Uri, val scope: String)
     private data class AccessToken(val token: String? = null, val expirationDate: String? = null)
 
