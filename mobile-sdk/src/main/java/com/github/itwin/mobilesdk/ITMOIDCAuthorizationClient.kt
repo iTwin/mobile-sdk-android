@@ -108,8 +108,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
 
     private suspend fun initAuthState(): AuthState {
         return authState ?: suspendCoroutine { continuation ->
-            val issuerUri = authSettings.issuerUri
-            AuthorizationServiceConfiguration.fetchFromIssuer(issuerUri) { config, error ->
+            AuthorizationServiceConfiguration.fetchFromIssuer(authSettings.issuerUri) { config, error ->
                 error?.let {
                     itmApplication.logger.log(ITMLogger.Severity.Warning, "Error fetching OIDC service config: $it")
                     throw it
