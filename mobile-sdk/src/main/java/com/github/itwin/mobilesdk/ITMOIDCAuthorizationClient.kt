@@ -97,11 +97,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     private fun requireAuthService(): AuthorizationService {
-        return authService ?: run {
-            val newAuthService = AuthorizationService(context)
-            authService = newAuthService
-            return newAuthService
-        }
+        return authService ?: AuthorizationService(context).also { authService = it }
     }
 
     companion object {
