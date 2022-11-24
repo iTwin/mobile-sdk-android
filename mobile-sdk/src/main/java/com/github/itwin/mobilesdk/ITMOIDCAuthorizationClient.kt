@@ -96,6 +96,14 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         authService = null
     }
 
+    private fun requireAuthService(): AuthorizationService {
+        return authService ?: run {
+            val newAuthService = AuthorizationService(context)
+            authService = newAuthService
+            return newAuthService
+        }
+    }
+
     companion object {
         private fun parseConfigData(configData: JsonObject): ITMAuthSettings {
             val issuerUrl = configData.getOptionalString("ITMAPPLICATION_ISSUER_URL") ?: "https://ims.bentley.com/"
@@ -127,7 +135,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         continuation = null
     }
 
-    private fun launchRequestAuthorization(authState: AuthState) {
+    private fun launchRequestAuthorization(authState: AuthState, continuation: Continuation<AccessToken>) {
         val authReqBuilder = AuthorizationRequest.Builder(
             authState.authorizationServiceConfiguration!!,
             authSettings.clientId,
@@ -135,12 +143,10 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             authSettings.redirectUri
         )
         authReqBuilder.setScope(authSettings.scope).setCodeVerifier(CodeVerifierUtil.generateRandomCodeVerifier())
-        if (authService == null) {
-            authService = AuthorizationService(context)
-        }
-        authService?.getAuthorizationRequestIntent(authReqBuilder.build())?.let { intent ->
+        requireAuthService().getAuthorizationRequestIntent(authReqBuilder.build())?.let { intent ->
+            this.continuation = continuation
             requestAuthorization.launch(intent)
-        } ?: resume(AccessToken())
+        } ?: continuation.resume(AccessToken())
     }
 
     /**
@@ -151,8 +157,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         return cachedToken ?: try {
             val authState = initAuthState()
             suspendCoroutine { continuation ->
-                this.continuation = continuation
-                launchRequestAuthorization(authState)
+                launchRequestAuthorization(authState, continuation)
             }
         } catch (ex: Exception) {
             AccessToken()
@@ -162,14 +167,14 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     private fun handleAuthorizationResponse(data: Intent) {
         val response = AuthorizationResponse.fromIntent(data)
         val ex = AuthorizationException.fromIntent(data)
+        authState?.update(response, ex)
 
-        if (response == null) {
+        if (response == null || authState == null) {
             resume(AccessToken())
             return
         }
         authState?.let { authState ->
-            authState.update(response, ex)
-            authService?.performTokenRequest(response.createTokenExchangeRequest()) { response, ex ->
+            requireAuthService().performTokenRequest(response.createTokenExchangeRequest()) { response, ex ->
                 authState.update(response, ex)
                 val accessToken = if (authState.isAuthorized) {
                     AccessToken("Bearer ${authState.accessToken}", authState.accessTokenExpirationTime?.epochMillisToISO8601())
