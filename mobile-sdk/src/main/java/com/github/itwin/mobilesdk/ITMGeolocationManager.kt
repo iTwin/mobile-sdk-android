@@ -131,7 +131,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
     private var watchTimerTask: TimerTask? = null
     private val watchCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
-            updateWatchers(locationResult.lastLocation)
+            locationResult.lastLocation?.let { updateWatchers((it))}
         }
     }
     private val sensorListener = object : SensorEventListener {
