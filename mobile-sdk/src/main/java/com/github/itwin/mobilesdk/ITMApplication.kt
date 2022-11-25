@@ -14,6 +14,7 @@ import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
+import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.*
@@ -504,14 +505,15 @@ abstract class ITMApplication(
         }
         AppCompatDelegate.setDefaultNightMode(systemUiScheme)
 
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) return
-        val webView = this.webView ?: return
-        val webViewScheme = when (preferredColorScheme) {
-            PreferredColorScheme.Dark -> WebSettingsCompat.FORCE_DARK_ON
-            PreferredColorScheme.Light -> WebSettingsCompat.FORCE_DARK_OFF
-            PreferredColorScheme.Automatic -> if (systemDarkMode) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
+        // We previously used WebSettingsCompat.setForceDark, but it is now a no-op when building with TIRAMISU (33) or greater.
+        // I don't know if we need algorithmic darkening, probably not?
+        webView?.settings?.let { settings ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING) &&
+                WebSettingsCompat.isAlgorithmicDarkeningAllowed(settings)) {
+                WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
+            }
         }
-        WebSettingsCompat.setForceDark(webView.settings, webViewScheme)
     }
 
     /**
