@@ -508,9 +508,7 @@ abstract class ITMApplication(
         // We previously used WebSettingsCompat.setForceDark, but it is now a no-op when building with TIRAMISU (33) or greater.
         // I don't know if we need algorithmic darkening, probably not?
         webView?.settings?.let { settings ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING) &&
-                WebSettingsCompat.isAlgorithmicDarkeningAllowed(settings)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
                 WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
             }
         }
