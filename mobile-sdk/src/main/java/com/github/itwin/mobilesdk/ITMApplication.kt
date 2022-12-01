@@ -231,6 +231,13 @@ abstract class ITMApplication(
     }
 
     /**
+     * Kotlin Coroutine that waits for backend initialization to complete, if it has not already completed.
+     */
+    suspend fun waitForBackendInitialize() {
+        backendInitTask.join()
+    }
+
+    /**
      * Finish initialization, calling functions that can't go into the constructor because they are open.
      */
     open fun finishInit() {
