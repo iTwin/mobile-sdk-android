@@ -6,7 +6,6 @@
 
 package com.github.itwin.mobilesdk
 
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
@@ -343,30 +342,7 @@ abstract class ITMApplication(
             }
             try {
                 backendInitTask.join()
-                val args = getUrlHashParams().toUrlString()
-                val baseUrl = getBaseUrl()
-                val mobileFrontend = object : WebView(host!!.context) {
-                    init {
-                        configure()
-                    }
-
-                    @SuppressLint("SetJavaScriptEnabled")
-                    protected fun configure() {
-                        val settings = settings
-                        settings.javaScriptEnabled = true
-                        settings.allowUniversalAccessFromFileURLs = true //todo: replace with androidx.webkit.WebViewAssetLoader when we move to API level 30
-                        settings.domStorageEnabled = true
-                        settings.databaseEnabled = true
-                    }
-
-                    fun loadEntryPoint() {
-                        loadUrl(supplyEntryPoint() + "#&platform=android&port=" + host!!.port + args)
-                    }
-
-                    fun supplyEntryPoint(): String {
-                        return baseUrl
-                    }
-
+                webView = object : WebView(fragmentActivity) {
                     override fun onConfigurationChanged(newConfig: Configuration) {
                         super.onConfigurationChanged(newConfig)
                         this@ITMApplication.nativeUI?.onConfigurationChanged(newConfig)
@@ -394,11 +370,13 @@ abstract class ITMApplication(
                     override fun computeScroll() {
                     }
                 }
-                webView = mobileFrontend
+                val baseUrl = getBaseUrl()
                 setupWebView()
-                mobileFrontend.loadEntryPoint()
                 frontendBaseUrl = baseUrl.removeSuffix("index.html")
-                host?.setFrontend(mobileFrontend)
+                host?.let {
+                    it.webView = webView
+                    it.loadEntryPoint(baseUrl, getUrlHashParams().toUrlString())
+                }
                 val connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
                 connectivityManager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
                     override fun onAvailable(network: Network) {
@@ -524,17 +502,8 @@ abstract class ITMApplication(
             PreferredColorScheme.Automatic -> if (systemDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
             else -> preferredColorScheme.toNightMode()
         }
-        val currDefaultNightMode = AppCompatDelegate.getDefaultNightMode()
-        if (systemUiScheme != currDefaultNightMode)
-            AppCompatDelegate.setDefaultNightMode(systemUiScheme)
-
-        // We previously used WebSettingsCompat.setForceDark, but it is now a no-op when building with TIRAMISU (33) or greater.
-        // I don't know if we need algorithmic darkening, probably not?
-//        webView?.settings?.let { settings ->
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
-//                WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
-//            }
-//        }
+        AppCompatDelegate.setDefaultNightMode(systemUiScheme)
+//        AppCompatDelegate.setDefaultNightMode(preferredColorScheme.toNightMode())
     }
 
     /**
