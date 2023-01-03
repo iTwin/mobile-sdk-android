@@ -24,7 +24,7 @@ Consult [GitHub Help](https://help.github.com/articles/about-pull-requests/) for
 
 ## Local development setup
 
-Follow these instructions to do local builds of the Mobile SDK. You will need [git](https://git-scm.com/) and [Android Studio](https://developer.android.com/studio) installed on your computer.
+Follow these instructions to do local builds of the Mobile SDK. You will need [git](https://git-scm.com/), [Android Studio](https://developer.android.com/studio), and the [GitHub CLI](https://cli.github.com/) (gh) installed on your computer. You will also need to set up a GitHub Personal Access Token (PAT) as per the instructions for doing that in the Android [README.md](https://github.com/iTwin/mobile-samples/tree/main/Android/README.md) from iTwin/mobile-samples.
 
 ### mobile-native-android
 
