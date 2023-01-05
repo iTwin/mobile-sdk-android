@@ -493,17 +493,9 @@ abstract class ITMApplication(
 
     /**
      * Update the application to conform to the [preferredColorScheme].
-     * WebViews do not automatically follow the system choice for dark theme, so this needs to be called after system dark mode changes
      */
     open fun applyPreferredColorScheme() {
-        val systemDarkMode = (appContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        // MODE_NIGHT_FOLLOW_SYSTEM doesn't work consistently, so we are forcing dark or light mode.
-        val systemUiScheme = when (preferredColorScheme) {
-            PreferredColorScheme.Automatic -> if (systemDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
-            else -> preferredColorScheme.toNightMode()
-        }
-        AppCompatDelegate.setDefaultNightMode(systemUiScheme)
-//        AppCompatDelegate.setDefaultNightMode(preferredColorScheme.toNightMode())
+        AppCompatDelegate.setDefaultNightMode(preferredColorScheme.toNightMode())
     }
 
     /**
