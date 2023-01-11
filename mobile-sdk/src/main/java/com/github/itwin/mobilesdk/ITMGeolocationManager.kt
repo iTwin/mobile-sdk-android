@@ -264,14 +264,13 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
     }
 
     private suspend fun isLocationServiceAvailable(): Boolean {
-        try {
+        return try {
             val locationSettingsResponse = createCheckLocationSettingsTask().await()
-            return locationSettingsResponse.locationSettingsStates?.isLocationUsable == true
+            locationSettingsResponse.locationSettingsStates?.isLocationUsable == true
+        } catch (exception: ResolvableApiException) {
+            tryResolveLocationServiceException(exception.resolution)
         } catch (exception: Exception) {
-            if (exception is ResolvableApiException) {
-                return tryResolveLocationServiceException(exception.resolution)
-            }
-            return false
+            false
         }
     }
 

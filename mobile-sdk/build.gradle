@@ -6,7 +6,7 @@ plugins {
     id 'com.android.library'
     id 'kotlin-android'
     id 'maven-publish'
-    id 'io.gitlab.arturbosch.detekt' version '1.20.0-RC2'
+    id 'io.gitlab.arturbosch.detekt' version '1.22.0'
     id 'org.jetbrains.dokka' version '1.6.21'
 }
 
@@ -21,6 +21,9 @@ android {
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         consumerProguardFiles 'consumer-rules.pro'
+
+        // NOTE: this is here to suppress an error when running detekt, consumers of the mobile-sdk are expected to have an app-specific entry in their build.gradle.
+        manifestPlaceholders = ['appAuthRedirectScheme': "com.github.itwin.mobile-sdk-android"]
     }
 
     buildTypes {
@@ -35,6 +38,11 @@ android {
     }
     kotlinOptions {
         jvmTarget = '1.8'
+    }
+
+    lintOptions {
+        // Note: suppressing this lint option as we seem to be getting false positives in our code when running `detekt build`, and adding @SuppressLint in the code didn't work either.
+        disable 'JavascriptInterface'
     }
 }
 
@@ -98,7 +106,7 @@ afterEvaluate {
 }
 
 detekt {
-    toolVersion = "1.20.0-RC2"
+    toolVersion = "1.22.0"
     config = files("detekt.yml")
     buildUponDefaultConfig = true
 }
