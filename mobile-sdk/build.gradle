@@ -6,21 +6,24 @@ plugins {
     id 'com.android.library'
     id 'kotlin-android'
     id 'maven-publish'
-    id 'io.gitlab.arturbosch.detekt' version '1.20.0-RC2'
+    id 'io.gitlab.arturbosch.detekt' version '1.22.0'
     id 'org.jetbrains.dokka' version '1.6.21'
 }
 
 android {
-    compileSdk 31
+    compileSdk 33
 
     defaultConfig {
         minSdk 28
-        targetSdk 31
+        targetSdk 33
         versionCode 1
         versionName '0.10.35'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         consumerProguardFiles 'consumer-rules.pro'
+
+        // NOTE: this is here to suppress an error when running detekt, consumers of the mobile-sdk are expected to have an app-specific entry in their build.gradle.
+        manifestPlaceholders = ['appAuthRedirectScheme': "com.github.itwin.mobile-sdk-android"]
     }
 
     buildTypes {
@@ -36,24 +39,29 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+
+    lintOptions {
+        // Note: suppressing this lint option as we seem to be getting false positives in our code when running `detekt build`, and adding @SuppressLint in the code didn't work either.
+        disable 'JavascriptInterface'
+    }
 }
 
 dependencies {
-    implementation 'androidx.core:core-ktx:1.7.0'
-    implementation 'androidx.appcompat:appcompat:1.4.1'
-    implementation "androidx.fragment:fragment-ktx:1.4.1"
-    implementation 'androidx.webkit:webkit:1.4.0'
-    implementation 'com.google.android.material:material:1.5.0'
-    implementation 'com.google.android.gms:play-services-tasks:18.0.1'
+    implementation 'androidx.core:core-ktx:1.9.0'
+    implementation 'androidx.appcompat:appcompat:1.5.1'
+    implementation "androidx.fragment:fragment-ktx:1.5.4"
+    implementation 'androidx.webkit:webkit:1.5.0'
+    implementation 'com.google.android.material:material:1.7.0'
+    implementation 'com.google.android.gms:play-services-tasks:18.0.2'
     implementation 'com.google.code.gson:gson:2.9.0'
     implementation 'com.eclipsesource.minimal-json:minimal-json:0.9.5'
-    implementation 'com.google.android.gms:play-services-base:18.0.1'
-    implementation 'com.google.android.gms:play-services-location:19.0.1'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.0'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.5.0'
+    implementation 'com.google.android.gms:play-services-base:18.1.0'
+    implementation 'com.google.android.gms:play-services-location:21.0.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.1'
     implementation 'net.openid:appauth:0.11.1'
-    api 'com.github.itwin:mobile-native-android:3.4.21'
+    api 'com.github.itwin:mobile-native-android:3.6.0'
 
     // testImplementation 'junit:junit:4.+'
     // androidTestImplementation 'androidx.test.ext:junit:1.1.3'
@@ -98,7 +106,7 @@ afterEvaluate {
 }
 
 detekt {
-    toolVersion = "1.20.0-RC2"
+    toolVersion = "1.22.0"
     config = files("detekt.yml")
     buildUponDefaultConfig = true
 }

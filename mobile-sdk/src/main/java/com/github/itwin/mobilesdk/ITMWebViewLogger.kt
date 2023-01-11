@@ -62,6 +62,7 @@ open class ITMWebViewLogger(
 
     init {
         webView.addJavascriptInterface(object {
+            @Suppress("unused")
             @JavascriptInterface
             fun log(typeString: String, message: String) {
                 val type = try {

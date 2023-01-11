@@ -10,7 +10,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultCaller
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -50,7 +49,11 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     private var authState: AuthState? = null
     private var authService: AuthorizationService? = null
     private var continuation: Continuation<AccessToken>? = null
-    private var requestAuthorization: ActivityResultLauncher<Intent>
+    private var requestAuthorization = resultCaller.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        result.takeIf { it.resultCode == Activity.RESULT_OK }?.data?.let { data ->
+            handleAuthorizationResponse(data)
+        } ?: resume(AccessToken())
+    }
     private var cachedToken: AccessToken? = null
         get() {
             // only return the token if it hasn't expired
@@ -61,7 +64,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
      * Constructor using a [ComponentActivity].
      */
     constructor(itmApplication: ITMApplication, configData: JsonObject, activity: ComponentActivity): this(itmApplication, configData, activity, activity) {
-        addStopObserver(activity)
+        addLifecycleObserver(activity)
     }
 
     /**
@@ -69,23 +72,19 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
      */
     @Suppress("unused")
     constructor(itmApplication: ITMApplication, configData: JsonObject, fragment: Fragment): this(itmApplication, configData, fragment, fragment.requireContext()) {
-        addStopObserver(fragment)
+        addLifecycleObserver(fragment)
     }
 
-    private fun addStopObserver(owner: LifecycleOwner) {
+    private fun addLifecycleObserver(owner: LifecycleOwner) {
         owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStop(owner: LifecycleOwner) {
                 dispose()
             }
-        })
-    }
 
-    init {
-        requestAuthorization = resultCaller.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            result.takeIf { it.resultCode == Activity.RESULT_OK }?.data?.let { data ->
-                handleAuthorizationResponse(data)
-            } ?: resume(AccessToken())
-        }
+            override fun onDestroy(owner: LifecycleOwner) {
+                requestAuthorization.unregister()
+            }
+        })
     }
 
     /**

@@ -1,7 +1,7 @@
 complexity:
   TooManyFunctions:
     active: false
-  ComplexMethod:
+  CyclomaticComplexMethod:
     active: false
   ComplexCondition:
     active: false
@@ -35,5 +35,5 @@ style:
     active: false
   ThrowsCount:
     active: false
-  WildcardImport: 
+  WildcardImport:
     active: false

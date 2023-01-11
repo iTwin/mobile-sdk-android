@@ -19,14 +19,11 @@ import android.view.ViewGroup
 import android.webkit.*
 import androidx.annotation.IdRes
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.fragment.app.commit
 import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.commit
 import androidx.lifecycle.MutableLiveData
-import androidx.webkit.WebSettingsCompat
-import androidx.webkit.WebViewFeature
 import com.bentley.itwin.AuthorizationClient
 import com.bentley.itwin.IModelJsHost
-import com.bentley.itwin.MobileFrontend
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonObject
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalLong
@@ -126,6 +123,7 @@ abstract class ITMApplication(
     /**
      * The [IModelJsHost] used by this [ITMApplication].
      */
+    @Suppress("MemberVisibilityCanBePrivate")
     protected var host: IModelJsHost? = null
 
     /**
@@ -164,7 +162,7 @@ abstract class ITMApplication(
     /**
      * The [WebView] that the web app runs in.
      */
-    var webView: MobileFrontend? = null
+    var webView: WebView? = null
 
     /**
      * The [ITMNativeUI] for this app.
@@ -345,13 +343,7 @@ abstract class ITMApplication(
             }
             try {
                 backendInitTask.join()
-                val args = getUrlHashParams().toUrlString()
-                val baseUrl = getBaseUrl()
-                val mobileFrontend = object : MobileFrontend(host, args) {
-                    override fun supplyEntryPoint(): String {
-                        return baseUrl
-                    }
-
+                webView = object : WebView(fragmentActivity) {
                     override fun onConfigurationChanged(newConfig: Configuration) {
                         super.onConfigurationChanged(newConfig)
                         this@ITMApplication.nativeUI?.onConfigurationChanged(newConfig)
@@ -379,11 +371,13 @@ abstract class ITMApplication(
                     override fun computeScroll() {
                     }
                 }
-                webView = mobileFrontend
+                val baseUrl = getBaseUrl()
                 setupWebView()
-                mobileFrontend.loadEntryPoint()
                 frontendBaseUrl = baseUrl.removeSuffix("index.html")
-                host?.setFrontend(mobileFrontend)
+                host?.let {
+                    it.webView = webView
+                    it.loadEntryPoint(baseUrl, getUrlHashParams().toUrlString())
+                }
                 val connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
                 connectivityManager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
                     override fun onAvailable(network: Network) {
@@ -500,25 +494,9 @@ abstract class ITMApplication(
 
     /**
      * Update the application to conform to the [preferredColorScheme].
-     * WebViews do not automatically follow the system choice for dark theme, so this needs to be called after system dark mode changes
      */
     open fun applyPreferredColorScheme() {
-        val systemDarkMode = (appContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        // MODE_NIGHT_FOLLOW_SYSTEM doesn't work consistently, so we are forcing dark or light mode.
-        val systemUiScheme = when (preferredColorScheme) {
-            PreferredColorScheme.Automatic -> if (systemDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
-            else -> preferredColorScheme.toNightMode()
-        }
-        AppCompatDelegate.setDefaultNightMode(systemUiScheme)
-
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) return
-        val webView = this.webView ?: return
-        val webViewScheme = when (preferredColorScheme) {
-            PreferredColorScheme.Dark -> WebSettingsCompat.FORCE_DARK_ON
-            PreferredColorScheme.Light -> WebSettingsCompat.FORCE_DARK_OFF
-            PreferredColorScheme.Automatic -> if (systemDarkMode) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
-        }
-        WebSettingsCompat.setForceDark(webView.settings, webViewScheme)
+        AppCompatDelegate.setDefaultNightMode(preferredColorScheme.toNightMode())
     }
 
     /**

@@ -40,6 +40,7 @@ import kotlin.concurrent.schedule
  */
 class ITMGeolocationManager(private val appContext: Context, private val webView: WebView) {
     private inner class GeolocationJsInterface {
+        @Suppress("unused")
         @JavascriptInterface
         fun getCurrentPosition(positionId: Int) {
             scope.launch {
@@ -53,6 +54,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
             }
         }
 
+        @Suppress("unused")
         @JavascriptInterface
         fun watchPosition(positionId: Int) {
             scope.launch {
@@ -66,6 +68,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
             }
         }
 
+        @Suppress("unused")
         @JavascriptInterface
         fun clearWatch(positionId: Int) {
             watchIds.remove(positionId)
@@ -131,7 +134,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
     private var watchTimerTask: TimerTask? = null
     private val watchCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
-            updateWatchers(locationResult.lastLocation)
+            locationResult.lastLocation?.let { updateWatchers((it))}
         }
     }
     private val sensorListener = object : SensorEventListener {
@@ -261,25 +264,20 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
     }
 
     private suspend fun isLocationServiceAvailable(): Boolean {
-        try {
+        return try {
             val locationSettingsResponse = createCheckLocationSettingsTask().await()
-            return locationSettingsResponse.locationSettingsStates?.isLocationUsable == true
+            locationSettingsResponse.locationSettingsStates?.isLocationUsable == true
+        } catch (exception: ResolvableApiException) {
+            tryResolveLocationServiceException(exception.resolution)
         } catch (exception: Exception) {
-            if (exception is ResolvableApiException) {
-                return tryResolveLocationServiceException(exception.resolution)
-            }
-            return false
+            false
         }
     }
 
     private fun createCheckLocationSettingsTask(): Task<LocationSettingsResponse> {
-        val locationRequest = LocationRequest.create().apply {
-            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        }
-
-        val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest)
-        val client: SettingsClient = LocationServices.getSettingsClient(appContext)
-        return client.checkLocationSettings(builder.build())
+        val locationRequest = LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build()
+        val settingsRequest = LocationSettingsRequest.Builder().addLocationRequest(locationRequest).build()
+        return LocationServices.getSettingsClient(appContext).checkLocationSettings(settingsRequest)
     }
 
     private suspend fun tryResolveLocationServiceException(resolution: PendingIntent): Boolean {
@@ -309,7 +307,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
         if (ActivityCompat.checkSelfPermission(appContext, ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             throw GeolocationError(GeolocationError.Code.PERMISSION_DENIED, "Location permission denied")
 
-        return fusedLocationClient.getCurrentLocation(LocationRequest.PRIORITY_HIGH_ACCURACY, cancellationTokenSource.token).await()
+        return fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancellationTokenSource.token).await()
     }
     //endregion
 
@@ -386,10 +384,7 @@ class ITMGeolocationManager(private val appContext: Context, private val webView
 
         setupSensors()
         if (watchLocationRequest == null) {
-            watchLocationRequest = LocationRequest.create().apply {
-                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-                interval = 1000 // 1 second
-            }
+            watchLocationRequest = LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build()
         }
         watchLocationRequest?.let { locationRequest ->
             fusedLocationClient.requestLocationUpdates(locationRequest, watchCallback, Looper.getMainLooper())
