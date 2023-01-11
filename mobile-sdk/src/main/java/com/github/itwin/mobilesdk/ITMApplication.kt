@@ -123,6 +123,7 @@ abstract class ITMApplication(
     /**
      * The [IModelJsHost] used by this [ITMApplication].
      */
+    @Suppress("MemberVisibilityCanBePrivate")
     protected var host: IModelJsHost? = null
 
     /**
