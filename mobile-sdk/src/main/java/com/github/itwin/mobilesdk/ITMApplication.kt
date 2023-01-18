@@ -68,7 +68,7 @@ fun HashParams.toUrlString(): String {
     if (this.isEmpty()) {
         return ""
     }
-    return this.joinToString("&") { hashParam ->
+    return "&" + this.joinToString("&") { hashParam ->
         "${hashParam.name}=${URLEncoder.encode(hashParam.value, "utf-8")}"
     }
 }
