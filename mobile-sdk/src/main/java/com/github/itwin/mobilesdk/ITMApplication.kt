@@ -48,7 +48,25 @@ private enum class ReachabilityStatus {
  * @property value The value of the hash parameter.
  */
 class HashParam(val name: String, val value: String?) {
-    companion object;
+    companion object {
+        /**
+         * Create a string hash param from a value in configData.
+         * @param configData The source of the config data for the [HashParam].
+         * @param configKey The key to use to look up the value in [configData].
+         * @param name The name of the [HashParam]
+         * @return A [HashParam] with the string value contained in the given value in [configData], or null
+         * if [configData] is null or the value does not exist.
+         */
+        fun fromConfigData(configData: JsonObject?, configKey: String, name: String): HashParam? {
+            configData?.let {
+                it.getOptionalString(configKey)?.let { value ->
+                    return HashParam(name, value)
+                }
+            }
+            return null
+        }
+    }
+
     /**
      * @param name The name of the hash parameter.
      * @param value The value of the hash parameter as a Boolean.
@@ -71,23 +89,6 @@ fun HashParams.toUrlString(): String {
     return "&" + this.joinToString("&") { hashParam ->
         "${hashParam.name}=${URLEncoder.encode(hashParam.value, "utf-8")}"
     }
-}
-
-/**
- * Create a string hash param from a value in configData.
- * @param configData The source of the config data for the [HashParam].
- * @param configKey The key to use to look up the value in [configData].
- * @param name The name of the [HashParam]
- * @return A [HashParam] with the string value contained in the given value in [configData], or null
- * if [configData] is null or the value does not exist.
- */
-fun HashParam.Companion.fromConfigData(configData: JsonObject?, configKey: String, name: String): HashParam? {
-    configData?.let {
-        it.getOptionalString(configKey)?.let { value ->
-            return HashParam(name, value)
-        }
-    }
-    return null
 }
 
 /**
