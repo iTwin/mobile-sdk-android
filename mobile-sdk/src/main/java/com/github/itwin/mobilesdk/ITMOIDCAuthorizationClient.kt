@@ -101,7 +101,8 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
 
     companion object {
         private fun parseConfigData(configData: JsonObject): ITMAuthSettings {
-            val issuerUrl = configData.getOptionalString("ITMAPPLICATION_ISSUER_URL") ?: "https://ims.bentley.com/"
+            val apiPrefix = configData.getOptionalString("ITMAPPLICATION_API_PREFIX") ?: ""
+            val issuerUrl = configData.getOptionalString("ITMAPPLICATION_ISSUER_URL") ?: "https://${apiPrefix}ims.bentley.com/"
             val clientId = configData.getOptionalString("ITMAPPLICATION_CLIENT_ID") ?: ""
             val redirectUrl = configData.getOptionalString("ITMAPPLICATION_REDIRECT_URI") ?: "imodeljs://app/signin-callback"
             val scope = configData.getOptionalString("ITMAPPLICATION_SCOPE") ?: "email openid profile organization itwinjs"

@@ -47,7 +47,26 @@ private enum class ReachabilityStatus {
  * @property name The name of the hash parameter.
  * @property value The value of the hash parameter.
  */
-class HashParam(val name: String, val value: String) {
+class HashParam(val name: String, val value: String?) {
+    companion object {
+        /**
+         * Create a string hash param from a value in configData.
+         * @param configData The source of the config data for the [HashParam].
+         * @param configKey The key to use to look up the value in [configData].
+         * @param name The name of the [HashParam]
+         * @return A [HashParam] with the string value contained in the given value in [configData], or null
+         * if [configData] is null or the value does not exist.
+         */
+        fun fromConfigData(configData: JsonObject?, configKey: String, name: String): HashParam? {
+            configData?.let {
+                it.getOptionalString(configKey)?.let { value ->
+                    return HashParam(name, value)
+                }
+            }
+            return null
+        }
+    }
+
     /**
      * @param name The name of the hash parameter.
      * @param value The value of the hash parameter as a Boolean.
@@ -56,9 +75,9 @@ class HashParam(val name: String, val value: String) {
 }
 
 /**
- * Type alias for an array of HashParam values.
+ * Type alias for a list of HashParam values.
  */
-typealias HashParams = Array<HashParam>
+typealias HashParams = List<HashParam>
 
 /**
  * Convert the array of HashParam values into a string suitable for use in a URL.
@@ -67,7 +86,7 @@ fun HashParams.toUrlString(): String {
     if (this.isEmpty()) {
         return ""
     }
-    return this.joinToString("&") { hashParam ->
+    return "&" + this.joinToString("&") { hashParam ->
         "${hashParam.name}=${URLEncoder.encode(hashParam.value, "utf-8")}"
     }
 }
@@ -725,10 +744,16 @@ abstract class ITMApplication(
     }
 
     /**
-     * Override to add custom hash parameters to the URL used to open the frontend.
+     * Generates the list of [HashParam] values to be used in the web app's URL. Override to add
+     * custom hash parameters to the URL used to open the frontend. If you override this function,
+     * you must include the results from super.
+     * @return The default [ITMApplication] [HashParam] values based on the contents of
+     * [configData].
      */
     open suspend fun getUrlHashParams(): HashParams {
-        return emptyArray()
+        return listOfNotNull(
+            HashParam.fromConfigData(configData, "ITMAPPLICATION_API_PREFIX", "apiPrefix")
+        )
     }
 
     /**
