@@ -43,8 +43,9 @@ import kotlin.concurrent.schedule
 /**
  * Class for the native-side implementation of a `navigator.geolocation` polyfill.
  *
- * __Note:__ [ITMGeolocationManager] must be bound to a [ActivityResultCaller] for showing permission
- * and service dialogs and handling responses.
+ * @param resultCaller Used for showing permission and service dialogs and handling responses.
+ * @param owner Used for starting and stopping the location updates, and removing our result caller registrations.
+ * @param context The context.
  */
 class ITMGeolocationManager(resultCaller: ActivityResultCaller, owner: LifecycleOwner, private val context: Context) {
     private val geolocationJsInterface = object {
@@ -117,6 +118,7 @@ class ITMGeolocationManager(resultCaller: ActivityResultCaller, owner: Lifecycle
         return GeolocationPosition(coordinates)
     }
 
+    /** The [WebView] to receive location updates via javascript. */
     var webView: WebView? = null
         set(value) {
             field = value
