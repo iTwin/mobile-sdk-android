@@ -13,6 +13,7 @@ import androidx.activity.result.ActivityResultCaller
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.bentley.itwin.AuthTokenCompletionAction
 import com.bentley.itwin.AuthorizationClient
@@ -38,10 +39,8 @@ import kotlin.coroutines.suspendCoroutine
  * ```
  *
  * By using [ActivityResultCaller], the primary constructor is compatible with both [Fragment] and [ComponentActivity].
- *
- *
  */
-open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication, configData: JsonObject, resultCaller: ActivityResultCaller, private val context: Context) : AuthorizationClient() {
+open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication, configData: JsonObject, resultCaller: ActivityResultCaller, owner: LifecycleOwner, private val context: Context) : AuthorizationClient() {
     private data class ITMAuthSettings(val issuerUri: Uri, val clientId: String, val redirectUri: Uri, val scope: String)
     private data class AccessToken(val token: String? = null, val expirationDate: String? = null)
 
@@ -63,19 +62,15 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     /**
      * Constructor using a [ComponentActivity].
      */
-    constructor(itmApplication: ITMApplication, configData: JsonObject, activity: ComponentActivity): this(itmApplication, configData, activity, activity) {
-        addLifecycleObserver(activity)
-    }
+    constructor(itmApplication: ITMApplication, configData: JsonObject, activity: ComponentActivity): this(itmApplication, configData, activity, activity, activity)
 
     /**
      * Constructor using a [Fragment].
      */
     @Suppress("unused")
-    constructor(itmApplication: ITMApplication, configData: JsonObject, fragment: Fragment): this(itmApplication, configData, fragment, fragment.requireContext()) {
-        addLifecycleObserver(fragment)
-    }
+    constructor(itmApplication: ITMApplication, configData: JsonObject, fragment: Fragment): this(itmApplication, configData, fragment, fragment, fragment.requireContext())
 
-    private fun addLifecycleObserver(owner: LifecycleOwner) {
+    init {
         owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStop(owner: LifecycleOwner) {
                 dispose()
