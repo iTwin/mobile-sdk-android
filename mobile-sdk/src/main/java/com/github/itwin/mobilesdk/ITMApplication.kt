@@ -17,10 +17,9 @@ import android.net.Uri
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.*
-import androidx.annotation.IdRes
+import androidx.activity.ComponentActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.fragment.app.FragmentActivity
-import androidx.fragment.app.commit
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.MutableLiveData
 import com.bentley.itwin.AuthorizationClient
 import com.bentley.itwin.IModelJsHost
@@ -144,12 +143,6 @@ abstract class ITMApplication(
      */
     @Suppress("MemberVisibilityCanBePrivate")
     protected var host: IModelJsHost? = null
-
-    /**
-     * The fragment used to present geolocation permissions requests to the user.
-     */
-    @Suppress("MemberVisibilityCanBePrivate")
-    protected var geolocationFragment: ITMGeolocationFragment? = null
 
     /**
      * The AuthorizationClient used for authentication.
@@ -304,14 +297,16 @@ abstract class ITMApplication(
 
     /**
      * Initialize the iModelJs backend if it is not initialized yet. This can be called from the launch activity.
+     *
+     * @param context The Context to use for authorization client creation (if not already set).
+     * @param allowInspectBackend Allow inspection of the backend code, default false.
      */
-    open fun initializeBackend(fragmentActivity: FragmentActivity, allowInspectBackend: Boolean = false) {
+    open fun initializeBackend(context: Context, allowInspectBackend: Boolean = false) {
         if (_isBackendInitialized.getAndSet(true))
             return
 
         try {
-            authorizationClient = createAuthorizationClient(fragmentActivity)
-            host = IModelJsHost(appContext, forceExtractBackendAssets, authorizationClient, allowInspectBackend).apply {
+            host = IModelJsHost(appContext, forceExtractBackendAssets, requireAuthorizationClient(context), allowInspectBackend).apply {
                 setBackendPath(getBackendPath())
                 setHomePath(getBackendHomePath())
                 setEntryPointScript(getBackendEntryPointScript())
@@ -325,17 +320,36 @@ abstract class ITMApplication(
         }
     }
 
-    open fun finishInitializeFrontend(fragmentActivity: FragmentActivity, @IdRes fragmentContainerId: Int) {
-        nativeUI = createNativeUI(fragmentActivity)
-        geolocationManager?.let { geolocationManager ->
-            fragmentActivity.supportFragmentManager.commit {
-                setReorderingAllowed(true)
-                val frag = createGeolocationFragment(geolocationManager)
-                add(fragmentContainerId, frag)
-                geolocationFragment = frag
-            }
-        }
+    /**
+     * Finish initialization of the frontend including creating the nativeUI and completing the frontendInitTask.
+     *
+     * @param context The Context to use to create the native UI.
+     */
+    open fun finishInitializeFrontend(context: Context) {
+        nativeUI = createNativeUI(context)
         frontendInitTask.complete()
+    }
+
+    /**
+     * Associates with the given activity and then initializes the frontend.
+     *
+     * @param activity The activity to associate with and context to use during initialization.
+     * @param allowInspectBackend Allow inspection of the backend code, default false.
+     */
+    open fun initializeFrontend(activity: ComponentActivity, allowInspectBackend: Boolean = false) {
+        associateWithActivity(activity)
+        initializeFrontend(activity as Context, allowInspectBackend)
+    }
+
+    /**
+     * Associates with the given fragment and then initializes the frontend.
+     *
+     * @param fragment The fragment to associate with and context to use during initialization.
+     * @param allowInspectBackend Allow inspection of the backend code, default false.
+     */
+    open fun initializeFrontend(fragment: Fragment, allowInspectBackend: Boolean = false) {
+        associateWithFragment(fragment)
+        initializeFrontend(fragment.requireContext(), allowInspectBackend)
     }
 
     /**
@@ -344,12 +358,14 @@ abstract class ITMApplication(
      * This requires the Looper to be running, so cannot be called from the launch activity. If you have not already
      * called [initializeBackend], this will call it.
      *
-     * @param fragmentActivity The [FragmentActivity] for the activity in which the frontend is running.
-     * @param fragmentContainerId The resource ID of the [FragmentContainerView][androidx.fragment.app.FragmentContainerView]
-     * into which to place UI fragments.
+     * @param context The context.
+     * @param allowInspectBackend Allow inspection of the backend code, default false.
      */
-    open fun initializeFrontend(fragmentActivity: FragmentActivity, @IdRes fragmentContainerId: Int, allowInspectBackend: Boolean = false) {
-        initializeBackend(fragmentActivity, allowInspectBackend)
+    open fun initializeFrontend(context: Context, allowInspectBackend: Boolean = false) {
+        // Note: geolocationManager needs to be created *before* the activity has started
+        geolocationManager = requireGeolocationManager(context)
+
+        initializeBackend(context, allowInspectBackend)
         if (webView != null) {
             frontendInitTask.cancel()
             frontendInitTask = Job()
@@ -357,12 +373,12 @@ abstract class ITMApplication(
 
         MainScope().launch {
             if (webView != null) {
-                finishInitializeFrontend(fragmentActivity, fragmentContainerId)
+                finishInitializeFrontend(context)
                 return@launch
             }
             try {
                 backendInitTask.join()
-                webView = object : WebView(fragmentActivity) {
+                webView = object : WebView(context) {
                     override fun onConfigurationChanged(newConfig: Configuration) {
                         super.onConfigurationChanged(newConfig)
                         this@ITMApplication.nativeUI?.onConfigurationChanged(newConfig)
@@ -413,9 +429,9 @@ abstract class ITMApplication(
                     MainScope().launch {
                         delay(10000)
                         if (!messenger.isFrontendLaunchComplete) {
-                            with(AlertDialog.Builder(fragmentActivity)) {
+                            with(AlertDialog.Builder(context)) {
                                 setTitle(R.string.itm_error)
-                                setMessage(fragmentActivity.getString(R.string.itm_debug_server_error, baseUrl))
+                                setMessage(context.getString(R.string.itm_debug_server_error, baseUrl))
                                 setCancelable(false)
                                 setPositiveButton(R.string.itm_ok) { _, _ -> }
                                 show()
@@ -423,7 +439,7 @@ abstract class ITMApplication(
                         }
                     }
                 }
-                finishInitializeFrontend(fragmentActivity, fragmentContainerId)
+                finishInitializeFrontend(context)
             } catch (e: Exception) {
                 coMessenger.frontendLaunchFailed(e)
                 reset()
@@ -438,12 +454,8 @@ abstract class ITMApplication(
      * @param context The context for the [Activity] that is being destroyed.
      */
     open fun onActivityDestroy(context: Context) {
+        // TODO: add a lifecycle observer to the Activity instead of requiring this be called
         webView?.setOnApplyWindowInsetsListener(null)
-        geolocationManager?.stopLocationUpdates()
-        geolocationManager?.setGeolocationFragment(null)
-        ITMGeolocationFragment.clearGeolocationManager()
-        geolocationFragment = null
-        (authorizationClient as? ITMOIDCAuthorizationClient)?.dispose()
         authorizationClient = null
         nativeUI?.detach()
         nativeUI = null
@@ -467,16 +479,15 @@ abstract class ITMApplication(
      *
      * __Note:__ Call this if the [WebView] runs out of memory, killing the web app.
      *
-     * @param fragmentActivity The [FragmentActivity] for the activity in which the frontend is running.
-     * @param fragmentContainerId The resource ID of the [FragmentContainerView][androidx.fragment.app.FragmentContainerView]
+     * @param activity The [ComponentActivity] for the activity in which the frontend is running.
      * into which to place UI fragments.
      */
-    open fun reinitializeFrontend(fragmentActivity: FragmentActivity, @IdRes fragmentContainerId: Int) {
+    open fun reinitializeFrontend(activity: ComponentActivity) {
         webView = null
         messenger = ITMMessenger(this)
         coMessenger = ITMCoMessenger(messenger)
         isLoaded.value = false
-        initializeFrontend(fragmentActivity, fragmentContainerId)
+        initializeFrontend(activity)
     }
 
     private fun updateAvailability(available: Boolean? = null) {
@@ -582,7 +593,7 @@ abstract class ITMApplication(
                 }
             }
         }
-        geolocationManager = ITMGeolocationManager(appContext, webView)
+        geolocationManager?.webView = webView
     }
 
     /**
@@ -765,22 +776,65 @@ abstract class ITMApplication(
      *
      * @return An instance of [AuthorizationClient], or null if you don't want any authentication in your app.
      */
-    open fun createAuthorizationClient(fragmentActivity: FragmentActivity): AuthorizationClient? {
+    open fun createAuthorizationClient(context: Context): AuthorizationClient? {
         return configData?.let { configData ->
-            ITMOIDCAuthorizationClient(this, configData, fragmentActivity)
+            ITMOIDCAuthorizationClient(this, configData)
         }
     }
 
     /**
-     * Creates the [ITMGeolocationFragment] to be used for this iTwin Mobile web app.
+     * If the [authorizationClient] is null, first sets it using [createAuthorizationClient].
      *
      * Override this function in a subclass in order to add custom behavior.
      *
-     * @param geolocationManager The [ITMGeolocationManager] to use with the fragment.
-     *
-     * @return An instance of [ITMGeolocationFragment] attached to [geolocationManager].
+     * @param context The context to pass to createAuthorizationClient.
+     * @return The [authorizationClient] value.
      */
-    open fun createGeolocationFragment(geolocationManager: ITMGeolocationManager): ITMGeolocationFragment {
-        return ITMGeolocationFragment.newInstance(geolocationManager)
+    open fun requireAuthorizationClient(context: Context): AuthorizationClient? {
+        return authorizationClient ?: createAuthorizationClient(context).also { authorizationClient = it }
+    }
+
+    /**
+     * Creates the [ITMGeolocationManager] to be used for this iTwin Mobile web app.
+     *
+     * @param context The Context (if needed).
+     * @return An instance of [ITMGeolocationManager] or null if your app doesn't need geolocation.
+     */
+    open fun createGeolocationManager(context: Context): ITMGeolocationManager? {
+        return ITMGeolocationManager()
+    }
+
+    /**
+     * If the [geolocationManager] is null, first sets it using [createGeolocationManager].
+     *
+     * Override this function in a subclass in order to add custom behavior.
+     *
+     * @param context The context to pass to createGeolocationManager.
+     * @return The [geolocationManager] value.
+     */
+
+    open fun requireGeolocationManager(context: Context): ITMGeolocationManager? {
+        return geolocationManager ?: createGeolocationManager(context).also { geolocationManager = it }
+    }
+
+    /**
+     * Associates the [geolocationManager] and [authorizationClient] with the given activity.
+     *
+     * @param activity The Activity to associate.
+     */
+    open fun associateWithActivity(activity: ComponentActivity) {
+        requireGeolocationManager(activity)?.associateWithResultCallerAndOwner(activity, activity, activity)
+        (requireAuthorizationClient(activity) as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(activity, activity, activity)
+    }
+
+    /**
+     * Associates the [geolocationManager] and [authorizationClient] with the given fragment.
+     *
+     * @param fragment The Fragment to associate.
+     */
+    open fun associateWithFragment(fragment: Fragment) {
+        val context = fragment.requireContext()
+        requireGeolocationManager(context)?.associateWithResultCallerAndOwner(fragment, fragment, context)
+        (requireAuthorizationClient(context) as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(fragment, fragment, context)
     }
 }
