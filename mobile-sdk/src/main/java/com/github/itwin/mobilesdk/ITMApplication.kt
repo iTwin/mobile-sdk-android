@@ -306,7 +306,7 @@ abstract class ITMApplication(
             return
 
         try {
-            host = IModelJsHost(appContext, forceExtractBackendAssets, requireAuthorizationClient(context), allowInspectBackend).apply {
+            host = IModelJsHost(appContext, forceExtractBackendAssets, provideAuthorizationClient(context), allowInspectBackend).apply {
                 setBackendPath(getBackendPath())
                 setHomePath(getBackendHomePath())
                 setEntryPointScript(getBackendEntryPointScript())
@@ -363,7 +363,7 @@ abstract class ITMApplication(
      */
     open fun initializeFrontend(context: Context, allowInspectBackend: Boolean = false) {
         // Note: geolocationManager needs to be created *before* the activity has started
-        geolocationManager = requireGeolocationManager(context)
+        geolocationManager = provideGeolocationManager(context)
 
         initializeBackend(context, allowInspectBackend)
         if (webView != null) {
@@ -790,7 +790,7 @@ abstract class ITMApplication(
      * @param context The context to pass to createAuthorizationClient.
      * @return The [authorizationClient] value.
      */
-    open fun requireAuthorizationClient(context: Context): AuthorizationClient? {
+    open fun provideAuthorizationClient(context: Context): AuthorizationClient? {
         return authorizationClient ?: createAuthorizationClient(context).also { authorizationClient = it }
     }
 
@@ -813,7 +813,7 @@ abstract class ITMApplication(
      * @return The [geolocationManager] value.
      */
 
-    open fun requireGeolocationManager(context: Context): ITMGeolocationManager? {
+    open fun provideGeolocationManager(context: Context): ITMGeolocationManager? {
         return geolocationManager ?: createGeolocationManager(context).also { geolocationManager = it }
     }
 
@@ -823,8 +823,8 @@ abstract class ITMApplication(
      * @param activity The Activity to associate.
      */
     open fun associateWithActivity(activity: ComponentActivity) {
-        requireGeolocationManager(activity)?.associateWithResultCallerAndOwner(activity, activity, activity)
-        (requireAuthorizationClient(activity) as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(activity, activity, activity)
+        provideGeolocationManager(activity)?.associateWithResultCallerAndOwner(activity, activity, activity)
+        (provideAuthorizationClient(activity) as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(activity, activity, activity)
     }
 
     /**
@@ -834,7 +834,7 @@ abstract class ITMApplication(
      */
     open fun associateWithFragment(fragment: Fragment) {
         val context = fragment.requireContext()
-        requireGeolocationManager(context)?.associateWithResultCallerAndOwner(fragment, fragment, context)
-        (requireAuthorizationClient(context) as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(fragment, fragment, context)
+        provideGeolocationManager(context)?.associateWithResultCallerAndOwner(fragment, fragment, context)
+        (provideAuthorizationClient(context) as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(fragment, fragment, context)
     }
 }
