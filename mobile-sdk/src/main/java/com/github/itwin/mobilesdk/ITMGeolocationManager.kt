@@ -22,6 +22,7 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultCaller
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
@@ -42,12 +43,8 @@ import kotlin.concurrent.schedule
 
 /**
  * Class for the native-side implementation of a `navigator.geolocation` polyfill.
- *
- * @param resultCaller Used for showing permission and service dialogs and handling responses.
- * @param owner Used for starting and stopping the location updates, and removing our result caller registrations.
- * @param context The context.
  */
-class ITMGeolocationManager(resultCaller: ActivityResultCaller, owner: LifecycleOwner, private val context: Context) {
+class ITMGeolocationManager() {
     private val geolocationJsInterface = object {
         @Suppress("unused")
         @JavascriptInterface
@@ -126,28 +123,55 @@ class ITMGeolocationManager(resultCaller: ActivityResultCaller, owner: Lifecycle
         }
 
     private var scope = MainScope()
+    private lateinit var context: Context
+    private lateinit var requestPermission: ActivityResultLauncher<String>
+    private lateinit var requestLocationService: ActivityResultLauncher<IntentSenderRequest>
 
-    private val requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        if (isGranted) {
-            onLocationPermissionGranted()
-        } else {
-            onLocationPermissionDenied()
-            Toast.makeText(context, context.getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
+    /**
+     * Associates with the given objects (usually an Activity or Fragment).
+     *
+     * @param resultCaller The [ActivityResultCaller] to use for location permission and services requests.
+     * @param owner The [LifecycleOwner] to observe for turning location updates on and off.
+     * @param context The Context.
+     */
+    fun associateWithResultCallerAndOwner(resultCaller: ActivityResultCaller, owner: LifecycleOwner, context: Context) {
+        this.context = context
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                onLocationPermissionGranted()
+            } else {
+                onLocationPermissionDenied()
+                Toast.makeText(context, context.getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
+            }
         }
-    }
-
-    private val requestLocationService = resultCaller.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { activityResult ->
-        if (activityResult.resultCode == Activity.RESULT_OK) {
-            onLocationServiceEnabled()
-        } else {
-            onLocationServiceEnableRequestDenied()
+        requestLocationService = resultCaller.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { activityResult ->
+            if (activityResult.resultCode == Activity.RESULT_OK) {
+                onLocationServiceEnabled()
+            } else {
+                onLocationServiceEnableRequestDenied()
+            }
         }
+        owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) {
+                resumeLocationUpdates()
+            }
+            override fun onStop(owner: LifecycleOwner) {
+                stopLocationUpdates()
+            }
+            override fun onDestroy(owner: LifecycleOwner) {
+                requestPermission.unregister()
+                requestLocationService.unregister()
+                cancelTasks()
+                webView = null
+            }
+        })
     }
 
     private var requestPermissionsTask: CompletableDeferred<Boolean>? = null
     private var requestLocationServiceTask: CompletableDeferred<Boolean>? = null
 
-    private var fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var cancellationTokenSource = CancellationTokenSource()
 
     private lateinit var sensorManager: SensorManager
@@ -203,27 +227,16 @@ class ITMGeolocationManager(resultCaller: ActivityResultCaller, owner: Lifecycle
      * Constructor using a [ComponentActivity].
      */
     @Suppress("unused")
-    constructor(activity: ComponentActivity): this(activity, activity, activity)
+    constructor(activity: ComponentActivity): this() {
+        associateWithResultCallerAndOwner(activity, activity, activity)
+    }
 
     /**
      * Constructor using a [Fragment].
      */
     @Suppress("unused")
-    constructor(fragment: Fragment): this(fragment, fragment, fragment.requireContext())
-
-    init {
-        owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) {
-                resumeLocationUpdates()
-            }
-            override fun onStop(owner: LifecycleOwner) {
-                stopLocationUpdates()
-            }
-            override fun onDestroy(owner: LifecycleOwner) {
-                requestPermission.unregister()
-                requestLocationService.unregister()
-            }
-        })
+    constructor(fragment: Fragment): this() {
+        associateWithResultCallerAndOwner(fragment, fragment, fragment.requireContext())
     }
 
     //endregion
@@ -349,9 +362,20 @@ class ITMGeolocationManager(resultCaller: ActivityResultCaller, owner: Lifecycle
     //endregion
 
     //region Location
-    private suspend fun getGeolocationPosition(): GeolocationPosition {
+
+    /**
+     * Ensures location permission and services are available and returns the current location.
+     *
+     * @return The current [Location].
+     */
+    @Suppress("unused")
+    suspend fun getGeolocation(): Location {
         ensureLocationAvailability()
-        return getCurrentLocation().toGeolocationPosition()
+        return getCurrentLocation()
+    }
+
+    private suspend fun getGeolocationPosition(): GeolocationPosition {
+        return getGeolocation().toGeolocationPosition()
     }
 
     private suspend fun getCurrentLocation(): Location {
