@@ -299,7 +299,7 @@ abstract class ITMApplication(
     /**
      * Initialize the iModelJs backend if it is not initialized yet. This can be called from the launch activity.
      *
-     * @param context The context to use for authorization client creation (if not already set).
+     * @param context The [Context] to use for authorization client creation (if not already set).
      * @param allowInspectBackend Allow inspection of the backend code, default false.
      */
     open fun initializeBackend(context: Context, allowInspectBackend: Boolean = false) {
@@ -324,7 +324,7 @@ abstract class ITMApplication(
     /**
      * Finish initialization of the frontend including creating the nativeUI and completing the frontendInitTask.
      *
-     * @param context The context to use to create the native UI.
+     * @param context The [Context] to use to create the native UI.
      */
     open fun finishInitializeFrontend(context: Context) {
         nativeUI = createNativeUI(context)
@@ -348,7 +348,7 @@ abstract class ITMApplication(
      * This requires the Looper to be running, so cannot be called from the launch activity.
      * If you have not already called [initializeBackend], this will call it.
      *
-     * @param context The context.
+     * @param context The [Context].
      * @param allowInspectBackend Allow inspection of the backend code, default false.
      */
     open fun initializeFrontend(context: Context, allowInspectBackend: Boolean = false) {
@@ -776,7 +776,7 @@ abstract class ITMApplication(
      *
      * Override this function in a subclass in order to add custom behavior.
      *
-     * @param context The context to pass to createAuthorizationClient.
+     * @param context The [Context] to pass to createAuthorizationClient.
      * @return The [authorizationClient] value.
      */
     open fun provideAuthorizationClient(context: Context): AuthorizationClient? {
@@ -786,7 +786,7 @@ abstract class ITMApplication(
     /**
      * Creates the [ITMGeolocationManager] to be used for this iTwin Mobile web app.
      *
-     * @param context The context (if needed).
+     * @param context The [Context] (if needed).
      * @return An instance of [ITMGeolocationManager] or null if your app doesn't need geolocation.
      */
     open fun createGeolocationManager(context: Context): ITMGeolocationManager? {
@@ -798,7 +798,7 @@ abstract class ITMApplication(
      *
      * Override this function in a subclass in order to add custom behavior.
      *
-     * @param context The context to pass to createGeolocationManager.
+     * @param context The [Context] to pass to createGeolocationManager.
      * @return The [geolocationManager] value.
      */
 
