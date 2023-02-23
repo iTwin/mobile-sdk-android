@@ -14,6 +14,7 @@ import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
+import android.system.Os
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.*
@@ -260,6 +261,13 @@ abstract class ITMApplication(
             if (configData.isYes("ITMAPPLICATION_FULL_MESSAGE_LOGGING")) {
                 ITMMessenger.isLoggingEnabled = true
                 ITMMessenger.isFullLoggingEnabled = true
+            }
+
+            // Add the configuration vars to the environment so they can be picked up by other code (i.e. the typescript backend)
+            configData.forEach {configVar ->
+                if (configVar.name.startsWith("ITMAPPLICATION_")) {
+                    Os.setenv(configVar.name, configVar.value.asString(), true)
+                }
             }
         }
     }
