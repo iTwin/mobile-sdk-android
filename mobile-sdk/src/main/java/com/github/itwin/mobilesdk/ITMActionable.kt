@@ -1,6 +1,5 @@
 package com.github.itwin.mobilesdk
 
-import android.widget.PopupMenu
 import com.eclipsesource.json.JsonArray
 import com.eclipsesource.json.JsonValue
 import java.util.*
