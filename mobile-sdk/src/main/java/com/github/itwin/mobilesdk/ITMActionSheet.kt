@@ -14,8 +14,6 @@ import android.widget.RelativeLayout
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonValue
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 /**
@@ -33,12 +31,11 @@ import kotlin.coroutines.suspendCoroutine
  *
  * @param nativeUI The [ITMNativeUI] in which the [PopupMenu] will display.
  */
-class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
+class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
     private var viewGroup: ViewGroup? = null
     private var anchor: View? = null
     private var popupMenu: PopupMenu? = null
-    private var cancelAction: ITMAlert.Action? = null
-    private var continuation: Continuation<JsonValue>? = null
+    private var cancelAction: Action? = null
 
     init {
         handler = coMessenger.registerQueryHandler("Bentley_ITM_presentActionSheet") { value -> handleQuery(value) }
@@ -50,8 +47,8 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
             // Note: no input validation is intentional. If the input is malformed, it will trigger the exception handler, which will send
             // an error back to TypeScript.
             val params = value!!.asObject()
-            val actions: MutableList<ITMAlert.Action> = mutableListOf()
-            cancelAction = ITMAlert.readActions(params["actions"].asArray(), actions)
+            val actions: MutableList<Action> = mutableListOf()
+            cancelAction = readActions(params["actions"].asArray(), actions)
 
             // NOTE: viewGroup will change every time the Model Web App is closed and reopened, so we do NOT want to grab the value
             // during our initialization.
@@ -65,28 +62,23 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
             layoutParams.leftMargin = sourceRect.x
             layoutParams.topMargin = sourceRect.y
             viewGroup?.addView(anchor, layoutParams)
+            // If there is already an action sheet active, cancel it.
+            resume(Json.NULL)
             return suspendCoroutine { continuation ->
                 this.continuation = continuation
-                var resumed = false
                 val popupGravity = params.getOptionalString("gravity")?.toGravity() ?: Gravity.NO_GRAVITY
                 with(PopupMenu(context, anchor, popupGravity)) {
                     setOnMenuItemClickListener { item ->
-                        resumed = true
                         removeAnchor()
                         popupMenu = null
                         cancelAction = null
-                        this@ITMActionSheet.continuation = null
-                        continuation.resume(Json.value(actions[item.itemId].name))
+                        resume(Json.value(actions[item.itemId].name))
                         return@setOnMenuItemClickListener true
                     }
                     setOnDismissListener {
                         removeAnchor()
                         popupMenu = null
-                        this@ITMActionSheet.continuation = null
-                        if (!resumed) {
-                            continuation.resume(Json.value(cancelAction?.name))
-                            cancelAction = null
-                        }
+                        resume(Json.value(cancelAction?.name))
                     }
                     for ((index, action) in actions.withIndex()) {
                         menu.add(Menu.NONE, index, Menu.NONE, action.title)
@@ -96,7 +88,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
                 }
             }
         } catch (ex: Exception) {
-            removePopupMenu()
+            removeUI()
             removeAnchor()
             cancelAction = null
             continuation = null
@@ -105,7 +97,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
         }
     }
 
-    private fun removePopupMenu() {
+    override fun removeUI() {
         popupMenu?.dismiss()
         popupMenu = null
     }
@@ -122,10 +114,9 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
      */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        removePopupMenu()
+        removeUI()
         removeAnchor()
-        continuation?.resume(Json.value(cancelAction?.name))
-        continuation = null
+        resume(Json.value(cancelAction?.name))
         cancelAction = null
     }
 }

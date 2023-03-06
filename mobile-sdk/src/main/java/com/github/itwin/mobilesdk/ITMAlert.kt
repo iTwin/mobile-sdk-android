@@ -6,11 +6,9 @@ package com.github.itwin.mobilesdk
 
 import android.app.AlertDialog
 import com.eclipsesource.json.Json
-import com.eclipsesource.json.JsonArray
 import com.eclipsesource.json.JsonValue
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import java.util.*
-import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 /**
@@ -20,48 +18,8 @@ import kotlin.coroutines.suspendCoroutine
  *
  * @param nativeUI The [ITMNativeUI] in which the [AlertDialog] will display.
  */
-class ITMAlert(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
-    companion object {
-        fun readActions(actionsValue: JsonArray, actions: MutableList<Action>): Action? {
-            var cancelAction: Action? = null
-            actionsValue.forEach { actionValue ->
-                val action = Action(actionValue)
-                if (action.style == ActionStyle.Cancel) {
-                    cancelAction = action
-                } else {
-                    actions += action
-                }
-            }
-            return cancelAction
-        }
-    }
-
-    enum class ActionStyle {
-        Default,
-        Cancel,
-        Destructive
-    }
-
-    /**
-     * Class representing an action that the user can select.
-     *
-     * @param value [JsonValue] containing required `name` and `title` values, as well as optionally a
-     * `style` value.
-     */
-    class Action(value: JsonValue) {
-        val name: String
-        val title: String
-        val style: ActionStyle
-
-        init {
-            val action = value.asObject()
-            name = action["name"].asString()
-            title = action["title"].asString()
-            style = ActionStyle.valueOf(
-                action["style"].asString()
-                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() })
-        }
-    }
+class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
+    private var alertDialog: AlertDialog? = null
 
     init {
         handler = coMessenger.registerQueryHandler("Bentley_ITM_presentAlert") { value -> handleQuery(value) }
@@ -102,12 +60,15 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
                     positiveAction = actions[index]
                 }
             }
+            // If there is already an alert active, cancel it.
+            resume(Json.NULL)
             return suspendCoroutine { continuation ->
+                this.continuation = continuation
                 with(AlertDialog.Builder(context)) {
                     setTitle(title)
                     if (items != null) {
                         setItems(items.toTypedArray()) { _, index ->
-                            continuation.resume(Json.value(actions[index].name))
+                            resume(Json.value(actions[index].name))
                         }
                     } else {
                         // Items and Message are mutually exclusive. If items are needed (more than three
@@ -118,30 +79,37 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI)  {
                     setCancelable(cancelAction != null)
                     if (cancelAction != null) {
                         setOnCancelListener {
-                            continuation.resume(Json.value(cancelAction.name))
+                            resume(Json.value(cancelAction.name))
                         }
                     }
                     if (neutralAction != null) {
                         setNeutralButton(neutralAction.title) { _, _ ->
-                            continuation.resume(Json.value(neutralAction.name))
+                            resume(Json.value(neutralAction.name))
                         }
                     }
                     if (negativeAction != null) {
                         setNegativeButton(negativeAction.title) { _, _ ->
-                            continuation.resume(Json.value(negativeAction.name))
+                            resume(Json.value(negativeAction.name))
                         }
                     }
                     if (positiveAction != null) {
                         setPositiveButton(positiveAction.title) { _, _ ->
-                            continuation.resume(Json.value(positiveAction.name))
+                            resume(Json.value(positiveAction.name))
                         }
                     }
-                    show()
+                    alertDialog = show()
                 }
             }
         } catch (ex: Exception) {
+            removeUI()
+            continuation = null
             // Note: this is caught by ITMCoMessenger and tells the TypeScript caller that there was an error.
             throw Exception("Invalid input to Bentley_ITM_presentActionSheet")
         }
+    }
+
+    override fun removeUI() {
+        alertDialog?.dismiss()
+        alertDialog = null
     }
 }
