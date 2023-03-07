@@ -41,16 +41,18 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
         enum class Style {
             Default,
             Cancel,
-            Destructive
+            Destructive;
+
+            companion object {
+                fun fromString(style: String?) = style?.takeIf { it.isNotEmpty() }?.let { Style.valueOf(style.replaceFirstChar { it.uppercase() }) } ?: Default
+            }
         }
 
         /**
          * Constructor using a [JsonObject]
          * @param json [JsonObject] containing required `name` and `title` values, as well as optionally a `style` value.
          */
-        constructor(json: JsonObject):
-                this(json["name"].asString(), json["title"].asString(),
-                    json.get("style")?.let { style -> Style.valueOf(style.asString().replaceFirstChar { it.uppercase() })} ?: Style.Default)
+        constructor(json: JsonObject): this(json["name"].asString(), json["title"].asString(), Style.fromString(json.get("style")?.asString()))
     }
 
     /**
