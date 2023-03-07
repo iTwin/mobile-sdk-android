@@ -59,7 +59,7 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
     abstract fun removeUI()
 
     /**
-     * Should be called by super-classes when an action is selected or cancelled.
+     * Should be called by sub-classes when an action is selected or cancelled.
      */
     protected fun resume(result: JsonValue) {
         removeUI()
