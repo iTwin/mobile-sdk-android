@@ -31,11 +31,10 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
             // Note: no input validation is intentional. If the input is malformed, it will trigger the exception handler, which will send
             // an error back to TypeScript.
             val params = value!!.asObject()
-            val actions: MutableList<Action> = mutableListOf()
-            val cancelAction = readActions(params["actions"].asArray(), actions)
+            val (actions, cancelAction) = readActions(params["actions"].asArray())
             val title = params.getOptionalString("title")
             val message = params.getOptionalString("message")
-            if (actions.size == 0 && cancelAction == null) throw Exception("No actions")
+            if (actions.isEmpty() && cancelAction == null) throw Exception("No actions")
             var index = 0
             var neutralAction: Action? = null
             var negativeAction: Action? = null
@@ -56,7 +55,7 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
                     negativeAction = actions[index]
                     ++index
                 }
-                if (actions.size >= 1) {
+                if (actions.isNotEmpty()) {
                     positiveAction = actions[index]
                 }
             }

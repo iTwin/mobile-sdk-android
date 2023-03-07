@@ -1,8 +1,8 @@
 package com.github.itwin.mobilesdk
 
 import com.eclipsesource.json.JsonArray
+import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
-import java.util.*
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 
@@ -14,49 +14,53 @@ import kotlin.coroutines.resume
 abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
     protected var continuation: Continuation<JsonValue>? = null
     companion object {
-        fun readActions(actionsValue: JsonArray, actions: MutableList<Action>): Action? {
+        /**
+         * Returns a list of [Action]'s and the cancel action (if defined in the input json).
+         *
+         * @param actionsValue An array of [JsonObject] containing the actions.
+         */
+        fun readActions(actionsValue: JsonArray): Pair<List<Action>, Action?> {
+            val actions: MutableList<Action> = mutableListOf()
             var cancelAction: Action? = null
             actionsValue.forEach { actionValue ->
-                val action = Action(actionValue)
-                if (action.style == ActionStyle.Cancel) {
+                val action = Action(actionValue.asObject())
+                if (action.style == Action.Style.Cancel) {
                     cancelAction = action
                 } else {
                     actions += action
                 }
             }
-            return cancelAction
+            return Pair(actions, cancelAction)
         }
-    }
-
-    enum class ActionStyle {
-        Default,
-        Cancel,
-        Destructive
     }
 
     /**
      * Class representing an action that the user can select.
-     *
-     * @param value [JsonValue] containing required `name` and `title` values, as well as optionally a
-     * `style` value.
      */
-    class Action(value: JsonValue) {
-        val name: String
-        val title: String
-        val style: ActionStyle
-
-        init {
-            val action = value.asObject()
-            name = action["name"].asString()
-            title = action["title"].asString()
-            style = ActionStyle.valueOf(
-                action["style"].asString()
-                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() })
+    data class Action(val name: String, val title: String, val style: Style = Style.Default) {
+        enum class Style {
+            Default,
+            Cancel,
+            Destructive
         }
+
+        /**
+         * Constructor using a [JsonObject]
+         * @param json [JsonObject] containing required `name` and `title` values, as well as optionally a `style` value.
+         */
+        constructor(json: JsonObject):
+                this(json["name"].asString(), json["title"].asString(),
+                    json.get("style")?.let { style -> Style.valueOf(style.asString().replaceFirstChar { it.uppercase() })} ?: Style.Default)
     }
 
+    /**
+     * Implemented by concrete sub-classes to stop showing their user interface. Called by [resume].
+     */
     abstract fun removeUI()
 
+    /**
+     * Should be called by super-classes when an action is selected or cancelled.
+     */
     protected fun resume(result: JsonValue) {
         removeUI()
         continuation?.resume(result)
