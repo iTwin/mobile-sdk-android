@@ -47,8 +47,8 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
             // Note: no input validation is intentional. If the input is malformed, it will trigger the exception handler, which will send
             // an error back to TypeScript.
             val params = value!!.asObject()
-            val actions: MutableList<Action> = mutableListOf()
-            cancelAction = readActions(params["actions"].asArray(), actions)
+            val (actions, cancel) = readActions(params["actions"].asArray())
+            cancelAction = cancel
 
             // NOTE: viewGroup will change every time the Model Web App is closed and reopened, so we do NOT want to grab the value
             // during our initialization.
