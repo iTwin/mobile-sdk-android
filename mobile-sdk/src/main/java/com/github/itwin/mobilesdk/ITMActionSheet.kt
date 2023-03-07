@@ -48,7 +48,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
             // an error back to TypeScript.
             val params = value!!.asObject()
             val (actions, cancel) = readActions(params["actions"].asArray())
-            this.cancelAction = cancel
+            cancelAction = cancel
 
             // NOTE: viewGroup will change every time the Model Web App is closed and reopened, so we do NOT want to grab the value
             // during our initialization.
