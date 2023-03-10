@@ -239,9 +239,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
 
             val response = responseValue.asObject()
             val queryId = response[queryIdKey].asInt()
-            pendingQueries.remove(queryId)?.let {
-                val (type, onSuccess, onFailure) = it
-
+            pendingQueries.remove(queryId)?.let { (type, onSuccess, onFailure) ->
                 response[errorKey]?.also { error ->
                     logQuery("Error Response JS -> Kotlin", queryId, type, error)
                     onFailure?.invoke(Exception(error.toString()))
