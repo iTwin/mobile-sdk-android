@@ -68,7 +68,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * sent to the web view (which will be present in the response). The value is a [Pair] containing
      * optional success and failure callbacks.
      */
-    private val pendingQueries: MutableMap<Int, Pair<ITMSuccessCallback?, ITMFailureCallback?>> = mutableMapOf()
+    private val pendingQueries: MutableMap<Int, Triple<String, ITMSuccessCallback?, ITMFailureCallback?>> = mutableMapOf()
 
     /**
      * Handlers waiting for queries from the web view. The key is the query name, and the value is the handler.
@@ -90,16 +90,17 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
          * [itmMessenger].[handleMessageSuccess] or [itmMessenger].[handleMessageFailure].
          *
          * @param queryId The query ID of the query.
+         * @param type The type of the query.
          * @param data Optional arbitrary message data.
          */
-        fun handleMessage(queryId: Int, data: JsonValue?) {
+        fun handleMessage(queryId: Int, type: String, data: JsonValue?) {
             itmMessenger.logQuery("Request JS -> Kotlin", queryId, type, data)
             callback.invoke(data, { result ->
                 if (result != null) {
-                    itmMessenger.handleMessageSuccess(queryId, result)
+                    itmMessenger.handleMessageSuccess(queryId, type, result)
                 }
             }, { error ->
-                itmMessenger.handleMessageFailure(queryId, error)
+                itmMessenger.handleMessageFailure(queryId, type, error)
             })
         }
     }
@@ -116,6 +117,11 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
          * __WARNING:__ You should only enable this in debug builds, since message bodies may contain private information.
          */
         var isFullLoggingEnabled = false
+
+        /**
+         * Set containing query types that are not logged.
+         */
+        private val unloggedQueryTypes: MutableSet<String> = mutableSetOf()
 
         /**
          * Counter to increment and use when sending a message to the web view.
@@ -163,6 +169,30 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
          * The name of the JavascriptInterface class by the `Messenger` class in `@itwin/mobile-sdk-core`.
          */
         private const val jsInterfaceName = "Bentley_ITMMessenger"
+
+        /**
+         * Add a query type to the list of unlogged queries.
+         *
+         * Unlogged queries are ignored by [logQuery]. This is useful (for example) for queries that are
+         * themselves intended to produce log output, to prevent double log output.
+         *
+         * @param type The type of the query for which logging is disabled.
+         */
+        @Suppress("MemberVisibilityCanBePrivate")
+        fun addUnloggedQueryType(type: String) {
+            unloggedQueryTypes.add(type)
+        }
+
+        /**
+         * Remove a query type from the list of unlogged queries.
+         *
+         * See [addUnloggedQueryType].
+         *
+         * @param type The type of the query to remove.
+         */
+        fun removeUnloggedQueryType(type: String) {
+            unloggedQueryTypes.remove(type)
+        }
     }
 
     /**
@@ -172,6 +202,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      */
     private fun handleQuery(messageString: String) {
         var queryId: Int? = null
+        var name = "<Unknown>"
         try {
             val requestValue = Json.parse(messageString)
             if (!requestValue.isObject)
@@ -180,10 +211,10 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
             if (!request[nameKey].isString || !request[queryIdKey].isNumber)
                 return
             queryId = request[queryIdKey].asInt()
-            val name = request[nameKey].asString()
+            name = request[nameKey].asString()
             val handler = handlers[name]
             if (handler != null) {
-                handler.handleMessage(queryId, request[messageKey])
+                handler.handleMessage(queryId, name, request[messageKey])
             } else {
                 @Suppress("SpellCheckingInspection")
                 logError("Unhandled query [JS -> Kotlin] WVID$queryId: $name")
@@ -191,7 +222,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
             }
         } catch (e: Exception) {
             logError("ITMMessenger.handleQuery exception: $e")
-            queryId?.let { handleMessageFailure(it, e) }
+            queryId?.let { handleMessageFailure(it, name, e) }
         }
     }
 
@@ -208,15 +239,13 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
 
             val response = responseValue.asObject()
             val queryId = response[queryIdKey].asInt()
-            pendingQueries.remove(queryId)?.let {
-                val (onSuccess, onFailure) = it
-
+            pendingQueries.remove(queryId)?.let { (type, onSuccess, onFailure) ->
                 response[errorKey]?.also { error ->
-                    logQuery("Error Response JS -> Kotlin", queryId, null, error)
+                    logQuery("Error Response JS -> Kotlin", queryId, type, error)
                     onFailure?.invoke(Exception(error.toString()))
                 } ?: run {
                     val data = response[responseKey] ?: Json.NULL
-                    logQuery("Response JS -> Kotlin", queryId, null, data)
+                    logQuery("Response JS -> Kotlin", queryId, type, data)
                     onSuccess?.invoke(data)
                 }
             }
@@ -231,10 +260,11 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * __Note:__ If you plan to override this without calling super, you need to inspect this source code.
      *
      * @param queryId The query ID for the message.
+     * @param type The type of the message.
      * @param result The arbitrary result to send back to the web view.
      */
-    private fun handleMessageSuccess(queryId: Int, result: JsonValue) {
-        logQuery("Response Kotlin -> JS", queryId, null, result)
+    private fun handleMessageSuccess(queryId: Int, type: String, result: JsonValue) {
+        logQuery("Response Kotlin -> JS", queryId, type, result)
         mainScope.launch {
             val message = Json.`object`()
             message["response"] = result
@@ -266,10 +296,11 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * __Note:__ If you plan to override this without calling super, you need to inspect this source code.
      *
      * @param queryId The query ID for the message.
+     * @param type The type of the message.
      * @param error The error to send back to the web view.
      */
-    private fun handleMessageFailure(queryId: Int, error: Exception) {
-        logQuery("Error Response Kotlin -> JS", queryId, null, null)
+    private fun handleMessageFailure(queryId: Int, type: String, error: Exception) {
+        logQuery("Error Response Kotlin -> JS", queryId, type, null)
         mainScope.launch {
             val message = Json.`object`()
             message["error"] = error.message
@@ -282,7 +313,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
     /**
      * Called to log a query. Converts [data] into a string and then calls [logQuery].
      */
-    private fun logQuery(title: String, queryId: Int, type: String?, data: JsonValue?) {
+    private fun logQuery(title: String, queryId: Int, type: String, data: JsonValue?) {
         val prettyDataString = try {
             data?.toPrettyString()
         } finally {
@@ -301,13 +332,12 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * @param prettyDataString Pretty-printed JSON representation of the query data. If [isFullLoggingEnabled]
      * is set to false, this value is ignored.
      */
-    private fun logQuery(title: String, queryTag: String, type: String?, prettyDataString: String?) {
-        if (!isLoggingEnabled) return
-        val typeString = type ?: "(Match ID from Request above)"
+    private fun logQuery(title: String, queryTag: String, type: String, prettyDataString: String?) {
+        if (!isLoggingEnabled || unloggedQueryTypes.contains(type)) return
         if (isFullLoggingEnabled) {
-            logInfo("ITMMessenger [$title] $queryTag: $typeString\n${prettyDataString ?: "null"}")
+            logInfo("ITMMessenger [$title] $queryTag: $type\n${prettyDataString ?: "null"}")
         } else {
-            logInfo("ITMMessenger [$title] $queryTag: $typeString")
+            logInfo("ITMMessenger [$title] $queryTag: $type")
         }
     }
 
@@ -354,7 +384,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
             val queryId = queryIdCounter.incrementAndGet()
             logQuery("Request Kotlin -> JS", queryId, type, data)
             val dataString = Base64.encodeToString(data.toString().toByteArray(), Base64.NO_WRAP)
-            pendingQueries[queryId] = Pair(success, failure)
+            pendingQueries[queryId] = Triple(type, success, failure)
             webView?.evaluateJavascript("$queryName('$type', $queryId, '$dataString')", null)
         }
     }
