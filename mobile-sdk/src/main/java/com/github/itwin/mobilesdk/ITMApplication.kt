@@ -307,10 +307,10 @@ abstract class ITMApplication(
     /**
      * Initialize the iModelJs backend if it is not initialized yet. This can be called from the launch activity.
      *
-     * @param context The [Context] to use for authorization client creation (if not already set).
+     * @param context Optional [Context] to use for authorization client creation (if not already set).
      * @param allowInspectBackend Allow inspection of the backend code, default false.
      */
-    open fun initializeBackend(context: Context, allowInspectBackend: Boolean = false) {
+    open fun initializeBackend(context: Context? = null, allowInspectBackend: Boolean = false) {
         if (_isBackendInitialized.getAndSet(true))
             return
 
@@ -771,9 +771,10 @@ abstract class ITMApplication(
      *
      * If your application handles authorization on its own, create a subclass of [AuthorizationClient].
      *
+     * @param context Optional [Context].
      * @return An instance of [AuthorizationClient], or null if you don't want any authentication in your app.
      */
-    open fun createAuthorizationClient(context: Context): AuthorizationClient? {
+    open fun createAuthorizationClient(context: Context? = null): AuthorizationClient? {
         return configData?.let { configData ->
             ITMOIDCAuthorizationClient(this, configData)
         }
@@ -784,10 +785,10 @@ abstract class ITMApplication(
      *
      * Override this function in a subclass in order to add custom behavior.
      *
-     * @param context The [Context] to pass to createAuthorizationClient.
+     * @param context Optional [Context] passed to [createAuthorizationClient].
      * @return The [authorizationClient] value.
      */
-    open fun provideAuthorizationClient(context: Context): AuthorizationClient? {
+    open fun provideAuthorizationClient(context: Context? = null): AuthorizationClient? {
         return authorizationClient ?: createAuthorizationClient(context).also { authorizationClient = it }
     }
 
