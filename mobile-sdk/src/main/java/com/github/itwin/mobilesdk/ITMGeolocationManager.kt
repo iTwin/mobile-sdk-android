@@ -128,20 +128,20 @@ class ITMGeolocationManager() {
     private lateinit var requestLocationService: ActivityResultLauncher<IntentSenderRequest>
 
     /**
-     * Associates with the given objects (usually an Activity or Fragment).
+     * Registers for activity results for requesting permission and requesting location access.
+     * Note: This *must* be called unconditionally, as part of initialization path, typically as a field initializer of an Activity or Fragment.
      *
-     * @param resultCaller The [ActivityResultCaller] to use for location permission and services requests.
-     * @param owner The [LifecycleOwner] to observe for turning location updates on and off.
-     * @param context The Context.
+     * @param resultCaller The [ActivityResultCaller] to register with.
+     * @param context The [Context] to use for displaying a Toast message when permission is denied.
      */
-    fun associateWithResultCallerAndOwner(resultCaller: ActivityResultCaller, owner: LifecycleOwner, context: Context) {
-        this.context = context
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    @Suppress("private")
+    fun registerForActivityResult(resultCaller: ActivityResultCaller, context: Context) {
         requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
                 onLocationPermissionGranted()
             } else {
                 onLocationPermissionDenied()
+                // todo: remove this, sub-classes can override onLocationPermissionDenied and display a toast if that's needed.
                 Toast.makeText(context, context.getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
             }
         }
@@ -152,7 +152,25 @@ class ITMGeolocationManager() {
                 onLocationServiceEnableRequestDenied()
             }
         }
+    }
+
+    /**
+     * Adds a lifecycle observer that does the following:
+     * - onCreate: calls the [onCreate] parameter (if not null)
+     * - onStart: resumes location updates
+     * - onStop: stops location updates
+     * - onDestroy:
+     *     - cleans up registered activity result handlers
+     *     - cancels all tasks
+     *     - nulls out the [webView] if [clearWebViewOnDestroy] is true
+     *     - calls the [onDestroy] parameter (if not null)
+     */
+    @Suppress("private")
+    fun addLifecycleObserver(owner: LifecycleOwner, clearWebViewOnDestroy: Boolean = true, onCreate: (() -> Unit)? = null, onDestroy: (() -> Unit)? = null) {
         owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
+            override fun onCreate(owner: LifecycleOwner) {
+                onCreate?.invoke()
+            }
             override fun onStart(owner: LifecycleOwner) {
                 resumeLocationUpdates()
             }
@@ -163,8 +181,43 @@ class ITMGeolocationManager() {
                 requestPermission.unregister()
                 requestLocationService.unregister()
                 cancelTasks()
-                webView = null
+                if (clearWebViewOnDestroy) {
+                    webView = null
+                }
+                onDestroy?.invoke()
             }
+        })
+    }
+
+    /**
+     * Associates with the given activity.
+     *
+     * @param activity The [ComponentActivity] to associate with.
+     */
+    @Suppress("unused")
+    fun associateWithActivity(activity: ComponentActivity) {
+        this.context = activity
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(activity)
+        registerForActivityResult(activity, activity)
+        addLifecycleObserver(activity) {
+            this@ITMGeolocationManager.context = activity.applicationContext
+        }
+    }
+
+    /**
+     * Associates with the given fragment.
+     *
+     * @param fragment The [Fragment] to associate with.
+     * @param appContext The application [Context] to use when the fragment has not been created or is destroyed.
+     */
+    @Suppress("unused")
+    fun associateWithFragment(fragment: Fragment, appContext: Context) {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(appContext)
+        registerForActivityResult(fragment, appContext)
+        addLifecycleObserver(fragment, false, {
+            this@ITMGeolocationManager.context = fragment.requireActivity()
+        }, {
+            this@ITMGeolocationManager.context = appContext
         })
     }
 
@@ -228,15 +281,15 @@ class ITMGeolocationManager() {
      */
     @Suppress("unused")
     constructor(activity: ComponentActivity): this() {
-        associateWithResultCallerAndOwner(activity, activity, activity)
+        associateWithActivity(activity)
     }
 
     /**
      * Constructor using a [Fragment].
      */
     @Suppress("unused")
-    constructor(fragment: Fragment): this() {
-        associateWithResultCallerAndOwner(fragment, fragment, fragment.requireContext())
+    constructor(fragment: Fragment, context: Context): this() {
+        associateWithFragment(fragment, context)
     }
 
     //endregion
