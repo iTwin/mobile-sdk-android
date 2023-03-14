@@ -307,15 +307,14 @@ abstract class ITMApplication(
     /**
      * Initialize the iModelJs backend if it is not initialized yet. This can be called from the launch activity.
      *
-     * @param context The [Context] to use for authorization client creation (if not already set).
      * @param allowInspectBackend Allow inspection of the backend code, default false.
      */
-    open fun initializeBackend(context: Context, allowInspectBackend: Boolean = false) {
+    open fun initializeBackend(allowInspectBackend: Boolean = false) {
         if (_isBackendInitialized.getAndSet(true))
             return
 
         try {
-            host = IModelJsHost(appContext, forceExtractBackendAssets, provideAuthorizationClient(context), allowInspectBackend).apply {
+            host = IModelJsHost(appContext, forceExtractBackendAssets, provideAuthorizationClient(), allowInspectBackend).apply {
                 setBackendPath(getBackendPath())
                 setHomePath(getBackendHomePath())
                 setEntryPointScript(getBackendEntryPointScript())
@@ -361,9 +360,9 @@ abstract class ITMApplication(
      */
     open fun initializeFrontend(context: Context, allowInspectBackend: Boolean = false) {
         // Note: geolocationManager needs to be created *before* the activity has started
-        geolocationManager = provideGeolocationManager(context)
+        geolocationManager = provideGeolocationManager()
 
-        initializeBackend(context, allowInspectBackend)
+        initializeBackend(allowInspectBackend)
         if (webView != null) {
             frontendInitTask.cancel()
             frontendInitTask = Job()
@@ -773,7 +772,7 @@ abstract class ITMApplication(
      *
      * @return An instance of [AuthorizationClient], or null if you don't want any authentication in your app.
      */
-    open fun createAuthorizationClient(context: Context): AuthorizationClient? {
+    open fun createAuthorizationClient(): AuthorizationClient? {
         return configData?.let { configData ->
             ITMOIDCAuthorizationClient(this, configData)
         }
@@ -784,20 +783,18 @@ abstract class ITMApplication(
      *
      * Override this function in a subclass in order to add custom behavior.
      *
-     * @param context The [Context] to pass to createAuthorizationClient.
      * @return The [authorizationClient] value.
      */
-    open fun provideAuthorizationClient(context: Context): AuthorizationClient? {
-        return authorizationClient ?: createAuthorizationClient(context).also { authorizationClient = it }
+    open fun provideAuthorizationClient(): AuthorizationClient? {
+        return authorizationClient ?: createAuthorizationClient().also { authorizationClient = it }
     }
 
     /**
      * Creates the [ITMGeolocationManager] to be used for this iTwin Mobile web app.
      *
-     * @param context The [Context] (if needed).
      * @return An instance of [ITMGeolocationManager] or null if your app doesn't need geolocation.
      */
-    open fun createGeolocationManager(context: Context): ITMGeolocationManager? {
+    open fun createGeolocationManager(): ITMGeolocationManager? {
         return ITMGeolocationManager()
     }
 
@@ -806,12 +803,10 @@ abstract class ITMApplication(
      *
      * Override this function in a subclass in order to add custom behavior.
      *
-     * @param context The [Context] to pass to createGeolocationManager.
      * @return The [geolocationManager] value.
      */
-
-    open fun provideGeolocationManager(context: Context): ITMGeolocationManager? {
-        return geolocationManager ?: createGeolocationManager(context).also { geolocationManager = it }
+    open fun provideGeolocationManager(): ITMGeolocationManager? {
+        return geolocationManager ?: createGeolocationManager().also { geolocationManager = it }
     }
 
     /**
@@ -821,8 +816,8 @@ abstract class ITMApplication(
      * @param activity The Activity to associate.
      */
     open fun associateWithActivity(activity: ComponentActivity) {
-        provideGeolocationManager(activity)?.associateWithResultCallerAndOwner(activity, activity, activity)
-        (provideAuthorizationClient(activity) as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(activity, activity, activity)
+        provideGeolocationManager()?.associateWithResultCallerAndOwner(activity, activity, activity)
+        (provideAuthorizationClient() as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(activity, activity, activity)
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {
                 onActivityDestroy()
