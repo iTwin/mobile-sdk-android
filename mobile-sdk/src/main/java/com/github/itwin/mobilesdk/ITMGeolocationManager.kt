@@ -5,10 +5,7 @@
 package com.github.itwin.mobilesdk
 
 import android.Manifest.permission.ACCESS_FINE_LOCATION
-import android.app.Activity
-import android.app.PendingIntent
 import android.content.Context
-import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -19,27 +16,36 @@ import android.os.Looper
 import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.result.ActivityResultCaller
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.eclipsesource.json.JsonObject
 import com.github.itwin.mobilesdk.jsonvalue.jsonOf
-import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.CancellationTokenSource
-import com.google.android.gms.tasks.Task
 import com.google.gson.Gson
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 import java.util.*
 import kotlin.concurrent.schedule
+
+fun Context.checkFineLocationPermission(): Boolean {
+    return ActivityCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+}
+
+/**
+ * Extension function that runs the block of code if ACCESS_FINE_LOCATION has been granted.
+ */
+fun <T> Context.checkedRunWithFineLocationPermission(block: () -> T) {
+    if (this.checkFineLocationPermission()) {
+        block()
+    //} else {
+    //    Toast.makeText(this, this.getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
+    }
+}
+
 
 /**
  * Class for the native-side implementation of a `navigator.geolocation` polyfill.
@@ -92,7 +98,7 @@ class ITMGeolocationManager() {
         }
     }
 
-    private class GeolocationError(private val code: Code, message: String?) : Throwable(message) {
+    class GeolocationError(private val code: Code, message: String?) : Throwable(message) {
         enum class Code(val value: Int) {
             PERMISSION_DENIED(1),
             POSITION_UNAVAILABLE(2),
@@ -123,54 +129,19 @@ class ITMGeolocationManager() {
         }
 
     private var scope = MainScope()
-    private lateinit var context: Context
-    private lateinit var requestPermission: ActivityResultLauncher<String>
-    private lateinit var requestLocationService: ActivityResultLauncher<IntentSenderRequest>
-
-    /**
-     * Registers for activity results for requesting permission and requesting location access.
-     * Note: This *must* be called unconditionally, as part of initialization path, typically as a field initializer of an Activity or Fragment.
-     *
-     * @param resultCaller The [ActivityResultCaller] to register with.
-     * @param context The [Context] to use for displaying a Toast message when permission is denied.
-     */
+    var context: Context? = null
     @Suppress("private")
-    fun registerForActivityResult(resultCaller: ActivityResultCaller, context: Context) {
-        requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                onLocationPermissionGranted()
-            } else {
-                onLocationPermissionDenied()
-                // todo: remove this, sub-classes can override onLocationPermissionDenied and display a toast if that's needed.
-                Toast.makeText(context, context.getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
-            }
-        }
-        requestLocationService = resultCaller.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { activityResult ->
-            if (activityResult.resultCode == Activity.RESULT_OK) {
-                onLocationServiceEnabled()
-            } else {
-                onLocationServiceEnableRequestDenied()
-            }
-        }
-    }
+    var requester: ITMGeolocationRequester? = null
 
     /**
      * Adds a lifecycle observer that does the following:
-     * - onCreate: calls the [onCreate] parameter (if not null)
      * - onStart: resumes location updates
      * - onStop: stops location updates
-     * - onDestroy:
-     *     - cleans up registered activity result handlers
-     *     - cancels all tasks
-     *     - nulls out the [webView] if [clearWebViewOnDestroy] is true
-     *     - calls the [onDestroy] parameter (if not null)
+     * - onDestroy: cancels all tasks
      */
     @Suppress("private")
-    fun addLifecycleObserver(owner: LifecycleOwner, clearWebViewOnDestroy: Boolean = true, onCreate: (() -> Unit)? = null, onDestroy: (() -> Unit)? = null) {
+    fun addLifecycleObserver(owner: LifecycleOwner) {
         owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
-            override fun onCreate(owner: LifecycleOwner) {
-                onCreate?.invoke()
-            }
             override fun onStart(owner: LifecycleOwner) {
                 resumeLocationUpdates()
             }
@@ -178,13 +149,7 @@ class ITMGeolocationManager() {
                 stopLocationUpdates()
             }
             override fun onDestroy(owner: LifecycleOwner) {
-                requestPermission.unregister()
-                requestLocationService.unregister()
                 cancelTasks()
-                if (clearWebViewOnDestroy) {
-                    webView = null
-                }
-                onDestroy?.invoke()
             }
         })
     }
@@ -198,10 +163,7 @@ class ITMGeolocationManager() {
     fun associateWithActivity(activity: ComponentActivity) {
         this.context = activity
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(activity)
-        registerForActivityResult(activity, activity)
-        addLifecycleObserver(activity) {
-            this@ITMGeolocationManager.context = activity.applicationContext
-        }
+        addLifecycleObserver(activity)
     }
 
     /**
@@ -212,17 +174,10 @@ class ITMGeolocationManager() {
      */
     @Suppress("unused")
     fun associateWithFragment(fragment: Fragment, appContext: Context) {
+        this.context = appContext
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(appContext)
-        registerForActivityResult(fragment, appContext)
-        addLifecycleObserver(fragment, false, {
-            this@ITMGeolocationManager.context = fragment.requireActivity()
-        }, {
-            this@ITMGeolocationManager.context = appContext
-        })
+        addLifecycleObserver(fragment)
     }
-
-    private var requestPermissionsTask: CompletableDeferred<Boolean>? = null
-    private var requestLocationServiceTask: CompletableDeferred<Boolean>? = null
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var cancellationTokenSource = CancellationTokenSource()
@@ -281,6 +236,7 @@ class ITMGeolocationManager() {
      */
     @Suppress("unused")
     constructor(activity: ComponentActivity): this() {
+        requester = ITMGeolocationRequester(activity)
         associateWithActivity(activity)
     }
 
@@ -289,43 +245,8 @@ class ITMGeolocationManager() {
      */
     @Suppress("unused")
     constructor(fragment: Fragment, context: Context): this() {
+        requester = ITMGeolocationRequester(fragment)
         associateWithFragment(fragment, context)
-    }
-
-    //endregion
-
-    //region Lifecycle & events
-
-    /**
-     * Called when the user grants location permission.
-     */
-    private fun onLocationPermissionGranted() {
-        requestPermissionsTask?.complete(true)
-        requestPermissionsTask = null
-    }
-
-    /**
-     * Called when the user denies location permission.
-     */
-    private fun onLocationPermissionDenied() {
-        requestPermissionsTask?.complete(false)
-        requestPermissionsTask = null
-    }
-
-    /**
-     * Called when the app enables location service.
-     */
-    private fun onLocationServiceEnabled() {
-        requestLocationServiceTask?.complete(true)
-        requestLocationServiceTask = null
-    }
-
-    /**
-     * Called when the app denies location service.
-     */
-    private fun onLocationServiceEnableRequestDenied() {
-        requestLocationServiceTask?.complete(false)
-        requestLocationServiceTask = null
     }
 
     //endregion
@@ -362,59 +283,18 @@ class ITMGeolocationManager() {
     }
     //endregion
 
-    //region location permissions and service access
-    private suspend fun ensureLocationAvailability() {
-        if (!requestLocationPermissionIfNeeded())
-            throw GeolocationError(GeolocationError.Code.PERMISSION_DENIED, "Location permission denied")
-
-        if (!isLocationServiceAvailable())
-            throw GeolocationError(GeolocationError.Code.POSITION_UNAVAILABLE, "Location service is not available")
-    }
-
-    private suspend fun requestLocationPermissionIfNeeded(): Boolean {
-        if (ActivityCompat.checkSelfPermission(context, ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
-            return true
-
-        if (requestPermissionsTask == null) {
-            requestPermissionsTask = CompletableDeferred()
-            requestPermission.launch(ACCESS_FINE_LOCATION)
-        }
-
-        return requestPermissionsTask?.await() ?: false
-    }
-
-    private suspend fun isLocationServiceAvailable(): Boolean {
-        return try {
-            val locationSettingsResponse = createCheckLocationSettingsTask().await()
-            locationSettingsResponse.locationSettingsStates?.isLocationUsable == true
-        } catch (exception: ResolvableApiException) {
-            tryResolveLocationServiceException(exception.resolution)
-        } catch (exception: Exception) {
-            false
-        }
-    }
-
-    private fun createCheckLocationSettingsTask(): Task<LocationSettingsResponse> {
-        val locationRequest = LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build()
-        val settingsRequest = LocationSettingsRequest.Builder().addLocationRequest(locationRequest).build()
-        return LocationServices.getSettingsClient(context).checkLocationSettings(settingsRequest)
-    }
-
-    private suspend fun tryResolveLocationServiceException(resolution: PendingIntent): Boolean {
-        if (requestLocationServiceTask == null) {
-            try {
-                requestLocationService.launch(IntentSenderRequest.Builder(resolution).build())
-                requestLocationServiceTask = CompletableDeferred()
-            } catch (sendException: IntentSender.SendIntentException) {
-                return false
-            }
-        }
-
-        return requestLocationServiceTask?.await() ?: false
-    }
-    //endregion
-
     //region Location
+
+    private suspend fun ensureLocationAvailability(): Boolean {
+        requester?.let {
+            it.ensureLocationAvailability()
+            return true
+        }
+        context?.let {
+            return ITMGeolocationRequester.isPermissionGrantedAndServiceAvailable(it)
+        }
+        return false
+    }
 
     /**
      * Ensures location permission and services are available and returns the current location.
@@ -432,7 +312,8 @@ class ITMGeolocationManager() {
     }
 
     private suspend fun getCurrentLocation(): Location {
-        if (ActivityCompat.checkSelfPermission(context, ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        val currContext = context
+        if (currContext == null || !currContext.checkFineLocationPermission())
             throw GeolocationError(GeolocationError.Code.PERMISSION_DENIED, "Location permission denied")
 
         return fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancellationTokenSource.token).await()
@@ -450,7 +331,7 @@ class ITMGeolocationManager() {
 
     private fun setupSensors() {
         if (accelerometerSensor == null) {
-            sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+            sensorManager = context?.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
             magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         }
@@ -507,15 +388,14 @@ class ITMGeolocationManager() {
     }
 
     private fun requestLocationUpdates() {
-        if (ActivityCompat.checkSelfPermission(context, ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-            return
-
-        setupSensors()
-        if (watchLocationRequest == null) {
-            watchLocationRequest = LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build()
-        }
-        watchLocationRequest?.let { locationRequest ->
-            fusedLocationClient.requestLocationUpdates(locationRequest, watchCallback, Looper.getMainLooper())
+        context?.checkedRunWithFineLocationPermission {
+            setupSensors()
+            if (watchLocationRequest == null) {
+                watchLocationRequest = LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build()
+            }
+            watchLocationRequest?.let { locationRequest ->
+                fusedLocationClient.requestLocationUpdates(locationRequest, watchCallback, Looper.getMainLooper())
+            }
         }
     }
     //endregion
