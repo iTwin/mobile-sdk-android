@@ -4,9 +4,7 @@
 *--------------------------------------------------------------------------------------------*/
 package com.github.itwin.mobilesdk
 
-import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.content.Context
-import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -17,7 +15,6 @@ import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
-import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -31,26 +28,10 @@ import kotlinx.coroutines.tasks.await
 import java.util.*
 import kotlin.concurrent.schedule
 
-fun Context.checkFineLocationPermission(): Boolean {
-    return ActivityCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-}
-
-/**
- * Extension function that runs the block of code if ACCESS_FINE_LOCATION has been granted.
- */
-fun <T> Context.checkedRunWithFineLocationPermission(block: () -> T) {
-    if (this.checkFineLocationPermission()) {
-        block()
-    //} else {
-    //    Toast.makeText(this, this.getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
-    }
-}
-
-
 /**
  * Class for the native-side implementation of a `navigator.geolocation` polyfill.
  */
-class ITMGeolocationManager() {
+class ITMGeolocationManager(private var context: Context) {
     private val geolocationJsInterface = object {
         @Suppress("unused")
         @JavascriptInterface
@@ -129,7 +110,6 @@ class ITMGeolocationManager() {
         }
 
     private var scope = MainScope()
-    var context: Context? = null
     @Suppress("private")
     var requester: ITMGeolocationRequester? = null
 
@@ -138,6 +118,8 @@ class ITMGeolocationManager() {
      * - onStart: resumes location updates
      * - onStop: stops location updates
      * - onDestroy: cancels all tasks
+     *
+     * @param owner The [LifecycleOwner] to observe.
      */
     @Suppress("private")
     fun addLifecycleObserver(owner: LifecycleOwner) {
@@ -159,9 +141,8 @@ class ITMGeolocationManager() {
      *
      * @param activity The [ComponentActivity] to associate with.
      */
-    @Suppress("unused")
     fun associateWithActivity(activity: ComponentActivity) {
-        this.context = activity
+        context = activity
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(activity)
         addLifecycleObserver(activity)
     }
@@ -172,9 +153,9 @@ class ITMGeolocationManager() {
      * @param fragment The [Fragment] to associate with.
      * @param appContext The application [Context] to use when the fragment has not been created or is destroyed.
      */
-    @Suppress("unused")
+    @Suppress("private")
     fun associateWithFragment(fragment: Fragment, appContext: Context) {
-        this.context = appContext
+        context = appContext
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(appContext)
         addLifecycleObserver(fragment)
     }
@@ -235,7 +216,7 @@ class ITMGeolocationManager() {
      * Constructor using a [ComponentActivity].
      */
     @Suppress("unused")
-    constructor(activity: ComponentActivity): this() {
+    constructor(activity: ComponentActivity): this(activity as Context) {
         requester = ITMGeolocationRequester(activity)
         associateWithActivity(activity)
     }
@@ -244,7 +225,7 @@ class ITMGeolocationManager() {
      * Constructor using a [Fragment].
      */
     @Suppress("unused")
-    constructor(fragment: Fragment, context: Context): this() {
+    constructor(fragment: Fragment, context: Context): this(context) {
         requester = ITMGeolocationRequester(fragment)
         associateWithFragment(fragment, context)
     }
@@ -256,7 +237,6 @@ class ITMGeolocationManager() {
     /**
      * Cancel all outstanding tasks, including any active watches.
      */
-    @Suppress("unused")
     fun cancelTasks() {
         scope.cancel()
         cancellationTokenSource.cancel()
@@ -285,15 +265,12 @@ class ITMGeolocationManager() {
 
     //region Location
 
-    private suspend fun ensureLocationAvailability(): Boolean {
+    private suspend fun ensureLocationAvailability() {
         requester?.let {
             it.ensureLocationAvailability()
-            return true
+            return
         }
-        context?.let {
-            return ITMGeolocationRequester.isPermissionGrantedAndServiceAvailable(it)
-        }
-        return false
+        ITMGeolocationRequester.ensureLocationAvailability(context)
     }
 
     /**
@@ -312,8 +289,7 @@ class ITMGeolocationManager() {
     }
 
     private suspend fun getCurrentLocation(): Location {
-        val currContext = context
-        if (currContext == null || !currContext.checkFineLocationPermission())
+        if (!context.checkFineLocationPermission())
             throw GeolocationError(GeolocationError.Code.PERMISSION_DENIED, "Location permission denied")
 
         return fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancellationTokenSource.token).await()
@@ -331,7 +307,7 @@ class ITMGeolocationManager() {
 
     private fun setupSensors() {
         if (accelerometerSensor == null) {
-            sensorManager = context?.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+            sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
             magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         }
@@ -388,7 +364,7 @@ class ITMGeolocationManager() {
     }
 
     private fun requestLocationUpdates() {
-        context?.checkedRunWithFineLocationPermission {
+        if (context.checkFineLocationPermission()) {
             setupSensors()
             if (watchLocationRequest == null) {
                 watchLocationRequest = LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build()

@@ -798,7 +798,7 @@ abstract class ITMApplication(
      * @return An instance of [ITMGeolocationManager] or null if your app doesn't need geolocation.
      */
     open fun createGeolocationManager(context: Context): ITMGeolocationManager? {
-        return ITMGeolocationManager()
+        return ITMGeolocationManager(context)
     }
 
     /**
