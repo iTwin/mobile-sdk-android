@@ -394,7 +394,7 @@ class ITMGeolocationManager(private var context: Context) {
     private fun requestLocationUpdates() {
         if (!context.checkFineLocationPermission())
             return
-        
+
         setupSensors()
         val locationRequest = watchLocationRequest ?: LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build().also {
             watchLocationRequest = it
