@@ -117,7 +117,7 @@ class ITMGeolocationManager(private var context: Context) {
      * Adds a lifecycle observer that does the following:
      * - onStart: resumes location updates
      * - onStop: stops location updates
-     * - onDestroy: cancels all tasks
+     * - onDestroy: clears [requester]
      *
      * @param owner The [LifecycleOwner] to observe.
      */
