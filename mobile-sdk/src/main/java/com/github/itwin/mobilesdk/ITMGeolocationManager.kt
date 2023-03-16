@@ -392,15 +392,14 @@ class ITMGeolocationManager(private var context: Context) {
     }
 
     private fun requestLocationUpdates() {
-        if (context.checkFineLocationPermission()) {
-            setupSensors()
-            if (watchLocationRequest == null) {
-                watchLocationRequest = LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build()
-            }
-            watchLocationRequest?.let { locationRequest ->
-                fusedLocationClient.requestLocationUpdates(locationRequest, watchCallback, Looper.getMainLooper())
-            }
+        if (!context.checkFineLocationPermission())
+            return
+        
+        setupSensors()
+        val locationRequest = watchLocationRequest ?: LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build().also {
+            watchLocationRequest = it
         }
+        fusedLocationClient.requestLocationUpdates(locationRequest, watchCallback, Looper.getMainLooper())
     }
     //endregion
 
