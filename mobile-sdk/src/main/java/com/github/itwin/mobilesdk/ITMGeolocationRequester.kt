@@ -41,7 +41,7 @@ fun Context.checkFineLocationPermission(): Boolean {
  * Since this class calls [ActivityResultCaller.registerForActivityResult], it *must* be constructed
  * unconditionally, as part of initialization path, typically as a field initializer of an Activity or Fragment.
  */
-class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller) {
+internal class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller) {
     private lateinit var context: Context
 
     private var requestPermission: ActivityResultLauncher<String> = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -60,11 +60,21 @@ class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCa
     private var requestPermissionsTask: CompletableDeferred<Boolean>? = null
     private var requestLocationServiceTask: CompletableDeferred<Boolean>? = null
 
+    private fun unregister() {
+        requestPermission.unregister()
+        requestLocationService.unregister()
+    }
+
     /**
      * Constructor using a [ComponentActivity] as the [ActivityResultCaller] and [Context].
      */
     constructor(activity: ComponentActivity): this(activity as ActivityResultCaller) {
         this.context = activity
+        activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
+            override fun onDestroy(owner: LifecycleOwner) {
+                unregister()
+            }
+        })
     }
 
     /**
@@ -78,6 +88,7 @@ class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCa
             }
             override fun onDestroy(owner: LifecycleOwner) {
                 context = fragment.activity?.applicationContext ?: fragment.requireContext()
+                unregister()
             }
         })
     }
@@ -131,11 +142,11 @@ class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCa
             return true
         }
 
-        if (requestPermissionsTask == null) {
-            requestPermissionsTask = CompletableDeferred()
+        val task = requestPermissionsTask ?: CompletableDeferred<Boolean>().also {
+            requestPermissionsTask = it
             requestPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
-        return requestPermissionsTask?.await() ?: false
+        return task.await()
     }
 
     private suspend fun isLocationServiceAvailable(): Boolean {
@@ -145,14 +156,14 @@ class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCa
     }
 
     private suspend fun tryResolveLocationServiceException(resolution: PendingIntent): Boolean {
-        if (requestLocationServiceTask == null) {
+        val task = requestLocationServiceTask ?: CompletableDeferred<Boolean>().also {
             try {
-                requestLocationServiceTask = CompletableDeferred()
+                requestLocationServiceTask = it
                 requestLocationService.launch(IntentSenderRequest.Builder(resolution).build())
             } catch (sendException: IntentSender.SendIntentException) {
                 return false
             }
         }
-        return requestLocationServiceTask?.await() ?: false
+        return task.await()
     }
 }

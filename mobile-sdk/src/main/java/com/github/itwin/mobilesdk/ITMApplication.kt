@@ -816,10 +816,7 @@ abstract class ITMApplication(
      * @param activity The Activity to associate.
      */
     open fun associateWithActivity(activity: ComponentActivity) {
-        provideGeolocationManager()?.apply {
-            requester = ITMGeolocationRequester(activity)
-            associateWithActivity(activity)
-        }
+        provideGeolocationManager()?.associateWithActivity(activity)
         (provideAuthorizationClient() as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(activity, activity, activity)
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {

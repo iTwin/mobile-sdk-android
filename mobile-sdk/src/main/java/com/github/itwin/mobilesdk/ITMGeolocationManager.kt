@@ -4,6 +4,7 @@
 *--------------------------------------------------------------------------------------------*/
 package com.github.itwin.mobilesdk
 
+import android.app.Activity
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -110,8 +111,7 @@ class ITMGeolocationManager(private var context: Context) {
         }
 
     private var scope = MainScope()
-    @Suppress("private")
-    var requester: ITMGeolocationRequester? = null
+    private var requester: ITMGeolocationRequester? = null
 
     /**
      * Adds a lifecycle observer that does the following:
@@ -126,12 +126,18 @@ class ITMGeolocationManager(private var context: Context) {
         owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 resumeLocationUpdates()
+                (owner as? Fragment)?.let {fragment ->
+                    context = fragment.activity ?: fragment.requireContext()
+                }
             }
             override fun onStop(owner: LifecycleOwner) {
                 stopLocationUpdates()
             }
             override fun onDestroy(owner: LifecycleOwner) {
-                cancelTasks()
+                requester = null
+                (owner as? Fragment)?.let {fragment ->
+                    context = fragment.activity?.applicationContext ?: fragment.requireContext()
+                }
             }
         })
     }
@@ -143,7 +149,7 @@ class ITMGeolocationManager(private var context: Context) {
      */
     fun associateWithActivity(activity: ComponentActivity) {
         context = activity
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(activity)
+        requester = ITMGeolocationRequester(activity)
         addLifecycleObserver(activity)
     }
 
@@ -156,11 +162,27 @@ class ITMGeolocationManager(private var context: Context) {
     @Suppress("private")
     fun associateWithFragment(fragment: Fragment, appContext: Context) {
         context = appContext
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(appContext)
+        requester = ITMGeolocationRequester(fragment)
         addLifecycleObserver(fragment)
     }
 
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private fun getFusedLocationProviderClient(): FusedLocationProviderClient {
+        // Prefer the Activity-based location client over the generic context one
+        return if (context is Activity) {
+            LocationServices.getFusedLocationProviderClient(context as Activity)
+        } else {
+            LocationServices.getFusedLocationProviderClient(context)
+        }
+    }
+
+    private var _fusedLocationClient: FusedLocationProviderClient? = null
+    private val fusedLocationClient: FusedLocationProviderClient
+        get() {
+            val client = _fusedLocationClient ?: getFusedLocationProviderClient()
+            _fusedLocationClient = client
+            return client
+        }
+
     private var cancellationTokenSource = CancellationTokenSource()
 
     private lateinit var sensorManager: SensorManager
@@ -217,7 +239,6 @@ class ITMGeolocationManager(private var context: Context) {
      */
     @Suppress("unused")
     constructor(activity: ComponentActivity): this(activity as Context) {
-        requester = ITMGeolocationRequester(activity)
         associateWithActivity(activity)
     }
 
@@ -226,9 +247,16 @@ class ITMGeolocationManager(private var context: Context) {
      */
     @Suppress("unused")
     constructor(fragment: Fragment, context: Context): this(context) {
-        requester = ITMGeolocationRequester(fragment)
         associateWithFragment(fragment, context)
     }
+
+
+    /**
+     * Constructor using a [WebView]. Intended for use when when the lifetime of the instance
+     * will outlive activities or fragments.
+     */
+    @Suppress("unused")
+    constructor(webView: WebView): this(webView.context)
 
     //endregion
 
@@ -237,6 +265,7 @@ class ITMGeolocationManager(private var context: Context) {
     /**
      * Cancel all outstanding tasks, including any active watches.
      */
+    @Suppress("unused")
     fun cancelTasks() {
         scope.cancel()
         cancellationTokenSource.cancel()
@@ -266,11 +295,10 @@ class ITMGeolocationManager(private var context: Context) {
     //region Location
 
     private suspend fun ensureLocationAvailability() {
-        requester?.let {
-            it.ensureLocationAvailability()
-            return
-        }
-        ITMGeolocationRequester.ensureLocationAvailability(context)
+        // If we have a requester, use it to ensure location availability, otherwise use the static
+        // method. The latter can't make permission requests but will check if the location permission
+        // and service are present.
+        requester?.ensureLocationAvailability() ?: ITMGeolocationRequester.ensureLocationAvailability(context)
     }
 
     /**
