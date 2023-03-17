@@ -157,11 +157,9 @@ class ITMGeolocationManager(private var context: Context) {
      * Associates with the given fragment.
      *
      * @param fragment The [Fragment] to associate with.
-     * @param appContext The application [Context] to use when the fragment has not been created or is destroyed.
      */
     @Suppress("private")
-    fun associateWithFragment(fragment: Fragment, appContext: Context) {
-        context = appContext
+    fun associateWithFragment(fragment: Fragment) {
         requester = ITMGeolocationRequester(fragment)
         addLifecycleObserver(fragment)
     }
@@ -236,6 +234,8 @@ class ITMGeolocationManager(private var context: Context) {
 
     /**
      * Constructor using a [ComponentActivity].
+     *
+     * @param activity The [Activity] to associate with this instance.
      */
     @Suppress("unused")
     constructor(activity: ComponentActivity): this(activity as Context) {
@@ -244,19 +244,14 @@ class ITMGeolocationManager(private var context: Context) {
 
     /**
      * Constructor using a [Fragment].
+     *
+     * @param fragment The [Fragment] to associate with this instance.
+     * @param context The application [Context] to use when the fragment has not started.
      */
     @Suppress("unused")
     constructor(fragment: Fragment, context: Context): this(context) {
-        associateWithFragment(fragment, context)
+        associateWithFragment(fragment)
     }
-
-
-    /**
-     * Constructor using a [WebView]. Intended for use when when the lifetime of the instance
-     * will outlive activities or fragments.
-     */
-    @Suppress("unused")
-    constructor(webView: WebView): this(webView.context)
 
     //endregion
 
