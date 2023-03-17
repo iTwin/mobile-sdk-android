@@ -17,7 +17,7 @@ android {
         minSdk 28
         targetSdk 33
         versionCode 1
-        versionName '0.10.36'
+        versionName '0.10.37'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         consumerProguardFiles 'consumer-rules.pro'
@@ -61,7 +61,7 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.1'
     implementation 'net.openid:appauth:0.11.1'
-    api 'com.github.itwin:mobile-native-android:3.6.8'
+    api 'com.github.itwin:mobile-native-android:3.6.9'
 
     // testImplementation 'junit:junit:4.+'
     // androidTestImplementation 'androidx.test.ext:junit:1.1.3'
@@ -91,7 +91,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.itwin'
                 artifactId = 'mobile-sdk-android'
-                version = '0.10.36'
+                version = '0.10.37'
             }
             // Creates a Maven publication called 'debug'.
             debug(MavenPublication) {
@@ -99,7 +99,7 @@ afterEvaluate {
                 artifact(sourceJar)
                 groupId = 'com.github.itwin'
                 artifactId = 'mobile-sdk-android'
-                version = '0.10.36-debug'
+                version = '0.10.37-debug'
             }
         }
     }
