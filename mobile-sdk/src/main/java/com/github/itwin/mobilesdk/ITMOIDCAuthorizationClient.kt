@@ -19,9 +19,13 @@ import com.bentley.itwin.AuthTokenCompletionAction
 import com.bentley.itwin.AuthorizationClient
 import com.eclipsesource.json.JsonObject
 import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.openid.appauth.*
+import java.net.HttpURLConnection
+import java.net.URL
 import java.time.Instant
 import java.util.*
 import kotlin.coroutines.Continuation
@@ -193,6 +197,60 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             val accessToken = if (itmApplication.messenger.isFrontendLaunchComplete) getAccessToken() else AccessToken()
             completion.resolve(accessToken.token, accessToken.expirationDate)
         }
+    }
+
+    private suspend fun revokeToken(token: String, revokeUrl: URL, authorization: String) {
+        withContext(Dispatchers.IO) {
+            val connection = revokeUrl.openConnection() as HttpURLConnection
+            try {
+                val bodyBytes = token.toByteArray()
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Authorization", "Basic $authorization")
+                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                connection.setRequestProperty("Content-Length", "${bodyBytes.size}")
+                connection.useCaches = false
+                connection.doOutput = true
+                connection.setFixedLengthStreamingMode(bodyBytes.size)
+                connection.outputStream.use {
+                    it.write(bodyBytes)
+                }
+                if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                    throw Error("Invalid response code from server: ${connection.responseCode}")
+                }
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+
+    private suspend fun revokeTokens() {
+        val currAuthState = authState ?: return
+        val lastTokenResponse = currAuthState.lastTokenResponse
+            ?: throw Error("Have a cached authState but no lastTokenResponse")
+        val revokeURLString = currAuthState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optString("revocation_endpoint")
+            ?: throw Error("Revocation endpoint not found")
+
+        val revokeURL = URL(revokeURLString)
+        if (!revokeURL.protocol.equals("https", true)) {
+            throw Error("Invalid protocol (${revokeURL.protocol}) in revocation endpoint URL")
+        }
+        val auth = Base64.getEncoder().encodeToString("${authSettings.clientId}:".toByteArray())
+        val tokens = setOfNotNull(lastTokenResponse.idToken, lastTokenResponse.accessToken, lastTokenResponse.refreshToken)
+        val errList = mutableListOf<String>()
+        tokens.forEach {token ->
+            try {
+                revokeToken(token, revokeURL, auth)
+            } catch (ex: Error) {
+                ex.message?.let { errList.add(it) }
+            }
+        }
+
+    }
+
+    @Suppress("unused")
+    suspend fun signOut() {
+        revokeTokens()
+        authState = null
     }
 }
 
