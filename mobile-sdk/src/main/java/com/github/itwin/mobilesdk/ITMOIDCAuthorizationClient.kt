@@ -229,17 +229,16 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             ?: throw Error("Have a cached authState but no lastTokenResponse")
         val revokeURLString = currAuthState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optString("revocation_endpoint")
             ?: throw Error("Revocation endpoint not found")
-
         val revokeURL = URL(revokeURLString)
         if (!revokeURL.protocol.equals("https", true)) {
             throw Error("Invalid protocol (${revokeURL.protocol}) in revocation endpoint URL")
         }
-        val auth = Base64.getEncoder().encodeToString("${authSettings.clientId}:".toByteArray())
+        val authorization = Base64.getEncoder().encodeToString("${authSettings.clientId}:".toByteArray())
         val tokens = setOfNotNull(lastTokenResponse.idToken, lastTokenResponse.accessToken, lastTokenResponse.refreshToken)
         val errList = mutableListOf<String>()
         tokens.forEach {token ->
             try {
-                revokeToken(token, revokeURL, auth)
+                revokeToken(token, revokeURL, authorization)
             } catch (ex: Error) {
                 ex.message?.let { errList.add(it) }
             }
