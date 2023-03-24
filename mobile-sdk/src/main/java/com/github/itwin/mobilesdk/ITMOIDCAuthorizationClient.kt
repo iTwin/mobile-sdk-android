@@ -252,14 +252,10 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     @Suppress("unused")
     fun signOut() {
         MainScope().launch {
-            try {
-                revokeTokens()
-                authState = null
-                cachedToken = null
-                notifyAccessTokenChanged(null, null as String?)
-            } catch (ex: Error) {
-                println(ex.message)
-            }
+            revokeTokens()
+            authState = null
+            cachedToken = null
+            notifyAccessTokenChanged(null, null as String?)
         }
     }
 }
