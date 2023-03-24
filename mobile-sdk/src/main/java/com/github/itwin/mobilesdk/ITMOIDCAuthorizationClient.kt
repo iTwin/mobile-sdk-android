@@ -203,7 +203,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         withContext(Dispatchers.IO) {
             val connection = revokeUrl.openConnection() as HttpURLConnection
             try {
-                val bodyBytes = token.toByteArray()
+                val bodyBytes = "token=$token".toByteArray()
                 connection.requestMethod = "POST"
                 connection.setRequestProperty("Authorization", "Basic $authorization")
                 connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
@@ -244,13 +244,23 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
                 ex.message?.let { errList.add(it) }
             }
         }
-
+        if (errList.isNotEmpty()) {
+            throw Error (errList.toTypedArray().joinToString("\n"))
+        }
     }
 
     @Suppress("unused")
-    suspend fun signOut() {
-        revokeTokens()
-        authState = null
+    fun signOut() {
+        MainScope().launch {
+            try {
+                revokeTokens()
+                authState = null
+                cachedToken = null
+                notifyAccessTokenChanged(null, null as String?)
+            } catch (ex: Error) {
+                println(ex.message)
+            }
+        }
     }
 }
 
