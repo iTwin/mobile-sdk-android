@@ -224,38 +224,32 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     private suspend fun revokeTokens() {
-        val currAuthState = authState ?: return
-        val lastTokenResponse = currAuthState.lastTokenResponse
-            ?: throw Error("Have a cached authState but no lastTokenResponse")
-        val revokeURLString = currAuthState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optString("revocation_endpoint")
-            ?: throw Error("Revocation endpoint not found")
-        val revokeURL = URL(revokeURLString)
-        if (!revokeURL.protocol.equals("https", true)) {
-            throw Error("Invalid protocol (${revokeURL.protocol}) in revocation endpoint URL")
-        }
+        val authState = authState ?: return
+        val tokens = setOfNotNull(authState.idToken, authState.accessToken, authState.refreshToken).takeIf { it.isNotEmpty() } ?: return
+        val revokeURLString = authState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optString("revocation_endpoint")
+            ?: throw Error("Could not find valid revocation URL.")
+        val revokeURL = URL(revokeURLString).takeIf { it.protocol.equals("https", true) }
+            ?: throw Error("Token revocation URL is not https.")
         val authorization = Base64.getEncoder().encodeToString("${authSettings.clientId}:".toByteArray())
-        val tokens = setOfNotNull(lastTokenResponse.idToken, lastTokenResponse.accessToken, lastTokenResponse.refreshToken)
-        val errList = mutableListOf<String>()
-        tokens.forEach {token ->
+        val errors = mutableListOf<String>()
+        for (token in tokens) {
             try {
                 revokeToken(token, revokeURL, authorization)
             } catch (ex: Error) {
-                ex.message?.let { errList.add(it) }
+                ex.message?.let { errors.add(it) }
             }
         }
-        if (errList.isNotEmpty()) {
-            throw Error (errList.toTypedArray().joinToString("\n"))
+        if (errors.isNotEmpty()) {
+            throw Error("Error${if (errors.size > 1) "s" else ""}) revoking tokens:\n" + errors.joinToString("\n"))
         }
     }
 
     @Suppress("unused")
-    fun signOut() {
-        MainScope().launch {
-            revokeTokens()
-            authState = null
-            cachedToken = null
-            notifyAccessTokenChanged(null, null as String?)
-        }
+    suspend fun signOut() {
+        revokeTokens()
+        authState = null
+        cachedToken = null
+        notifyAccessTokenChanged(null, null as String?)
     }
 }
 
