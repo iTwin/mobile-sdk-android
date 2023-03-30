@@ -49,11 +49,20 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
     }
 
     /**
-     * Convenience wrapper around [ITMMessenger.registerMessageHandler]
+     * Add a coroutine-based handler for queries from the web view that do not include a response.
+     *
+     * @param type Query type.
+     * @param callback Coroutine Function called when a message is received.
+     *
+     * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
     @Suppress("unused")
-    fun registerMessageHandler(type: String, callback: ITMSuccessCallback): ITMMessenger.ITMHandler {
-        return messenger.registerMessageHandler(type, callback)
+    fun registerMessageHandler(type: String, callback: suspend (JsonValue?) -> Unit): ITMMessenger.ITMHandler {
+        return messenger.registerMessageHandler(type) {
+            MainScope().launch {
+                callback.invoke(it)
+            }
+        }
     }
 
     /**
