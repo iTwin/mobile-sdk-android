@@ -535,12 +535,10 @@ abstract class ITMApplication(
         if (attachWebViewLogger) {
             webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
         }
-        messenger.registerMessageHandler("Bentley_ITM_updatePreferredColorScheme") { value ->
+        messenger.registerQueryHandler("Bentley_ITM_updatePreferredColorScheme") { value, _, _ ->
             value?.asObject()?.getOptionalLong("preferredColorScheme")?.let { longValue ->
                 preferredColorScheme = PreferredColorScheme.fromLong(longValue) ?: PreferredColorScheme.Automatic
-                MainScope().launch {
-                    applyPreferredColorScheme()
-                }
+                applyPreferredColorScheme()
             }
         }
         webView.settings.setSupportZoom(false)
