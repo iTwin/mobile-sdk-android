@@ -97,7 +97,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
         fun handleMessage(queryId: Int, type: String, data: JsonValue?) {
             itmMessenger.logQuery("Request JS -> Kotlin", queryId, type, data)
             callback.invoke(data, { result ->
-                itmMessenger.handleMessageSuccess(queryId, type, result ?: Json.NULL)
+                itmMessenger.handleMessageSuccess(queryId, type, result)
             }, { error ->
                 itmMessenger.handleMessageFailure(queryId, type, error)
             })
@@ -262,11 +262,11 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * @param type The type of the message.
      * @param result The arbitrary result to send back to the web view.
      */
-    private fun handleMessageSuccess(queryId: Int, type: String, result: JsonValue) {
+    private fun handleMessageSuccess(queryId: Int, type: String, result: JsonValue?) {
         logQuery("Response Kotlin -> JS", queryId, type, result)
         mainScope.launch {
             val message = JsonObject()
-            if (!result.isNull)
+            if (result != null)
                 message["response"] = result
             val jsonString = message.toString()
             val dataString = Base64.encodeToString(jsonString.toByteArray(), Base64.NO_WRAP)
