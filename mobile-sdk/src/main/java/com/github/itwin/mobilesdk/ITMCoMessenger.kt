@@ -58,10 +58,9 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      */
     @Suppress("unused")
     fun registerMessageHandler(type: String, callback: suspend (JsonValue?) -> Unit): ITMMessenger.ITMHandler {
-        return messenger.registerMessageHandler(type) {
-            MainScope().launch {
-                callback.invoke(it)
-            }
+        return registerQueryHandler(type) { value ->
+            callback.invoke(value)
+            null
         }
     }
 
