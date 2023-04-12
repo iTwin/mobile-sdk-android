@@ -49,11 +49,17 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     private data class AccessToken(val token: String? = null, val expirationDate: String? = null)
 
     private val authSettings = parseConfigData(configData)
-    private var authState: AuthState? = null
     private var authService: AuthorizationService? = null
     private var continuation: Continuation<AccessToken>? = null
     private lateinit var requestAuthorization: ActivityResultLauncher<Intent>
     private lateinit var context: Context
+    private val authStateManager = ITMAuthStateManager.getInstance(itmApplication)
+
+    init {
+        // Initialize cachedToken using ITMAuthStateManager, which loads the saved token from
+        // shared preferences.
+        updateCachedToken()
+    }
 
     /**
      * Associates with the given objects (usually an Activity or Fragment).
@@ -104,22 +110,23 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             val issuerUrl = configData.getOptionalString("ITMAPPLICATION_ISSUER_URL") ?: "https://${apiPrefix}ims.bentley.com/"
             val clientId = configData.getOptionalString("ITMAPPLICATION_CLIENT_ID") ?: ""
             val redirectUrl = configData.getOptionalString("ITMAPPLICATION_REDIRECT_URI") ?: "imodeljs://app/signin-callback"
-            val scope = configData.getOptionalString("ITMAPPLICATION_SCOPE") ?: "email openid profile organization itwinjs"
+            val scope = configData.getOptionalString("ITMAPPLICATION_SCOPE") ?: "email openid profile organization itwinjs offline_access"
             return ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
         }
     }
 
-    private suspend fun initAuthState(): AuthState {
-        return authState ?: suspendCoroutine { continuation ->
-            AuthorizationServiceConfiguration.fetchFromIssuer(authSettings.issuerUri) { config, error ->
-                error?.let {
-                    itmApplication.logger.log(ITMLogger.Severity.Warning, "Error fetching OIDC service config: $it")
-                    throw it
-                }
-                config?.let {
-                    val authState = AuthState(it)
-                    this.authState = authState
-                    continuation.resume(authState)
+    private suspend fun initAuthState() {
+        return if (authStateManager.current.isAuthorized) Unit else {
+            suspendCoroutine { continuation ->
+                AuthorizationServiceConfiguration.fetchFromIssuer(authSettings.issuerUri) { config, configEx ->
+                    configEx?.let {
+                        itmApplication.logger.log(ITMLogger.Severity.Error, "Error fetching OIDC service config: $it")
+                        throw it
+                    }
+                    config?.let {
+                        authStateManager.replace(AuthState(it))
+                        continuation.resume(Unit)
+                    }
                 }
             }
         }
@@ -138,6 +145,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             authSettings.redirectUri
         )
         authReqBuilder.setScope(authSettings.scope).setCodeVerifier(CodeVerifierUtil.generateRandomCodeVerifier())
+        authReqBuilder.setPrompt("login")
         requireAuthService().getAuthorizationRequestIntent(authReqBuilder.build())?.let { intent ->
             this.continuation = continuation
             requestAuthorization.launch(intent)
@@ -145,40 +153,71 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     /**
-     * Coroutine to present a signin UI to the user and return an access token. If a cached token
-     * exists, that should be directly returned instead of asking the user to sign in again.
+     * Coroutine to handle getting the [AccessToken]. If a cached token is present, it is refreshed
+     * if needed and returned. If that fails, a signin UI is presented to the user to fetch and return
+     * an access token.
+     *
+     * @param refreshFailed If false, an attempt will be made to refresh and return the existing
+     * cached token. If true, that failed, and a signin UI is presented.
+     * @return The [AccessToken]. Note: if the login process fails for any reason, this [AccessToken]
+     * will not be valid.
      */
-    private suspend fun getAccessToken(): AccessToken {
-        return cachedToken ?: try {
-            val authState = initAuthState()
-            suspendCoroutine { continuation ->
-                launchRequestAuthorization(authState, continuation)
+    private suspend fun getAccessToken(refreshFailed: Boolean = false): AccessToken {
+        if (!refreshFailed) {
+            return suspendCoroutine { continuation ->
+                // The following will automatically refresh an existing token if needed (assuming a
+                // refresh token is available, which requires the offline_access scope).
+                authStateManager.current.performActionWithFreshTokens(requireAuthService()) { _, _, ex ->
+                    if (ex != null) {
+                        cachedToken = null
+                        authStateManager.clear()
+                        MainScope().launch {
+                            continuation.resume(getAccessToken(true))
+                        }
+                    } else {
+                        authStateManager.updated()
+                        val accessToken = updateCachedToken()
+                        continuation.resume(accessToken)
+                    }
+                }
             }
-        } catch (ex: Exception) {
-            AccessToken()
+        } else {
+            return try {
+                initAuthState()
+                suspendCoroutine { continuation ->
+                    launchRequestAuthorization(authStateManager.current, continuation)
+                }
+            } catch (ex: Exception) {
+                itmApplication.logger.log(ITMLogger.Severity.Error, "Error fetching token: $ex")
+                AccessToken()
+            }
         }
     }
 
-    private fun handleAuthorizationResponse(data: Intent) {
-        val response = AuthorizationResponse.fromIntent(data)
-        val ex = AuthorizationException.fromIntent(data)
-        authState?.update(response, ex)
+    private fun updateCachedToken(): AccessToken {
+        val authState = authStateManager.current
+        val accessToken = if (authState.isAuthorized) {
+            AccessToken("Bearer ${authState.accessToken}", authState.accessTokenExpirationTime?.epochMillisToISO8601())
+        } else {
+            AccessToken()
+        }
+        cachedToken = accessToken
+        return accessToken
+    }
 
-        if (response == null || authState == null) {
+    private fun handleAuthorizationResponse(data: Intent) {
+        val authResponse = AuthorizationResponse.fromIntent(data)
+        val authEx = AuthorizationException.fromIntent(data)
+        authStateManager.updateAfterAuthorization(authResponse, authEx)
+
+        if (authResponse == null) {
             resume(AccessToken())
             return
         }
-        authState?.let { authState ->
-            requireAuthService().performTokenRequest(response.createTokenExchangeRequest()) { response, ex ->
-                authState.update(response, ex)
-                val accessToken = if (authState.isAuthorized) {
-                    AccessToken("Bearer ${authState.accessToken}", authState.accessTokenExpirationTime?.epochMillisToISO8601())
-                } else {
-                    AccessToken()
-                }
-                cachedToken = accessToken
-                resume(accessToken)
-            }
+        requireAuthService().performTokenRequest(authResponse.createTokenExchangeRequest()) { tokenResponse, tokenEx ->
+            authStateManager.updateAfterTokenResponse(tokenResponse, tokenEx)
+            val accessToken = updateCachedToken()
+            resume(accessToken)
         }
     }
 
@@ -224,7 +263,8 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     private suspend fun revokeTokens() {
-        val authState = authState ?: return
+        val authState = authStateManager.current
+        if (!authState.isAuthorized) return
         val tokens = setOfNotNull(authState.idToken, authState.accessToken, authState.refreshToken).takeIf { it.isNotEmpty() } ?: return
         val revokeURLString = authState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optString("revocation_endpoint")
             ?: throw Error("Could not find valid revocation URL.")
@@ -247,7 +287,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     @Suppress("unused")
     suspend fun signOut() {
         revokeTokens()
-        authState = null
+        authStateManager.clear()
         cachedToken = null
         notifyAccessTokenChanged(null, null as String?)
     }
