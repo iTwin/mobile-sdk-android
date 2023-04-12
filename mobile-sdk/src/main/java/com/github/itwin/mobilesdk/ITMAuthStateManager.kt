@@ -184,8 +184,7 @@ class ITMAuthStateManager private constructor(private val itmApplication: ITMApp
          * to `true` to disable storing the [AuthState] in shared preferences and remove any existing
          * stored value.
          */
-        @Suppress("RedundantVisibilityModifier")
-        public var disableSharedPreferences = false
+        var disableSharedPreferences = false
             set(value) {
                 field = value
                 val manager: ITMAuthStateManager? = INSTANCE_REF.get().get()
