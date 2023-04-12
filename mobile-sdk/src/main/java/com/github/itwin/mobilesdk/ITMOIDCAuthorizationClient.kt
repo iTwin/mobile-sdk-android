@@ -116,17 +116,16 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     private suspend fun initAuthState() {
-        return if (authStateManager.current.isAuthorized) Unit else {
-            suspendCoroutine { continuation ->
-                AuthorizationServiceConfiguration.fetchFromIssuer(authSettings.issuerUri) { config, configEx ->
-                    configEx?.let {
-                        itmApplication.logger.log(ITMLogger.Severity.Error, "Error fetching OIDC service config: $it")
-                        throw it
-                    }
-                    config?.let {
-                        authStateManager.replace(AuthState(it))
-                        continuation.resume(Unit)
-                    }
+        if (authStateManager.current.isAuthorized) return
+        suspendCoroutine { continuation ->
+            AuthorizationServiceConfiguration.fetchFromIssuer(authSettings.issuerUri) { config, configEx ->
+                configEx?.let {
+                    itmApplication.logger.log(ITMLogger.Severity.Error, "Error fetching OIDC service config: $it")
+                    throw it
+                }
+                config?.let {
+                    authStateManager.replace(AuthState(it))
+                    continuation.resume(Unit)
                 }
             }
         }
