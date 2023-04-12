@@ -357,8 +357,9 @@ abstract class ITMApplication(
      *
      * @param context The [Context].
      * @param allowInspectBackend Allow inspection of the backend code, default false.
+     * @param existingWebView An existing webview to use instead of creating one. Note:
      */
-    open fun initializeFrontend(context: Context, allowInspectBackend: Boolean = false) {
+    open fun initializeFrontend(context: Context, allowInspectBackend: Boolean = false, existingWebView: WebView? = null) {
         // Note: geolocationManager needs to be created *before* the activity has started
         geolocationManager = provideGeolocationManager()
 
@@ -375,7 +376,7 @@ abstract class ITMApplication(
             }
             try {
                 backendInitTask.join()
-                webView = object : WebView(context) {
+                webView = existingWebView ?: object : WebView(context) {
                     override fun onConfigurationChanged(newConfig: Configuration) {
                         super.onConfigurationChanged(newConfig)
                         this@ITMApplication.nativeUI?.onConfigurationChanged(newConfig)
@@ -693,13 +694,6 @@ abstract class ITMApplication(
     open fun onWebViewLog(type: ITMWebViewLogger.LogType, message: String) {
         logger.log(ITMLogger.Severity.fromString(type.name), message)
     }
-
-    /**
-     * Override to open the given [Uri].
-     *
-     * @param uri The [Uri] to open
-     */
-    abstract fun openUri(uri: Uri)
 
     /**
      * Get the relative path used as the home path for the backend.
