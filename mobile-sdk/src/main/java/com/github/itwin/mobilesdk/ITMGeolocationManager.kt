@@ -121,7 +121,7 @@ class ITMGeolocationManager(private var context: Context) {
      *
      * @param owner The [LifecycleOwner] to observe.
      */
-    @Suppress("private")
+    @Suppress("MemberVisibilityCanBePrivate")
     fun addLifecycleObserver(owner: LifecycleOwner) {
         owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
@@ -158,7 +158,7 @@ class ITMGeolocationManager(private var context: Context) {
      *
      * @param fragment The [Fragment] to associate with.
      */
-    @Suppress("private")
+    @Suppress("MemberVisibilityCanBePrivate")
     fun associateWithFragment(fragment: Fragment) {
         requester = ITMGeolocationRequester(fragment)
         addLifecycleObserver(fragment)
