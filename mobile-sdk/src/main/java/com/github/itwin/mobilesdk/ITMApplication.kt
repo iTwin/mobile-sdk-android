@@ -2,7 +2,7 @@
 * Copyright (c) Bentley Systems, Incorporated. All rights reserved.
 * See LICENSE.md in the project root for license terms and full copyright notice.
 *--------------------------------------------------------------------------------------------*/
-@file:Suppress("unused")
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
 
 package com.github.itwin.mobilesdk
 
@@ -13,7 +13,6 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.Network
-import android.net.Uri
 import android.system.Os
 import android.view.View
 import android.view.ViewGroup
@@ -103,8 +102,8 @@ fun HashParams.toUrlString(): String {
  * @param forceExtractBackendAssets Whether or not to always extract backend assets from during
  * application launch, default is `false`. Only set this to `true` for debug builds.
  */
-abstract class ITMApplication(
-    @Suppress("MemberVisibilityCanBePrivate") val appContext: Context,
+open class ITMApplication(
+    val appContext: Context,
     private val attachWebViewLogger: Boolean = false,
     private val forceExtractBackendAssets: Boolean = false) {
 
@@ -143,19 +142,16 @@ abstract class ITMApplication(
     /**
      * The [IModelJsHost] used by this [ITMApplication].
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     protected var host: IModelJsHost? = null
 
     /**
      * The AuthorizationClient used for authentication.
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     protected var authorizationClient: AuthorizationClient? = null
 
     /**
      * Tracks whether the frontend URL is on a remote server (used for debugging via react-scripts).
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     var usingRemoteServer = false
 
     private var backendInitTask = Job()
@@ -170,7 +166,6 @@ abstract class ITMApplication(
     /**
      * The `MobileUi.preferredColorScheme` value set by the TypeScript code, default is automatic.
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     var preferredColorScheme = PreferredColorScheme.Automatic
 
     /**
@@ -191,19 +186,17 @@ abstract class ITMApplication(
     /**
      * The base URl used by the frontend, without any index.html suffix.
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     var frontendBaseUrl = ""
 
     /**
      * The [ITMMessenger] for communication between native code and JavaScript code (and vice versa).
      */
-    @Suppress("MemberVisibilityCanBePrivate", "LeakingThis")
+    @Suppress("LeakingThis")
     var messenger = ITMMessenger(this)
 
     /**
      * The [ITMCoMessenger] associated with [messenger].
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     var coMessenger = ITMCoMessenger(messenger)
 
     /**
@@ -216,13 +209,11 @@ abstract class ITMApplication(
      * The [ITMGeolocationManager] that handles Geolocation messages from the `navigator.geolocation` Polyfill in
      * `@itwin/mobile-sdk-core`. This value is initialized in [setupWebView].
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     var geolocationManager: ITMGeolocationManager? = null
 
     /**
      * The config data loaded from `ITMAppConfig.json`. This value is initialized in [finishInit].
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     var configData: JsonObject? = null
     private var webViewLogger: ITMWebViewLogger? = null
     private var reachabilityStatus = ReachabilityStatus.NotReachable
@@ -232,7 +223,6 @@ abstract class ITMApplication(
      * https://appassets.itwinjs.org/assets and loads the local files in the app assets. All other
      * requests are ignored (meaning that the default behavior happens).
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     val assetLoader = ITMWebAssetLoader(appContext)
 
     /**
@@ -357,7 +347,7 @@ abstract class ITMApplication(
      *
      * @param context The [Context].
      * @param allowInspectBackend Allow inspection of the backend code, default false.
-     * @param existingWebView An existing webview to use instead of creating one. Note:
+     * @param existingWebView An existing webview to use instead of creating one.
      */
     open fun initializeFrontend(context: Context, allowInspectBackend: Boolean = false, existingWebView: WebView? = null) {
         // Note: geolocationManager needs to be created *before* the activity has started

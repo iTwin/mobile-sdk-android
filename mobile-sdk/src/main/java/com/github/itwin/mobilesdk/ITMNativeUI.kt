@@ -62,9 +62,9 @@ class ITMRect(value: JsonValue, webView: WebView) {
  * @param coMessenger The [ITMCoMessenger] used to communicate with [webView].
  */
 open class ITMNativeUI(
-    @Suppress("CanBeParameter") val context: Context,
+    val context: Context,
     val webView: WebView,
-    @Suppress("CanBeParameter") val coMessenger: ITMCoMessenger) {
+    val coMessenger: ITMCoMessenger) {
     @Suppress("MemberVisibilityCanBePrivate") val components: MutableList<ITMNativeUIComponent> = mutableListOf()
 
     init {
