@@ -454,12 +454,9 @@ open class ITMApplication(
      * custom [ITMNativeUI] subclass.
      */
     open fun createNativeUI(context: Context): ITMNativeUI? {
-        webView?.let { webView ->
-            coMessenger.let { coMessenger ->
-                return ITMNativeUI(context, webView, coMessenger)
-            }
+        return webView?.let {
+            ITMNativeUI(context, it, coMessenger)
         }
-        return null
     }
 
     /**
@@ -793,7 +790,10 @@ open class ITMApplication(
 
     /**
      * Associates the given activity with the [geolocationManager] and [authorizationClient], and
-     * adds a handler to call [onActivityDestroy] when the activity is destroyed.
+     * adds a handler to:
+     *  - call [IModelJsHost.onPause] when paused.
+     *  - call [IModelJsHost.onResume] when resumed.
+     *  - call [onActivityDestroy] when destroyed.
      *
      * @param activity The Activity to associate.
      */
@@ -801,6 +801,12 @@ open class ITMApplication(
         provideGeolocationManager()?.associateWithActivity(activity)
         (provideAuthorizationClient() as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(activity, activity, activity)
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
+            override fun onPause(owner: LifecycleOwner) {
+                host?.onPause()
+            }
+            override fun onResume(owner: LifecycleOwner) {
+                host?.onResume()
+            }
             override fun onDestroy(owner: LifecycleOwner) {
                 onActivityDestroy()
             }
