@@ -436,6 +436,27 @@ open class ITMApplication(
         }
     }
 
+
+    /**
+     * Call this from [onPause][Activity.onPause] in the activity that is showing the frontend.
+     *
+     * Note: this is only necessary if the activity has NOT already been associated via
+     * [initializeFrontend] or [associateWithActivity].
+     */
+    open fun onActivityPause() {
+        host?.onPause()
+    }
+
+    /**
+     * Call this from [onResume][Activity.onResume] in the activity that is showing the frontend.
+     *
+     * Note: this is only necessary if the activity has NOT already been associated via
+     * [initializeFrontend] or [associateWithActivity].
+     */
+    open fun onActivityResume() {
+        host?.onResume()
+    }
+
     /**
      * Call this from [onDestroy][Activity.onDestroy] in the activity that is showing the frontend.
      *
@@ -802,10 +823,10 @@ open class ITMApplication(
         (provideAuthorizationClient() as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(activity, activity, activity)
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onPause(owner: LifecycleOwner) {
-                host?.onPause()
+                onActivityPause()
             }
             override fun onResume(owner: LifecycleOwner) {
-                host?.onResume()
+                onActivityResume()
             }
             override fun onDestroy(owner: LifecycleOwner) {
                 onActivityDestroy()
