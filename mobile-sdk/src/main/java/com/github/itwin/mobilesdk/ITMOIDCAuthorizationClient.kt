@@ -115,14 +115,12 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             return ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
         }
 
-        suspend fun fetchConfigFromIssuer(openIdConnectIssuerUri: Uri): AuthorizationServiceConfiguration? {
-            return suspendCoroutine { continuation ->
-                AuthorizationServiceConfiguration.fetchFromIssuer(openIdConnectIssuerUri) { config, configEx ->
-                    if (configEx != null)
-                        continuation.resumeWithException(configEx)
-                    else
-                        continuation.resume(config)
-                }
+        suspend fun fetchConfigFromIssuer(openIdConnectIssuerUri: Uri) = suspendCoroutine { continuation ->
+            AuthorizationServiceConfiguration.fetchFromIssuer(openIdConnectIssuerUri) { config, configEx ->
+                if (configEx != null)
+                    continuation.resumeWithException(configEx)
+                else
+                    continuation.resume(config)
             }
         }
     }
@@ -130,14 +128,8 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     private suspend fun initAuthState() {
         if (authStateManager.current.isAuthorized)
             return
-
-        try {
-            val config = fetchConfigFromIssuer(authSettings.issuerUri)
-            authStateManager.replace(if (config != null) AuthState(config) else AuthState())
-        } catch (ex: Throwable) {
-            itmApplication.logger.log(ITMLogger.Severity.Error, "Error fetching OIDC service config: $ex")
-            throw ex
-        }
+        val config = fetchConfigFromIssuer(authSettings.issuerUri)
+        authStateManager.replace(if (config != null) AuthState(config) else AuthState())
     }
 
     private fun resume(accessToken: AccessToken) {
@@ -155,11 +147,9 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         return requireAuthService().getAuthorizationRequestIntent(authRequest)
     }
 
-    private suspend fun launchRequestAuthorization(authState: AuthState): AccessToken {
-        return suspendCoroutine { continuation ->
-            this.continuation = continuation
-            requestAuthorization.launch(getAuthorizationRequestIntent(authState))
-        }
+    private suspend fun launchRequestAuthorization(authState: AuthState) = suspendCoroutine { continuation ->
+        this.continuation = continuation
+        requestAuthorization.launch(getAuthorizationRequestIntent(authState))
     }
 
     private suspend fun tryRefresh(): AccessToken? {
@@ -311,13 +301,11 @@ fun Long.epochMillisToISO8601(): String {
 /**
  * Suspend function wrapper of performActionWithFreshTokens.
  */
-suspend fun AuthState.performActionWithFreshTokens(service: AuthorizationService): Pair<String?, String?> {
-    return suspendCoroutine {
-        performActionWithFreshTokens(service) { accessToken, idToken, ex ->
-            if (ex != null)
-                it.resumeWithException(ex)
-            else
-                it.resume(Pair(accessToken, idToken))
-        }
+suspend fun AuthState.performActionWithFreshTokens(service: AuthorizationService) = suspendCoroutine { continuation ->
+    performActionWithFreshTokens(service) { accessToken, idToken, ex ->
+        if (ex != null)
+            continuation.resumeWithException(ex)
+        else
+            continuation.resume(Pair(accessToken, idToken))
     }
 }
