@@ -9,7 +9,6 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultCaller
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
@@ -44,7 +43,7 @@ fun Context.checkFineLocationPermission(): Boolean {
 internal class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller) {
     private lateinit var context: Context
 
-    private var requestPermission: ActivityResultLauncher<String> = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+    private var requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         requestPermissionsTask?.complete(isGranted)
         requestPermissionsTask = null
         if (!isGranted) {
@@ -52,7 +51,7 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
         }
     }
 
-    private var requestLocationService: ActivityResultLauncher<IntentSenderRequest> = resultCaller.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { activityResult ->
+    private var requestLocationService = resultCaller.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { activityResult ->
         requestLocationServiceTask?.complete(activityResult.resultCode == Activity.RESULT_OK)
         requestLocationServiceTask = null
     }

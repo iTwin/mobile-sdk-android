@@ -54,10 +54,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
             // during our initialization.
             viewGroup = webView.parent as ViewGroup
             val sourceRect = ITMRect(params["sourceRect"], webView)
-            anchor = View(context)
-            anchor?.let { anchor ->
-                anchor.alpha = 0.0f
-            }
+            anchor = View(context).apply { alpha = 0.0f }
             val layoutParams = RelativeLayout.LayoutParams(sourceRect.width, sourceRect.height)
             layoutParams.leftMargin = sourceRect.x
             layoutParams.topMargin = sourceRect.y
