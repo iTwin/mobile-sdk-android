@@ -9,7 +9,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultCaller
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -48,7 +50,9 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
 
     private val authSettings = parseConfigData(configData)
     private var authService: AuthorizationService? = null
-    private lateinit var activityResultData: ActivityResultData
+    private class GetAuthorizationResponse(resultCaller: ActivityResultCaller, owner: LifecycleOwner):
+        ITMCoActivityResult<Intent, ActivityResult>(resultCaller, ActivityResultContracts.StartActivityForResult(), owner)
+    private lateinit var getAuthorizationResponse: GetAuthorizationResponse
     private lateinit var context: Context
     private val authStateManager = ITMAuthStateManager.getInstance(itmApplication)
 
@@ -67,7 +71,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
      */
     fun associateWithResultCallerAndOwner(resultCaller: ActivityResultCaller, owner: LifecycleOwner, context: Context) {
         this.context = context
-        activityResultData = ActivityResultData(resultCaller, owner)
+        getAuthorizationResponse = GetAuthorizationResponse(resultCaller, owner)
         owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStop(owner: LifecycleOwner) {
                 dispose()
@@ -122,7 +126,9 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     private suspend fun launchRequestAuthorization(authState: AuthState): AccessToken {
-        return activityResultData(getAuthorizationRequestIntent(authState))?.let {
+        return getAuthorizationResponse(getAuthorizationRequestIntent(authState)).takeIf { result ->
+            result.resultCode == Activity.RESULT_OK
+        }?.data?.let {
             handleAuthorizationResponse(it)
         } ?: AccessToken()
     }
