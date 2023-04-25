@@ -10,8 +10,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultCaller
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -28,7 +26,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
 import java.util.*
-import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -51,8 +48,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
 
     private val authSettings = parseConfigData(configData)
     private var authService: AuthorizationService? = null
-    private var continuation: Continuation<AccessToken>? = null
-    private lateinit var requestAuthorization: ActivityResultLauncher<Intent>
+    private lateinit var activityResultData: ActivityResultData
     private lateinit var context: Context
     private val authStateManager = ITMAuthStateManager.getInstance(itmApplication)
 
@@ -71,18 +67,10 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
      */
     fun associateWithResultCallerAndOwner(resultCaller: ActivityResultCaller, owner: LifecycleOwner, context: Context) {
         this.context = context
-        requestAuthorization = resultCaller.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            result.takeIf { it.resultCode == Activity.RESULT_OK }?.data?.let { data ->
-                handleAuthorizationResponse(data)
-            } ?: resume(AccessToken())
-        }
+        activityResultData = ActivityResultData(resultCaller, owner)
         owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStop(owner: LifecycleOwner) {
                 dispose()
-            }
-
-            override fun onDestroy(owner: LifecycleOwner) {
-                requestAuthorization.unregister()
             }
         })
     }
@@ -114,15 +102,6 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             val scope = configData.getOptionalString("ITMAPPLICATION_SCOPE") ?: "email openid profile organization itwinjs offline_access"
             return ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
         }
-
-        suspend fun fetchConfigFromIssuer(openIdConnectIssuerUri: Uri) = suspendCoroutine { continuation ->
-            AuthorizationServiceConfiguration.fetchFromIssuer(openIdConnectIssuerUri) { config, configEx ->
-                if (configEx != null)
-                    continuation.resumeWithException(configEx)
-                else
-                    continuation.resume(config)
-            }
-        }
     }
 
     private suspend fun initAuthState() {
@@ -130,11 +109,6 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             return
         val config = fetchConfigFromIssuer(authSettings.issuerUri)
         authStateManager.replace(if (config != null) AuthState(config) else AuthState())
-    }
-
-    private fun resume(accessToken: AccessToken) {
-        continuation?.resume(accessToken)
-        continuation = null
     }
 
     private fun getAuthorizationRequestIntent(authState: AuthState): Intent {
@@ -147,9 +121,10 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         return requireAuthService().getAuthorizationRequestIntent(authRequest)
     }
 
-    private suspend fun launchRequestAuthorization(authState: AuthState) = suspendCoroutine { continuation ->
-        this.continuation = continuation
-        requestAuthorization.launch(getAuthorizationRequestIntent(authState))
+    private suspend fun launchRequestAuthorization(authState: AuthState): AccessToken {
+        return activityResultData(getAuthorizationRequestIntent(authState))?.let {
+            handleAuthorizationResponse(it)
+        } ?: AccessToken()
     }
 
     private suspend fun tryRefresh(): AccessToken? {
@@ -200,20 +175,20 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         return accessToken
     }
 
-    private fun handleAuthorizationResponse(data: Intent) {
+    private suspend fun handleAuthorizationResponse(data: Intent): AccessToken {
         val authResponse = AuthorizationResponse.fromIntent(data)
-        val authEx = AuthorizationException.fromIntent(data)
+        val authEx = if (authResponse == null) AuthorizationException.fromIntent(data) else null
         authStateManager.updateAfterAuthorization(authResponse, authEx)
-
-        if (authResponse == null) {
-            resume(AccessToken())
-            return
-        }
-        requireAuthService().performTokenRequest(authResponse.createTokenExchangeRequest()) { tokenResponse, tokenEx ->
-            authStateManager.updateAfterTokenResponse(tokenResponse, tokenEx)
-            val accessToken = updateCachedToken()
-            resume(accessToken)
-        }
+        return authResponse?.let {
+            try {
+                val tokenResponse = requireAuthService().performTokenRequest(it.createTokenExchangeRequest())
+                authStateManager.updateAfterTokenResponse(tokenResponse, null)
+                updateCachedToken()
+            } catch (tokenEx: AuthorizationException) {
+                authStateManager.updateAfterTokenResponse(null, tokenEx)
+                null
+            }
+        } ?: AccessToken()
     }
 
     /**
@@ -288,6 +263,8 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 }
 
+//region Extension Functions
+
 /**
  * Convenience function convert a [Long] containing the number of milliseconds since the epoch into an
  * ISO 8601-formatted [String].
@@ -299,7 +276,7 @@ fun Long.epochMillisToISO8601(): String {
 }
 
 /**
- * Suspend function wrapper of performActionWithFreshTokens.
+ * Suspend function wrapper of AuthState.performActionWithFreshTokens
  */
 suspend fun AuthState.performActionWithFreshTokens(service: AuthorizationService) = suspendCoroutine { continuation ->
     performActionWithFreshTokens(service) { accessToken, idToken, ex ->
@@ -309,3 +286,29 @@ suspend fun AuthState.performActionWithFreshTokens(service: AuthorizationService
             continuation.resume(Pair(accessToken, idToken))
     }
 }
+
+/**
+ * Suspend function wrapper of AuthorizationService.performTokenRequest
+ */
+suspend fun AuthorizationService.performTokenRequest(request: TokenRequest) = suspendCoroutine { continuation ->
+    performTokenRequest(request) { tokenResponse, tokenEx ->
+        if (tokenEx != null)
+            continuation.resumeWithException(tokenEx)
+        else
+            continuation.resume(tokenResponse)
+    }
+}
+
+/**
+ * Suspend function wrapper of AuthorizationServiceConfiguration.fetchFromIssuer
+ */
+suspend fun fetchConfigFromIssuer(openIdConnectIssuerUri: Uri) = suspendCoroutine { continuation ->
+    AuthorizationServiceConfiguration.fetchFromIssuer(openIdConnectIssuerUri) { config, configEx ->
+        if (configEx != null)
+            continuation.resumeWithException(configEx)
+        else
+            continuation.resume(config)
+    }
+}
+
+//endregion
