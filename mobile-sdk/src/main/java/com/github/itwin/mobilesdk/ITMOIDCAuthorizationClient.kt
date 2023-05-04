@@ -210,7 +210,10 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             // That token is totally unused by the backend, so we can simply fail all requests that happen before the frontend launch has completed.
             // We don't want to make any actual token requests until the user does something that requires a token.
             val accessToken = if (itmApplication.messenger.isFrontendLaunchComplete) getAccessToken() else AccessToken()
-            completion.resolve(accessToken.token, accessToken.expirationDate)
+            if (accessToken.token == null || accessToken.expirationDate == null)
+                completion.error("Error logging in.")
+            else
+                completion.resolve(accessToken.token, accessToken.expirationDate)
         }
     }
 
