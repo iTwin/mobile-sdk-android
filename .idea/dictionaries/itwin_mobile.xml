@@ -3,15 +3,18 @@
     <words>
       <w>coords</w>
       <w>imodel</w>
+      <w>imodelaccess</w>
       <w>imodeljs</w>
       <w>imodels</w>
       <w>itmapplication</w>
       <w>itmsample</w>
       <w>itwin</w>
       <w>itwinjs</w>
+      <w>itwins</w>
       <w>itwinstarter</w>
       <w>noninfringement</w>
       <w>realitydata</w>
+      <w>savedviews</w>
       <w>signin</w>
       <w>unlogged</w>
       <w>webview</w>
