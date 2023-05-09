@@ -277,16 +277,13 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
 
     @Suppress("unused")
     suspend fun signOut() {
-        var tokenException: Exception? = null
         try {
             revokeTokens()
-        } catch (ex: Exception) {
-            tokenException = ex
+        } finally {
+            authStateManager.clear()
+            cachedToken = null
+            notifyAccessTokenChanged(null, null as String?)
         }
-        authStateManager.clear()
-        cachedToken = null
-        notifyAccessTokenChanged(null, null as String?)
-        tokenException?.let { throw it }
     }
 }
 
