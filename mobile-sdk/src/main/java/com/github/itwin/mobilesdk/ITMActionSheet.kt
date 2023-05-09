@@ -42,7 +42,6 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
     }
 
     private suspend fun handleQuery(value: JsonValue?): JsonValue {
-        // TODO: Handle optional title and message, as well as style=Destructive, or officially not support those on Android?
         try {
             // Note: no input validation is intentional. If the input is malformed, it will trigger the exception handler, which will send
             // an error back to TypeScript.
@@ -77,8 +76,18 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
                         popupMenu = null
                         resume(Json.value(cancelAction?.name))
                     }
+                    params.getOptionalString("title")?.let { title ->
+                        with(menu.add(Menu.NONE, -1, Menu.NONE, title)) {
+                            isEnabled = false
+                        }
+                    }
+                    params.getOptionalString("message")?.let { message ->
+                        with(menu.add(Menu.NONE, -1, Menu.NONE, message)) {
+                            isEnabled = false
+                        }
+                    }
                     for ((index, action) in actions.withIndex()) {
-                        menu.add(Menu.NONE, index, Menu.NONE, action.title)
+                        menu.add(Menu.NONE, index, Menu.NONE, action.styledTitle)
                     }
                     show()
                     popupMenu = this
