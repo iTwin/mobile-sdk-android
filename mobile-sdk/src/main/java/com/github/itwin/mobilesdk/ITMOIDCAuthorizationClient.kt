@@ -48,6 +48,13 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     private data class ITMAuthSettings(val issuerUri: Uri, val clientId: String, val redirectUri: Uri, val scope: String)
     private data class AccessToken(val token: String? = null, val expirationDate: String? = null)
 
+    /**
+     * Whether or not to use `setPrompt("login")` on the OIDC authorization request.
+     *
+     * By default, this is set to `true` in `init` if `offline_access` is present in scopes.
+     */
+    @Suppress("MemberVisibilityCanBePrivate")
+    val promptForLogin: Boolean
     private val authSettings = parseConfigData(configData)
     private var authService: AuthorizationService? = null
     private class GetAuthorizationResponse(resultCaller: ActivityResultCaller, owner: LifecycleOwner):
@@ -57,6 +64,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     private val authStateManager = ITMAuthStateManager.getInstance(itmApplication)
 
     init {
+        promptForLogin = authSettings.scope.splitToSequence(" ").contains("offline_access")
         // Initialize cachedToken using ITMAuthStateManager, which loads the saved token from
         // shared preferences.
         updateCachedToken()
@@ -98,12 +106,14 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     companion object {
+        private const val DEFAULT_SCOPES = "projects:read imodelaccess:read itwinjs organization profile email imodels:read realitydata:read savedviews:read savedviews:modify itwins:read openid offline_access"
+        private const val DEFAULT_REDIRECT_URI = "imodeljs://app/signin-callback"
         private fun parseConfigData(configData: JsonObject): ITMAuthSettings {
             val apiPrefix = configData.getOptionalString("ITMAPPLICATION_API_PREFIX") ?: ""
             val issuerUrl = configData.getOptionalString("ITMAPPLICATION_ISSUER_URL") ?: "https://${apiPrefix}ims.bentley.com/"
             val clientId = configData.getOptionalString("ITMAPPLICATION_CLIENT_ID") ?: ""
-            val redirectUrl = configData.getOptionalString("ITMAPPLICATION_REDIRECT_URI") ?: "imodeljs://app/signin-callback"
-            val scope = configData.getOptionalString("ITMAPPLICATION_SCOPE") ?: "email openid profile organization itwinjs offline_access"
+            val redirectUrl = configData.getOptionalString("ITMAPPLICATION_REDIRECT_URI") ?: DEFAULT_REDIRECT_URI
+            val scope = configData.getOptionalString("ITMAPPLICATION_SCOPE") ?: DEFAULT_SCOPES
             return ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
         }
     }
@@ -120,7 +130,9 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             authSettings.clientId, ResponseTypeValues.CODE, authSettings.redirectUri
         ).apply {
             setScope(authSettings.scope).setCodeVerifier(CodeVerifierUtil.generateRandomCodeVerifier())
-            setPrompt("login")
+            if (promptForLogin) {
+                setPrompt("login")
+            }
         }.build()
         return requireAuthService().getAuthorizationRequestIntent(authRequest)
     }
