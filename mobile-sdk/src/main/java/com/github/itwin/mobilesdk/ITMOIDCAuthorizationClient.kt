@@ -245,7 +245,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
                     it.write(bodyBytes)
                 }
                 if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-                    throw Error("Invalid response code from server: ${connection.responseCode}")
+                    throw Exception("Invalid response code from server: ${connection.responseCode}")
                 }
             } finally {
                 connection.disconnect()
@@ -258,29 +258,35 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         if (!authState.isAuthorized) return
         val tokens = setOfNotNull(authState.idToken, authState.accessToken, authState.refreshToken).takeIf { it.isNotEmpty() } ?: return
         val revokeURLString = authState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optString("revocation_endpoint")
-            ?: throw Error("Could not find valid revocation URL.")
+            ?: throw Exception("Could not find valid revocation URL.")
         val revokeURL = URL(revokeURLString).takeIf { it.protocol.equals("https", true) }
-            ?: throw Error("Token revocation URL is not https.")
+            ?: throw Exception("Token revocation URL is not https.")
         val authorization = Base64.getEncoder().encodeToString("${authSettings.clientId}:".toByteArray())
-        val errors = mutableListOf<String>()
+        val exceptions = mutableListOf<String>()
         for (token in tokens) {
             try {
                 revokeToken(token, revokeURL, authorization)
-            } catch (ex: Error) {
-                ex.message?.let { errors.add(it) }
+            } catch (ex: Exception) {
+                ex.message?.let { exceptions.add(it) }
             }
         }
-        if (errors.isNotEmpty()) {
-            throw Error("Error${if (errors.size > 1) "s" else ""}) revoking tokens:\n" + errors.joinToString("\n"))
+        if (exceptions.isNotEmpty()) {
+            throw Exception("Error${if (exceptions.size > 1) "s" else ""}) revoking tokens:\n" + exceptions.joinToString("\n"))
         }
     }
 
     @Suppress("unused")
     suspend fun signOut() {
-        revokeTokens()
+        var tokenException: Exception? = null
+        try {
+            revokeTokens()
+        } catch (ex: Exception) {
+            tokenException = ex
+        }
         authStateManager.clear()
         cachedToken = null
         notifyAccessTokenChanged(null, null as String?)
+        tokenException?.let { throw it }
     }
 }
 

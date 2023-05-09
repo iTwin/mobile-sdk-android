@@ -428,10 +428,10 @@ open class ITMApplication(
                     }
                 }
                 finishInitializeFrontend(context)
-            } catch (e: Exception) {
-                coMessenger.frontendLaunchFailed(e)
+            } catch (error: Throwable) {
+                coMessenger.frontendLaunchFailed(error)
                 reset()
-                logger.log(ITMLogger.Severity.Error, "Error loading imodeljs frontend: $e")
+                logger.log(ITMLogger.Severity.Error, "Error loading imodeljs frontend: $error")
             }
         }
     }
