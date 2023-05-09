@@ -72,8 +72,6 @@ open class ITMNativeUI(
         components.add(ITMActionSheet(this))
         @Suppress("LeakingThis")
         components.add(ITMAlert(this))
-        @Suppress("LeakingThis")
-        components.add(ITMDatePicker(this))
     }
 
     /**
