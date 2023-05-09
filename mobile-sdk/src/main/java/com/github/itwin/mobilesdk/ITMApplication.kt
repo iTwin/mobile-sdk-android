@@ -295,7 +295,7 @@ open class ITMApplication(
     }
 
     /**
-     * Initialize the iModelJs backend if it is not initialized yet. This can be called from the launch activity.
+     * Initialize the iTwinJS backend if it is not initialized yet. This can be called from the launch activity.
      *
      * @param allowInspectBackend Allow inspection of the backend code, default false.
      */
@@ -311,10 +311,10 @@ open class ITMApplication(
                 startup()
             }
             backendInitTask.complete()
-            logger.log(ITMLogger.Severity.Debug, "imodeljs backend loaded.")
+            logger.log(ITMLogger.Severity.Debug, "iTwinJS backend loaded.")
         } catch (e: Exception) {
             reset()
-            logger.log(ITMLogger.Severity.Error, "Error loading imodeljs backend: $e")
+            logger.log(ITMLogger.Severity.Error, "Error loading iTwinJS backend: $e")
         }
     }
 
@@ -340,7 +340,7 @@ open class ITMApplication(
     }
 
     /**
-     * Initialize the iModelJs frontend if it is not initialized yet.
+     * Initialize the iTwinJS frontend if it is not initialized yet.
      *
      * This requires the Looper to be running, so cannot be called from the launch activity.
      * If you have not already called [initializeBackend], this will call it.
@@ -431,7 +431,7 @@ open class ITMApplication(
             } catch (error: Throwable) {
                 coMessenger.frontendLaunchFailed(error)
                 reset()
-                logger.log(ITMLogger.Severity.Error, "Error loading imodeljs frontend: $error")
+                logger.log(ITMLogger.Severity.Error, "Error loading iTwinJS frontend: $error")
             }
         }
     }
