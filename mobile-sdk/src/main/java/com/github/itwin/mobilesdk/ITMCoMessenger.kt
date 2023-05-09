@@ -42,7 +42,7 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
                 }, { error ->
                     continuation.resumeWithException(error)
                 })
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
                 continuation.resumeWithException(error)
             }
         }
@@ -78,7 +78,7 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
                 try {
                     val result = callback.invoke(value)
                     success?.invoke(result)
-                } catch (error: Exception) {
+                } catch (error: Throwable) {
                     failure?.invoke(error)
                 }
             }
@@ -110,8 +110,8 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Convenience wrapper around [ITMMessenger.frontendLaunchFailed].
      */
-    fun frontendLaunchFailed(exception: Exception) {
-        messenger.frontendLaunchFailed(exception)
+    fun frontendLaunchFailed(error: Throwable) {
+        messenger.frontendLaunchFailed(error)
     }
 
     /**

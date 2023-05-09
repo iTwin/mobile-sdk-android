@@ -19,7 +19,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 
 typealias ITMSuccessCallback = (JsonValue?) -> Unit
-typealias ITMFailureCallback = (Exception) -> Unit
+typealias ITMFailureCallback = (Throwable) -> Unit
 typealias ITMQueryCallback = (JsonValue?, success: ITMSuccessCallback?, failure: ITMFailureCallback?) -> Unit
 
 /**
@@ -219,9 +219,9 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
                 logError("Unhandled query [JS -> Kotlin] WVID$queryId: $name")
                 handleUnhandledMessage(queryId)
             }
-        } catch (e: Exception) {
-            logError("ITMMessenger.handleQuery exception: $e")
-            queryId?.let { handleMessageFailure(it, name, e) }
+        } catch (error: Throwable) {
+            logError("ITMMessenger.handleQuery exception: $error")
+            queryId?.let { handleMessageFailure(it, name, error) }
         }
     }
 
@@ -248,8 +248,8 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
                     onSuccess?.invoke(data)
                 }
             }
-        } catch (e: Exception) {
-            logError("ITMMessenger.handleQueryResponse exception: $e")
+        } catch (error: Throwable) {
+            logError("ITMMessenger.handleQueryResponse exception: $error")
         }
     }
 
@@ -299,7 +299,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * @param type The type of the message.
      * @param error The error to send back to the web view.
      */
-    private fun handleMessageFailure(queryId: Int, type: String, error: Exception) {
+    private fun handleMessageFailure(queryId: Int, type: String, error: Throwable) {
         logQuery("Error Response Kotlin -> JS", queryId, type, null)
         mainScope.launch {
             val message = JsonObject()
@@ -433,10 +433,9 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
     /**
      * Called if the frontend fails to launch. This prevents any queries from being sent to the web view.
      *
-     * @param exception The reason for the failure.
+     * @param error The reason for the failure.
      */
-    fun frontendLaunchFailed(exception: Exception) {
-        frontendLaunchJob.completeExceptionally(exception)
+    fun frontendLaunchFailed(error: Throwable) {
+        frontendLaunchJob.completeExceptionally(error)
     }
-
 }
