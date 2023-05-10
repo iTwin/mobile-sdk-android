@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import net.openid.appauth.*
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.*
 import kotlin.coroutines.resume
@@ -297,6 +298,29 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
  */
 fun Long.epochMillisToISO8601(): String {
     return Instant.ofEpochMilli(this).toString()
+}
+
+/**
+ * Convenience function to convert a [String] containing an ISO 8601 date into a [Date] object.
+ *
+ * @return The parsed [Date], or null if the receiver string could not be parsed into a valid [Date].
+ */
+fun String.iso8601ToDate(): Date? {
+    try {
+        return Date(Instant.parse(this).toEpochMilli())
+    } catch (ex: Exception) {
+        // Ignore
+    }
+    return try {
+        @Suppress("SpellCheckingInspection")
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        if (this.endsWith('Z')) {
+            format.timeZone = TimeZone.getTimeZone("UTC")
+        }
+        format.parse(this)
+    } catch (ex: Exception) {
+        return null
+    }
 }
 
 /**
