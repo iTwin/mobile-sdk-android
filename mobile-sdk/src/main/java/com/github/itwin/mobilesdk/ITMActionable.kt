@@ -1,5 +1,8 @@
 package com.github.itwin.mobilesdk
 
+import android.graphics.Color
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import com.eclipsesource.json.JsonArray
 import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
@@ -53,6 +56,18 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
          * @param json [JsonObject] containing required `name` and `title` values, as well as optionally a `style` value.
          */
         constructor(json: JsonObject): this(json["name"].asString(), json["title"].asString(), Style.fromString(json.get("style")?.asString()))
+
+        /**
+         * The value in [title], styled to be red if [style] is [Destructive][Style.Destructive].
+         */
+        val styledTitle: CharSequence
+            get() = if (style == Action.Style.Destructive) {
+                    val colorTitle = SpannableString(title)
+                    colorTitle.setSpan(ForegroundColorSpan(Color.RED), 0, title.length, 0)
+                    colorTitle
+                } else {
+                    title
+                }
     }
 
     /**

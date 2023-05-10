@@ -43,7 +43,7 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
             if (actions.size > 3) {
                 items = mutableListOf()
                 actions.forEach { action ->
-                    items += action.title
+                    items += action.styledTitle
                 }
             } else {
                 // Note: The mapping of actions to buttons is documented in mobile-sdk-core.
@@ -82,17 +82,17 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
                         }
                     }
                     if (neutralAction != null) {
-                        setNeutralButton(neutralAction.title) { _, _ ->
+                        setNeutralButton(neutralAction.styledTitle) { _, _ ->
                             resume(Json.value(neutralAction.name))
                         }
                     }
                     if (negativeAction != null) {
-                        setNegativeButton(negativeAction.title) { _, _ ->
+                        setNegativeButton(negativeAction.styledTitle) { _, _ ->
                             resume(Json.value(negativeAction.name))
                         }
                     }
                     if (positiveAction != null) {
-                        setPositiveButton(positiveAction.title) { _, _ ->
+                        setPositiveButton(positiveAction.styledTitle) { _, _ ->
                             resume(Json.value(positiveAction.name))
                         }
                     }
