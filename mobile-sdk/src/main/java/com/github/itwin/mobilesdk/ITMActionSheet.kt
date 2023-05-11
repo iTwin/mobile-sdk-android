@@ -53,39 +53,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
 
             // If there is already an action sheet active, cancel it.
             resume(Json.NULL)
-            // NOTE: viewGroup will change every time the Model Web App is closed and reopened, so we do NOT want to grab the value
-            // during our initialization.
-            viewGroup = webView.parent as ViewGroup
-            val sourceRect = ITMRect(params["sourceRect"], webView)
-            anchor = View(context).apply { alpha = 0.0f }
-            val layoutParams = RelativeLayout.LayoutParams(sourceRect.width, sourceRect.height)
-            layoutParams.leftMargin = sourceRect.x
-            layoutParams.topMargin = sourceRect.y
-            if (viewGroup is RelativeLayout || viewGroup is FrameLayout) {
-                viewGroup?.addView(anchor, layoutParams)
-            } else if (viewGroup?.rootView is ViewGroup) {
-                // The above does not work in React Native, and adding a RelativeLayout to the React Native ViewGroup also does not
-                // work. Instead, create a full-screen RelativeLayout, add that to the root view, then add our anchor to the
-                // full-screen view.
-                relativeLayout = RelativeLayout(context).apply {
-                    // Adjust layoutParams to account for the fact that this RelativeLayout is full screen, and webView isn't
-                    // necessarily at 0,0 on the screen.
-                    // Note: I verified that this works in both portrait and landscape.
-                    val (x, y) = webView.screenLocation()
-                    layoutParams.leftMargin += x
-                    layoutParams.topMargin += y
-                    addView(anchor, layoutParams)
-                    val matchParent = RelativeLayout.LayoutParams.MATCH_PARENT
-                    val screenLayoutParams = RelativeLayout.LayoutParams(matchParent, matchParent)
-                    screenLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP, RelativeLayout.TRUE)
-                    screenLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE)
-                    viewGroup = viewGroup?.rootView as? ViewGroup
-                    viewGroup?.addView(this, screenLayoutParams)
-                }
-            } else {
-                // Even though this probably won't position the popup properly, it's better than not showing it at all.
-                viewGroup?.addView(anchor, layoutParams)
-            }
+            addAnchor(ITMRect(params["sourceRect"], webView))
             return suspendCoroutine { continuation ->
                 this.continuation = continuation
                 val popupGravity = params.getOptionalString("gravity")?.toGravity() ?: Gravity.NO_GRAVITY
@@ -132,6 +100,41 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
     override fun removeUI() {
         popupMenu?.dismiss()
         popupMenu = null
+    }
+
+    private fun addAnchor(sourceRect: ITMRect) {
+        // NOTE: viewGroup will change every time the Model Web App is closed and reopened, so we do NOT want to grab the value
+        // during our initialization.
+        viewGroup = webView.parent as ViewGroup
+        anchor = View(context).apply { alpha = 0.0f }
+        val layoutParams = RelativeLayout.LayoutParams(sourceRect.width, sourceRect.height)
+        layoutParams.leftMargin = sourceRect.x
+        layoutParams.topMargin = sourceRect.y
+        if (viewGroup is RelativeLayout || viewGroup is FrameLayout) {
+            viewGroup?.addView(anchor, layoutParams)
+        } else if (viewGroup?.rootView is ViewGroup) {
+            // The above does not work in React Native, and adding a RelativeLayout to the React Native ViewGroup also does not
+            // work. Instead, create a full-screen RelativeLayout, add that to the root view, then add our anchor to the
+            // full-screen view.
+            relativeLayout = RelativeLayout(context).apply {
+                // Adjust layoutParams to account for the fact that this RelativeLayout is full screen, and webView isn't
+                // necessarily at 0,0 on the screen.
+                // Note: I verified that this works in both portrait and landscape.
+                val (x, y) = webView.screenLocation()
+                layoutParams.leftMargin += x
+                layoutParams.topMargin += y
+                addView(anchor, layoutParams)
+                val matchParent = RelativeLayout.LayoutParams.MATCH_PARENT
+                val screenLayoutParams = RelativeLayout.LayoutParams(matchParent, matchParent)
+                screenLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP, RelativeLayout.TRUE)
+                screenLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE)
+                viewGroup = viewGroup?.rootView as? ViewGroup
+                viewGroup?.addView(this, screenLayoutParams)
+            }
+        } else {
+            // Even though this probably won't position the popup properly, it's better than not showing it at all.
+            viewGroup?.addView(anchor, layoutParams)
+        }
     }
 
     private fun removeAnchor() {
