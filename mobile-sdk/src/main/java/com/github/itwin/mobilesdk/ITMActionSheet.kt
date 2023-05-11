@@ -110,10 +110,9 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
         val layoutParams = RelativeLayout.LayoutParams(sourceRect.width, sourceRect.height)
         layoutParams.leftMargin = sourceRect.x
         layoutParams.topMargin = sourceRect.y
-        if (viewGroup is RelativeLayout || viewGroup is FrameLayout) {
-            viewGroup?.addView(anchor, layoutParams)
-        } else if (viewGroup?.rootView is ViewGroup) {
-            // The above does not work in React Native, and adding a RelativeLayout to the React Native ViewGroup also does not
+        if (viewGroup !is RelativeLayout && viewGroup !is FrameLayout && viewGroup?.rootView is ViewGroup) {
+            // We get here when running in React Native. If that happens, simply adding the anchor to viewGroup does not work
+            // (the PopupMenu appears in the wrong place). Adding a RelativeLayout to the React Native ViewGroup also does not
             // work. Instead, create a full-screen RelativeLayout, add that to the root view, then add our anchor to the
             // full-screen view.
             relativeLayout = RelativeLayout(context).apply {
@@ -132,7 +131,6 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
                 viewGroup?.addView(this, screenLayoutParams)
             }
         } else {
-            // Even though this probably won't position the popup properly, it's better than not showing it at all.
             viewGroup?.addView(anchor, layoutParams)
         }
     }
