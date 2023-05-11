@@ -9,6 +9,7 @@ import android.view.Gravity
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.widget.RelativeLayout
 import com.eclipsesource.json.Json
@@ -33,6 +34,7 @@ import kotlin.coroutines.suspendCoroutine
  */
 class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
     private var viewGroup: ViewGroup? = null
+    private var relativeLayout: RelativeLayout? = null
     private var anchor: View? = null
     private var popupMenu: PopupMenu? = null
     private var cancelAction: Action? = null
@@ -49,6 +51,8 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
             val (actions, cancel) = readActions(params["actions"].asArray())
             cancelAction = cancel
 
+            // If there is already an action sheet active, cancel it.
+            resume(Json.NULL)
             // NOTE: viewGroup will change every time the Model Web App is closed and reopened, so we do NOT want to grab the value
             // during our initialization.
             viewGroup = webView.parent as ViewGroup
@@ -57,9 +61,31 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
             val layoutParams = RelativeLayout.LayoutParams(sourceRect.width, sourceRect.height)
             layoutParams.leftMargin = sourceRect.x
             layoutParams.topMargin = sourceRect.y
-            viewGroup?.addView(anchor, layoutParams)
-            // If there is already an action sheet active, cancel it.
-            resume(Json.NULL)
+            if (viewGroup is RelativeLayout || viewGroup is FrameLayout) {
+                viewGroup?.addView(anchor, layoutParams)
+            } else if (viewGroup?.rootView is ViewGroup) {
+                // The above does not work in React Native, and adding a RelativeLayout to the React Native ViewGroup also does not
+                // work. Instead, create a full-screen RelativeLayout, add that to the root view, then add our anchor to the
+                // full-screen view.
+                relativeLayout = RelativeLayout(context).apply {
+                    // Adjust layoutParams to account for the fact that this RelativeLayout is full screen, and webView isn't
+                    // necessarily at 0,0 on the screen.
+                    // Note: I verified that this works in both portrait and landscape.
+                    val (x, y) = webView.screenLocation()
+                    layoutParams.leftMargin += x
+                    layoutParams.topMargin += y
+                    addView(anchor, layoutParams)
+                    val matchParent = RelativeLayout.LayoutParams.MATCH_PARENT
+                    val screenLayoutParams = RelativeLayout.LayoutParams(matchParent, matchParent)
+                    screenLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP, RelativeLayout.TRUE)
+                    screenLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE)
+                    viewGroup = viewGroup?.rootView as? ViewGroup
+                    viewGroup?.addView(this, screenLayoutParams)
+                }
+            } else {
+                // Even though this probably won't position the popup properly, it's better than not showing it at all.
+                viewGroup?.addView(anchor, layoutParams)
+            }
             return suspendCoroutine { continuation ->
                 this.continuation = continuation
                 val popupGravity = params.getOptionalString("gravity")?.toGravity() ?: Gravity.NO_GRAVITY
@@ -109,8 +135,16 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
     }
 
     private fun removeAnchor() {
-        anchor?.let { anchor ->
-            viewGroup?.removeView(anchor)
+        relativeLayout?.let { relativeLayout ->
+            anchor?.let { anchor ->
+                relativeLayout.removeView(anchor)
+            }
+            viewGroup?.removeView(relativeLayout)
+            this.relativeLayout = null
+        } ?: run {
+            anchor?.let { anchor ->
+                viewGroup?.removeView(anchor)
+            }
         }
         anchor = null
     }
@@ -139,4 +173,10 @@ private fun String.toGravity(): Int {
         "bottomRight" -> Gravity.BOTTOM or Gravity.RIGHT
         else -> Gravity.NO_GRAVITY
     }
+}
+
+private fun View.screenLocation(): IntArray {
+    val location = IntArray(2)
+    getLocationOnScreen(location)
+    return location
 }
