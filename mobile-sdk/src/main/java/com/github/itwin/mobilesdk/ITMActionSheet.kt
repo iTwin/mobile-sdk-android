@@ -136,17 +136,10 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
     }
 
     private fun removeAnchor() {
-        relativeLayout?.let { relativeLayout ->
-            anchor?.let { anchor ->
-                relativeLayout.removeView(anchor)
-            }
-            viewGroup?.removeView(relativeLayout)
-            this.relativeLayout = null
-        } ?: run {
-            anchor?.let { anchor ->
-                viewGroup?.removeView(anchor)
-            }
+        (relativeLayout ?: anchor)?.let {
+            viewGroup?.removeView(it)
         }
+        relativeLayout = null
         anchor = null
     }
 
