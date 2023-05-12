@@ -43,7 +43,7 @@ fun Context.checkFineLocationPermission(): Boolean {
 internal class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller) {
     private lateinit var context: Context
 
-    private var requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+    private val requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         requestPermissionsTask?.complete(isGranted)
         requestPermissionsTask = null
         if (!isGranted) {
@@ -51,7 +51,7 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
         }
     }
 
-    private var requestLocationService = resultCaller.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { activityResult ->
+    private val requestLocationService = resultCaller.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { activityResult ->
         requestLocationServiceTask?.complete(activityResult.resultCode == Activity.RESULT_OK)
         requestLocationServiceTask = null
     }
@@ -72,6 +72,16 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {
                 unregister()
+            }
+
+            override fun onResume(owner: LifecycleOwner) {
+                // WORKAROUND
+                // When running in React Native, the ActivityResultLauncher callback doesn't happen. However, once the
+                // user has made a choice, this onResume executes. So, if the task is non-null when we get here, pass
+                // it a result based on the current state.
+                super.onResume(owner)
+                requestPermissionsTask?.complete(context.checkFineLocationPermission())
+                requestPermissionsTask = null
             }
         })
     }
