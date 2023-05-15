@@ -79,7 +79,6 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
                 // When running in React Native, the ActivityResultLauncher callback doesn't happen. However, once the
                 // user has made a choice, this onResume executes. So, if the task is non-null when we get here, pass
                 // it a result based on the current state.
-                super.onResume(owner)
                 requestPermissionsTask?.complete(context.checkFineLocationPermission())
                 requestPermissionsTask = null
             }
