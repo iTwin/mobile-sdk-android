@@ -5,6 +5,8 @@
 package com.github.itwin.mobilesdk
 
 import android.util.Log
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 /**
@@ -63,6 +65,7 @@ open class ITMLogger {
             Severity.Trace -> Log::v
             else -> Log::e
         }
-        logger("ITMLogger", message)
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+        logger("ITMLogger", "%s: %s".format(LocalDateTime.now().format(formatter), message))
     }
 }
