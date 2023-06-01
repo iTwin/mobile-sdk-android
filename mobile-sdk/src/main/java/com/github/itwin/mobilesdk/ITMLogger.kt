@@ -16,6 +16,8 @@ import java.util.*
  */
 @Suppress("unused")
 open class ITMLogger {
+    private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+
     /**
      * The severity of a log message.
      */
@@ -65,7 +67,6 @@ open class ITMLogger {
             Severity.Trace -> Log::v
             else -> Log::e
         }
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
-        logger("ITMLogger", "%s: %s".format(LocalDateTime.now().format(formatter), message))
+        logger("ITMLogger", "%s: %s".format(LocalDateTime.now().format(dateFormatter), message))
     }
 }
