@@ -17,13 +17,12 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.bentley.itwin.AuthTokenCompletionAction
 import com.bentley.itwin.AuthorizationClient
-import com.eclipsesource.json.JsonObject
-import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.openid.appauth.*
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
@@ -45,7 +44,7 @@ import kotlin.coroutines.suspendCoroutine
  *
  * By using [ActivityResultCaller], the primary constructor is compatible with both [Fragment] and [ComponentActivity].
  */
-open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication, configData: JsonObject) : AuthorizationClient() {
+open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication, configData: JSONObject) : AuthorizationClient() {
     private data class ITMAuthSettings(val issuerUri: Uri, val clientId: String, val redirectUri: Uri, val scope: String)
     private data class AccessToken(val token: String? = null, val expirationDate: String? = null)
 
@@ -72,12 +71,22 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     /**
+     * Associates with the given activity.
+     *
+     * @param activity The [ComponentActivity] to associate with.
+     */
+    fun associateWithActivity(activity: ComponentActivity) {
+        associateWithResultCallerAndOwner(activity, activity, activity)
+    }
+
+    /**
      * Associates with the given objects (usually an Activity or Fragment).
      *
      * @param resultCaller The [ActivityResultCaller] to use for location permission and services requests.
      * @param owner The [LifecycleOwner] to observe for stopping and destroying.
      * @param context The Context.
      */
+    @Suppress("MemberVisibilityCanBePrivate")
     fun associateWithResultCallerAndOwner(resultCaller: ActivityResultCaller, owner: LifecycleOwner, context: Context) {
         this.context = context
         getAuthorizationResponse = GetAuthorizationResponse(resultCaller, owner)
@@ -109,12 +118,12 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     companion object {
         private const val DEFAULT_SCOPES = "projects:read imodelaccess:read itwinjs organization profile email imodels:read realitydata:read savedviews:read savedviews:modify itwins:read openid offline_access"
         private const val DEFAULT_REDIRECT_URI = "imodeljs://app/signin-callback"
-        private fun parseConfigData(configData: JsonObject): ITMAuthSettings {
-            val apiPrefix = configData.getOptionalString("ITMAPPLICATION_API_PREFIX") ?: ""
-            val issuerUrl = configData.getOptionalString("ITMAPPLICATION_ISSUER_URL") ?: "https://${apiPrefix}ims.bentley.com/"
-            val clientId = configData.getOptionalString("ITMAPPLICATION_CLIENT_ID") ?: ""
-            val redirectUrl = configData.getOptionalString("ITMAPPLICATION_REDIRECT_URI") ?: DEFAULT_REDIRECT_URI
-            val scope = configData.getOptionalString("ITMAPPLICATION_SCOPE") ?: DEFAULT_SCOPES
+        private fun parseConfigData(configData: JSONObject): ITMAuthSettings {
+            val apiPrefix = configData.optString("ITMAPPLICATION_API_PREFIX") ?: ""
+            val issuerUrl = configData.optString("ITMAPPLICATION_ISSUER_URL") ?: "https://${apiPrefix}ims.bentley.com/"
+            val clientId = configData.optString("ITMAPPLICATION_CLIENT_ID") ?: ""
+            val redirectUrl = configData.optString("ITMAPPLICATION_REDIRECT_URI") ?: DEFAULT_REDIRECT_URI
+            val scope = configData.optString("ITMAPPLICATION_SCOPE") ?: DEFAULT_SCOPES
             return ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
         }
     }

@@ -1,11 +1,17 @@
+/*---------------------------------------------------------------------------------------------
+* Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+* See LICENSE.md in the project root for license terms and full copyright notice.
+*--------------------------------------------------------------------------------------------*/
 package com.github.itwin.mobilesdk
 
 import android.graphics.Color
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
-import com.eclipsesource.json.JsonArray
-import com.eclipsesource.json.JsonObject
-import com.eclipsesource.json.JsonValue
+import com.github.itwin.mobilesdk.jsonvalue.JSONValue
+import com.github.itwin.mobilesdk.jsonvalue.checkEntriesAre
+import com.github.itwin.mobilesdk.jsonvalue.toList
+import org.json.JSONArray
+import org.json.JSONObject
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 
@@ -15,22 +21,24 @@ import kotlin.coroutines.resume
  * @param nativeUI The [ITMNativeUI] in which the UI will display.
  */
 abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
-    protected var continuation: Continuation<JsonValue>? = null
+    protected var continuation: Continuation<JSONValue>? = null
     companion object {
         /**
          * Returns a list of [Action]'s and the cancel action (if defined in the input json).
          *
-         * @param actionsValue An array of [JsonObject] containing the actions.
+         * @param actionsValue An array of [JSONObject] values containing the actions.
          */
-        fun readActions(actionsValue: JsonArray): Pair<List<Action>, Action?> {
+        fun readActions(actionsValue: JSONArray): Pair<List<Action>, Action?> {
             val actions: MutableList<Action> = mutableListOf()
             var cancelAction: Action? = null
-            actionsValue.forEach { actionValue ->
-                val action = Action(actionValue.asObject())
-                if (action.style == Action.Style.Cancel) {
-                    cancelAction = action
-                } else {
-                    actions += action
+            actionsValue.toList().forEach { actionValue ->
+                (actionValue as? Map<*, *>)?.checkEntriesAre<String, String>()?.let {
+                    val action = Action(it)
+                    if (action.style == Action.Style.Cancel) {
+                        cancelAction = action
+                    } else {
+                        actions += action
+                    }
                 }
             }
             return Pair(actions, cancelAction)
@@ -52,10 +60,10 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
         }
 
         /**
-         * Constructor using a [JsonObject]
-         * @param json [JsonObject] containing required `name` and `title` values, as well as optionally a `style` value.
+         * Constructor using a [Map]
+         * @param map [Map] containing required `name` and `title` values, as well as optionally a `style` value.
          */
-        constructor(json: JsonObject): this(json["name"].asString(), json["title"].asString(), Style.fromString(json.get("style")?.asString()))
+        constructor(map: Map<String, String>): this(map["name"] as String, map["title"] as String, Style.fromString(map["style"]))
 
         /**
          * The value in [title], styled to be red if [style] is [Destructive][Style.Destructive].
@@ -78,7 +86,7 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
     /**
      * Should be called by sub-classes when an action is selected or cancelled.
      */
-    protected fun resume(result: JsonValue) {
+    protected fun resume(result: JSONValue) {
         removeUI()
         continuation?.resume(result)
         continuation = null

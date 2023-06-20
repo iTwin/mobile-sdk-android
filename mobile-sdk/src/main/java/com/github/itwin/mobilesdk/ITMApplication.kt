@@ -24,13 +24,11 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import com.bentley.itwin.AuthorizationClient
 import com.bentley.itwin.IModelJsHost
-import com.eclipsesource.json.Json
-import com.eclipsesource.json.JsonObject
-import com.github.itwin.mobilesdk.jsonvalue.getOptionalLong
-import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
 import com.github.itwin.mobilesdk.jsonvalue.isYes
+import com.github.itwin.mobilesdk.jsonvalue.jsonOf
+import com.github.itwin.mobilesdk.jsonvalue.toMap
 import kotlinx.coroutines.*
-import java.io.InputStreamReader
+import org.json.JSONObject
 import java.lang.Float.max
 import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicBoolean
@@ -57,9 +55,12 @@ class HashParam(val name: String, val value: String?) {
          * @return A [HashParam] with the string value contained in the given value in [configData], or null
          * if [configData] is null or the value does not exist.
          */
-        fun fromConfigData(configData: JsonObject?, configKey: String, name: String): HashParam? {
+        fun fromConfigData(configData: JSONObject?, configKey: String, name: String): HashParam? {
+            // The IDE appears to be BROKEN. It claims that the ?.let below is unnecessary, even
+            // though configData can be null.
+            @Suppress("UNNECESSARY_SAFE_CALL")
             configData?.let {
-                it.getOptionalString(configKey)?.let { value ->
+                it.optString(configKey)?.let { value ->
                     return HashParam(name, value)
                 }
             }
@@ -214,7 +215,7 @@ open class ITMApplication(
     /**
      * The config data loaded from `ITMAppConfig.json`. This value is initialized in [finishInit].
      */
-    var configData: JsonObject? = null
+    var configData: JSONObject? = null
     private var webViewLogger: ITMWebViewLogger? = null
     private var reachabilityStatus = ReachabilityStatus.NotReachable
 
@@ -254,9 +255,9 @@ open class ITMApplication(
             }
 
             // Add the configuration vars to the environment so they can be picked up by other code (i.e. the typescript backend)
-            configData.forEach {configVar ->
-                if (configVar.name.startsWith("ITMAPPLICATION_")) {
-                    Os.setenv(configVar.name, configVar.value.asString(), true)
+            configData.toMap().forEach { entry ->
+                if (entry.key.startsWith("ITMAPPLICATION_")) {
+                    Os.setenv(entry.key, entry.value as String, true)
                 }
             }
         }
@@ -283,11 +284,10 @@ open class ITMApplication(
      * @return The parsed contents of `ITMApplication/ITMAppConfig.json`, or null if the file does not
      * exist, or there is an error parsing the file.
      */
-    open fun loadITMAppConfig(): JsonObject? {
+    open fun loadITMAppConfig(): JSONObject? {
         val manager = appContext.assets
         try {
-            val itmAppConfigStream = manager.open("ITMApplication/ITMAppConfig.json")
-            return Json.parse(InputStreamReader(itmAppConfigStream, "UTF-8")) as JsonObject
+            return JSONObject(manager.open("ITMApplication/ITMAppConfig.json").bufferedReader().use { it.readText() })
         } catch (ex: Exception) {
             // Ignore
         }
@@ -545,7 +545,7 @@ open class ITMApplication(
             webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
         }
         messenger.registerQueryHandler("Bentley_ITM_updatePreferredColorScheme") { value, _, _ ->
-            value?.asObject()?.getOptionalLong("preferredColorScheme")?.let { longValue ->
+            value?.optLong("preferredColorScheme")?.let { longValue ->
                 preferredColorScheme = PreferredColorScheme.fromLong(longValue) ?: PreferredColorScheme.Automatic
                 applyPreferredColorScheme()
             }
@@ -618,11 +618,12 @@ open class ITMApplication(
     private fun updateSafeAreas(view: View) {
         val activity = ((view.parent as? ViewGroup)?.context as? Activity) ?: return
         val window = activity.window ?: return
-        val message = JsonObject()
-        message["left"] = 0
-        message["right"] = 0
-        message["top"] = 0
-        message["bottom"] = 0
+        val message = jsonOf(
+            "left" to 0,
+            "right" to 0,
+            "top" to 0,
+            "bottom" to 0
+        )
         window.decorView.rootWindowInsets?.displayCutout?.let { displayCutoutInsets ->
             val density = activity.resources.displayMetrics.density
             val top = displayCutoutInsets.safeInsetTop / density
@@ -631,13 +632,13 @@ open class ITMApplication(
             val right = displayCutoutInsets.safeInsetRight / density
             // Make both sides have the same safe area.
             val sides = max(left, right)
-            message["left"] = sides
-            message["right"] = sides
+            message.put("left", sides)
+            message.put("right", sides)
             // Include the actual left/right insets so developers can use them if desired.
-            message["minLeft"] = left
-            message["minRight"] = right
-            message["top"] = top
-            message["bottom"] = bottom
+            message.put("minLeft", left)
+            message.put("minRight", right)
+            message.put("top", top)
+            message.put("bottom", bottom)
         }
         messenger.send("Bentley_ITM_muiUpdateSafeAreas", message)
     }
@@ -742,7 +743,7 @@ open class ITMApplication(
      * __Note:__ The default URL is designed to work with [ITMWebAssetLoader].
      */
     open fun getBaseUrl(): String {
-        configData?.getOptionalString("ITMAPPLICATION_BASE_URL")?.let { baseUrl ->
+        configData?.optString("ITMAPPLICATION_BASE_URL")?.let { baseUrl ->
             usingRemoteServer = true
             return baseUrl
         }
@@ -820,7 +821,7 @@ open class ITMApplication(
      */
     open fun associateWithActivity(activity: ComponentActivity) {
         provideGeolocationManager()?.associateWithActivity(activity)
-        (provideAuthorizationClient() as? ITMOIDCAuthorizationClient)?.associateWithResultCallerAndOwner(activity, activity, activity)
+        (provideAuthorizationClient() as? ITMOIDCAuthorizationClient)?.associateWithActivity(activity)
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onPause(owner: LifecycleOwner) {
                 onActivityPause()

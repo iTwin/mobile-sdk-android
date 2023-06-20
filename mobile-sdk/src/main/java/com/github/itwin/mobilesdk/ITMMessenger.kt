@@ -9,18 +9,16 @@ package com.github.itwin.mobilesdk
 import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import com.eclipsesource.json.Json
-import com.eclipsesource.json.JsonObject
-import com.eclipsesource.json.JsonValue
-import com.github.itwin.mobilesdk.jsonvalue.toPrettyString
+import com.github.itwin.mobilesdk.jsonvalue.JSONValue
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
-typealias ITMSuccessCallback = (JsonValue?) -> Unit
+typealias ITMSuccessCallback = (JSONValue?) -> Unit
 typealias ITMFailureCallback = (Throwable) -> Unit
-typealias ITMQueryCallback = (JsonValue?, success: ITMSuccessCallback?, failure: ITMFailureCallback?) -> Unit
+typealias ITMQueryCallback = (JSONValue?, success: ITMSuccessCallback?, failure: ITMFailureCallback?) -> Unit
 
 /**
  * Class for sending and receiving messages to and from a [WebView][android.webkit.WebView] using the
@@ -94,7 +92,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
          * @param type The type of the query.
          * @param data Optional arbitrary message data.
          */
-        fun handleMessage(queryId: Int, type: String, data: JsonValue?) {
+        fun handleMessage(queryId: Int, type: String, data: JSONValue?) {
             itmMessenger.logQuery("Request JS -> Kotlin", queryId, type, data)
             callback.invoke(data, { result ->
                 itmMessenger.handleMessageSuccess(queryId, type, result)
@@ -203,17 +201,14 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
         var queryId: Int? = null
         var name = "<Unknown>"
         try {
-            val requestValue = Json.parse(messageString)
-            if (!requestValue.isObject)
-                return
-            val request = requestValue.asObject()
-            if (!request[nameKey].isString || !request[queryIdKey].isNumber)
-                return
-            queryId = request[queryIdKey].asInt()
-            name = request[nameKey].asString()
+            // Note: if there is anything wrong with messageString, it will trigger an exception,
+            // which will be logged and sent back to TS as an error.
+            val request = JSONValue.fromJSON(messageString)
+            queryId = (request[queryIdKey] as Number).toInt()
+            name = request[nameKey] as String
             val handler = handlers[name]
             if (handler != null) {
-                handler.handleMessage(queryId, name, request[messageKey])
+                handler.handleMessage(queryId, name, JSONValue(request.opt(messageKey)))
             } else {
                 @Suppress("SpellCheckingInspection")
                 logError("Unhandled query [JS -> Kotlin] WVID$queryId: $name")
@@ -232,18 +227,19 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      */
     private fun handleQueryResponse(responseString: String) {
         try {
-            val responseValue = Json.parse(responseString)
-            if (!responseValue.isObject || !responseValue.asObject()[queryIdKey].isNumber)
-                return
-
-            val response = responseValue.asObject()
-            val queryId = response[queryIdKey].asInt()
+            // Note: if there is anything wrong with responseString, it will trigger an exception,
+            // which will be logged.
+            val response = JSONValue.fromJSON(responseString)
+            val queryId = (response[queryIdKey] as Number).toInt()
             pendingQueries.remove(queryId)?.let { (type, onSuccess, onFailure) ->
-                response[errorKey]?.also { error ->
-                    logQuery("Error Response JS -> Kotlin", queryId, type, error)
+                try {
+                    val error = response[errorKey]
+                    logQuery("Error Response JS -> Kotlin", queryId, type, JSONValue(error))
                     onFailure?.invoke(Exception(error.toString()))
-                } ?: run {
-                    val data = response[responseKey] ?: Json.NULL
+                } catch (_: Exception) {
+                    // Note: this is actually the non-exceptional code path. If errorKey is present
+                    // in the response, that means that there was a failure.
+                    val data = JSONValue(response.opt(responseKey))
                     logQuery("Response JS -> Kotlin", queryId, type, data)
                     onSuccess?.invoke(data)
                 }
@@ -262,12 +258,12 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * @param type The type of the message.
      * @param result The arbitrary result to send back to the web view.
      */
-    private fun handleMessageSuccess(queryId: Int, type: String, result: JsonValue?) {
+    private fun handleMessageSuccess(queryId: Int, type: String, result: JSONValue?) {
         logQuery("Response Kotlin -> JS", queryId, type, result)
         mainScope.launch {
-            val message = JsonObject()
+            val message = JSONObject()
             if (result != null)
-                message["response"] = result
+                message.put("response", result.value)
             val jsonString = message.toString()
             val dataString = Base64.encodeToString(jsonString.toByteArray(), Base64.NO_WRAP)
             webView?.evaluateJavascript("$queryResponseName$queryId('$dataString')", null)
@@ -302,8 +298,8 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
     private fun handleMessageFailure(queryId: Int, type: String, error: Throwable) {
         logQuery("Error Response Kotlin -> JS", queryId, type, null)
         mainScope.launch {
-            val message = JsonObject()
-            message["error"] = if (error.message != null) Json.value(error.message) else JsonObject()
+            val message = JSONObject()
+            message.put("error", if (error.message != null) JSONValue(error.message) else JSONObject())
             val jsonString = message.toString()
             val dataString = Base64.encodeToString(jsonString.toByteArray(), Base64.NO_WRAP)
             webView?.evaluateJavascript("$queryResponseName$queryId('$dataString')", null)
@@ -313,7 +309,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
     /**
      * Called to log a query. Converts [data] into a string and then calls [logQuery].
      */
-    private fun logQuery(title: String, queryId: Int, type: String, data: JsonValue?) {
+    private fun logQuery(title: String, queryId: Int, type: String, data: JSONValue?) {
         val prettyDataString = try {
             data?.toPrettyString()
         } finally {
@@ -365,7 +361,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * @param type Query type.
      * @param data Optional request data to send.
      */
-    fun send(type: String, data: JsonValue? = null) {
+    fun send(type: String, data: JSONValue? = null) {
         return query(type, data, null)
     }
 
@@ -377,7 +373,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * @param success Success callback called with result data from the web view.
      * @param failure Failure callback called when the web view returns an error from the query.
      */
-    fun query(type: String, data: JsonValue?, success: ITMSuccessCallback?, failure: ITMFailureCallback? = null) {
+    fun query(type: String, data: JSONValue?, success: ITMSuccessCallback?, failure: ITMFailureCallback? = null) {
         // Ensure that evaluateJavascript() is called from main scope
         mainScope.launch {
             frontendLaunchJob.join()

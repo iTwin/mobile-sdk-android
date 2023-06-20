@@ -5,9 +5,8 @@
 package com.github.itwin.mobilesdk
 
 import android.app.AlertDialog
-import com.eclipsesource.json.Json
-import com.eclipsesource.json.JsonValue
-import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
+import com.github.itwin.mobilesdk.jsonvalue.JSONValue
+import org.json.JSONArray
 import java.util.*
 import kotlin.coroutines.suspendCoroutine
 
@@ -26,14 +25,13 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
     }
 
     @Suppress("LongMethod")
-    private suspend fun handleQuery(value: JsonValue?): JsonValue {
+    private suspend fun handleQuery(params: JSONValue?): JSONValue {
         try {
             // Note: no input validation is intentional. If the input is malformed, it will trigger the exception handler, which will send
             // an error back to TypeScript.
-            val params = value!!.asObject()
-            val (actions, cancelAction) = readActions(params["actions"].asArray())
-            val title = params.getOptionalString("title")
-            val message = params.getOptionalString("message")
+            val (actions, cancelAction) = readActions(params!!["actions"] as JSONArray)
+            val title = params.optString("title")
+            val message = params.optString("message")
             if (actions.isEmpty() && cancelAction == null) throw Exception("No actions")
             var index = 0
             var neutralAction: Action? = null
@@ -60,14 +58,14 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
                 }
             }
             // If there is already an alert active, cancel it.
-            resume(Json.NULL)
+            resume(JSONValue())
             return suspendCoroutine { continuation ->
                 this.continuation = continuation
                 with(AlertDialog.Builder(context)) {
                     setTitle(title)
                     if (items != null) {
                         setItems(items.toTypedArray()) { _, index ->
-                            resume(Json.value(actions[index].name))
+                            resume(JSONValue(actions[index].name))
                         }
                     } else {
                         // Items and Message are mutually exclusive. If items are needed (more than three
@@ -78,22 +76,22 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
                     setCancelable(cancelAction != null)
                     if (cancelAction != null) {
                         setOnCancelListener {
-                            resume(Json.value(cancelAction.name))
+                            resume(JSONValue(cancelAction.name))
                         }
                     }
                     if (neutralAction != null) {
                         setNeutralButton(neutralAction.styledTitle) { _, _ ->
-                            resume(Json.value(neutralAction.name))
+                            resume(JSONValue(neutralAction.name))
                         }
                     }
                     if (negativeAction != null) {
                         setNegativeButton(negativeAction.styledTitle) { _, _ ->
-                            resume(Json.value(negativeAction.name))
+                            resume(JSONValue(negativeAction.name))
                         }
                     }
                     if (positiveAction != null) {
                         setPositiveButton(positiveAction.styledTitle) { _, _ ->
-                            resume(Json.value(positiveAction.name))
+                            resume(JSONValue(positiveAction.name))
                         }
                     }
                     alertDialog = show()

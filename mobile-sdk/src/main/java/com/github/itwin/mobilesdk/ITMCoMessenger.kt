@@ -4,7 +4,7 @@
 *--------------------------------------------------------------------------------------------*/
 package com.github.itwin.mobilesdk
 
-import com.eclipsesource.json.JsonValue
+import com.github.itwin.mobilesdk.jsonvalue.JSONValue
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
@@ -21,7 +21,7 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      * Convenience wrapper around [ITMMessenger.send].
      */
     @Suppress("unused")
-    fun send(type: String, data: JsonValue? = null) {
+    fun send(type: String, data: JSONValue? = null) {
         messenger.send(type, data)
     }
 
@@ -34,7 +34,7 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      * @return The result from the web app.
      */
     @Suppress("unused")
-    suspend fun query(type: String, data: JsonValue? = null): JsonValue? {
+    suspend fun query(type: String, data: JSONValue? = null): JSONValue? {
         return suspendCoroutine { continuation ->
             try {
                 messenger.query(type, data, { data ->
@@ -57,7 +57,7 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
     @Suppress("unused")
-    fun registerMessageHandler(type: String, callback: suspend (JsonValue?) -> Unit): ITMMessenger.ITMHandler {
+    fun registerMessageHandler(type: String, callback: suspend (JSONValue?) -> Unit): ITMMessenger.ITMHandler {
         return registerQueryHandler(type) { value ->
             callback.invoke(value)
             null
@@ -72,7 +72,7 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      *
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
-    fun registerQueryHandler(type: String, callback: suspend (JsonValue?) -> JsonValue?): ITMMessenger.ITMHandler {
+    fun registerQueryHandler(type: String, callback: suspend (JSONValue?) -> JSONValue?): ITMMessenger.ITMHandler {
         return messenger.registerQueryHandler(type) { value, success, failure ->
             MainScope().launch {
                 try {
