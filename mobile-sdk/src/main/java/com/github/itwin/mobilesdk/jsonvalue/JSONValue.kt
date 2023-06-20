@@ -181,7 +181,7 @@ class JSONValue(value: Any? = null) {
         stringValue?.let { return "\"${it}\"" }
         arrayValue?.let { return it.toString() }
         objectValue?.let { return it.toString() }
-        throw Exception("Invalid JSONValue")
+        return "" // It should be impossible to get here
     }
 
     /**
