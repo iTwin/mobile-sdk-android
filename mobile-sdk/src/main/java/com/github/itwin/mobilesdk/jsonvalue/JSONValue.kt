@@ -101,6 +101,17 @@ class JSONValue(value: Any? = null) {
         get() = booleanValue ?: numberValue ?: stringValue ?: arrayValue ?: objectValue
 
     /**
+     * The value represented by the receiver, but using [Map] for object values and [List] for array
+     * values.
+     */
+    val anyValue: Any?
+        get() = when (value) {
+            is JSONObject -> objectValue!!.toMap()
+            is JSONArray  -> arrayValue!!.toList()
+            else          -> value
+        }
+
+    /**
      * The receiver as a [JSONObject], or null if the receiver is not an object.
      */
     fun asObject(): JSONObject? {
@@ -354,12 +365,12 @@ fun toJSON(value: Any?): JSONValue {
         }
         is Array<*> -> {
             val json = JSONArray()
-            value.forEach { item -> json.put(toJSON(item)) }
+            value.forEach { item -> json.put(toJSON(item).value) }
             JSONValue(json)
         }
         is List<*> -> {
             val json = JSONArray()
-            value.forEach { item -> json.put(toJSON(item)) }
+            value.forEach { item -> json.put(toJSON(item).value) }
             JSONValue(json)
         }
         is JSONValue -> value
