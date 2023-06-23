@@ -25,8 +25,6 @@ import net.openid.appauth.*
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.time.Instant
 import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -300,51 +298,6 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
 //region Extension Functions
 
 /**
- * Convenience function convert a [Long] containing the number of milliseconds since the epoch into an
- * ISO 8601-formatted [String].
- *
- * @return A [String] containing an ISO 8601 format date.
- */
-fun Long.epochMillisToISO8601(): String {
-    return Instant.ofEpochMilli(this).toString()
-}
-
-/**
- * Convenience function to convert a [String] containing an ISO 8601 date into a [Date] object.
- *
- * @return The parsed [Date], or null if the receiver string could not be parsed into a valid [Date].
- */
-fun String.iso8601ToDate(): Date? {
-    try {
-        return Date(Instant.parse(this).toEpochMilli())
-    } catch (ex: Exception) {
-        // Ignore
-    }
-    return try {
-        @Suppress("SpellCheckingInspection")
-        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-        if (this.endsWith('Z')) {
-            format.timeZone = TimeZone.getTimeZone("UTC")
-        }
-        format.parse(this)
-    } catch (ex: Exception) {
-        return null
-    }
-}
-
-/**
- * Suspend function wrapper of AuthState.performActionWithFreshTokens
- */
-suspend fun AuthState.performActionWithFreshTokens(service: AuthorizationService) = suspendCoroutine { continuation ->
-    performActionWithFreshTokens(service) { accessToken, idToken, ex ->
-        if (ex != null)
-            continuation.resumeWithException(ex)
-        else
-            continuation.resume(Pair(accessToken, idToken))
-    }
-}
-
-/**
  * Suspend function wrapper of AuthorizationService.performTokenRequest
  */
 suspend fun AuthorizationService.performTokenRequest(request: TokenRequest) = suspendCoroutine { continuation ->
@@ -355,6 +308,8 @@ suspend fun AuthorizationService.performTokenRequest(request: TokenRequest) = su
             continuation.resume(tokenResponse)
     }
 }
+
+//endregion
 
 /**
  * Suspend function wrapper of AuthorizationServiceConfiguration.fetchFromIssuer
@@ -367,5 +322,3 @@ suspend fun fetchConfigFromIssuer(openIdConnectIssuerUri: Uri) = suspendCoroutin
             continuation.resume(config)
     }
 }
-
-//endregion

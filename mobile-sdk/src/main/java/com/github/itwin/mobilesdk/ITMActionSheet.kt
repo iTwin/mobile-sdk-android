@@ -12,9 +12,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.widget.RelativeLayout
-import com.github.itwin.mobilesdk.jsonvalue.JSONValue
-import org.json.JSONArray
-import org.json.JSONObject
 import kotlin.coroutines.suspendCoroutine
 
 /**
@@ -40,19 +37,19 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
     private var cancelAction: Action? = null
 
     init {
-        handler = coMessenger.registerQueryHandler("Bentley_ITM_presentActionSheet") { value -> handleQuery(value) }
+        handler = coMessenger.registerQueryHandler("Bentley_ITM_presentActionSheet", ::handleQuery)
     }
 
-    private suspend fun handleQuery(params: JSONValue?): JSONValue {
+    private suspend fun handleQuery(params: Map<String, Any>): String? {
         try {
             // Note: no input validation is intentional. If the input is malformed, it will trigger the exception handler, which will send
             // an error back to TypeScript.
-            val (actions, cancel) = readActions(params!!["actions"] as JSONArray)
+            val (actions, cancel) = readActions(params["actions"] as List<*>)
             cancelAction = cancel
 
             // If there is already an action sheet active, cancel it.
-            resume(JSONValue())
-            addAnchor(ITMRect(params["sourceRect"] as JSONObject, webView))
+            resume(null)
+            addAnchor(ITMRect(params["sourceRect"] as Map<*, *>, webView))
             return suspendCoroutine { continuation ->
                 this.continuation = continuation
                 val popupGravity = params.optString("gravity")?.toGravity() ?: Gravity.NO_GRAVITY
@@ -61,13 +58,13 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
                         removeAnchor()
                         popupMenu = null
                         cancelAction = null
-                        resume(JSONValue(actions[item.itemId].name))
+                        resume(actions[item.itemId].name)
                         return@setOnMenuItemClickListener true
                     }
                     setOnDismissListener {
                         removeAnchor()
                         popupMenu = null
-                        resume(JSONValue(cancelAction?.name))
+                        resume(cancelAction?.name)
                     }
                     params.optString("title")?.let { title ->
                         with(menu.add(Menu.NONE, -1, Menu.NONE, title)) {
@@ -149,7 +146,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
         super.onConfigurationChanged(newConfig)
         removeUI()
         removeAnchor()
-        resume(JSONValue(cancelAction?.name))
+        resume(cancelAction?.name)
         cancelAction = null
     }
 }

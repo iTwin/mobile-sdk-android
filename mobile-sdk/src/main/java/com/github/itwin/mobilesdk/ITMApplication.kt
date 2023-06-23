@@ -25,7 +25,6 @@ import androidx.lifecycle.MutableLiveData
 import com.bentley.itwin.AuthorizationClient
 import com.bentley.itwin.IModelJsHost
 import com.github.itwin.mobilesdk.jsonvalue.isYes
-import com.github.itwin.mobilesdk.jsonvalue.jsonOf
 import com.github.itwin.mobilesdk.jsonvalue.toMap
 import kotlinx.coroutines.*
 import org.json.JSONObject
@@ -544,8 +543,8 @@ open class ITMApplication(
         if (attachWebViewLogger) {
             webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
         }
-        messenger.registerQueryHandler("Bentley_ITM_updatePreferredColorScheme") { value, _, _ ->
-            value?.optLong("preferredColorScheme")?.let { longValue ->
+        messenger.registerQueryHandler<Map<String, Number>, Unit>("Bentley_ITM_updatePreferredColorScheme") { value, _, _ ->
+            value.optLong("preferredColorScheme")?.let { longValue ->
                 preferredColorScheme = PreferredColorScheme.fromLong(longValue) ?: PreferredColorScheme.Automatic
                 applyPreferredColorScheme()
             }
@@ -618,11 +617,11 @@ open class ITMApplication(
     private fun updateSafeAreas(view: View) {
         val activity = ((view.parent as? ViewGroup)?.context as? Activity) ?: return
         val window = activity.window ?: return
-        val message = jsonOf(
-            "left" to 0,
-            "right" to 0,
-            "top" to 0,
-            "bottom" to 0
+        val message = mutableMapOf(
+            "left" to 0.0f,
+            "right" to 0.0f,
+            "top" to 0.0f,
+            "bottom" to 0.0f
         )
         window.decorView.rootWindowInsets?.displayCutout?.let { displayCutoutInsets ->
             val density = activity.resources.displayMetrics.density
@@ -632,13 +631,13 @@ open class ITMApplication(
             val right = displayCutoutInsets.safeInsetRight / density
             // Make both sides have the same safe area.
             val sides = max(left, right)
-            message.put("left", sides)
-            message.put("right", sides)
+            message["left"] = sides
+            message["right"] = sides
             // Include the actual left/right insets so developers can use them if desired.
-            message.put("minLeft", left)
-            message.put("minRight", right)
-            message.put("top", top)
-            message.put("bottom", bottom)
+            message["minLeft"] = left
+            message["minRight"] = right
+            message["top"] = top
+            message["bottom"] = bottom
         }
         messenger.send("Bentley_ITM_muiUpdateSafeAreas", message)
     }

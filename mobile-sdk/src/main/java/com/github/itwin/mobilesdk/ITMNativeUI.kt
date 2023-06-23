@@ -7,7 +7,6 @@ package com.github.itwin.mobilesdk
 import android.content.Context
 import android.content.res.Configuration
 import android.webkit.WebView
-import org.json.JSONObject
 import kotlin.math.roundToInt
 
 /**
@@ -17,7 +16,7 @@ import kotlin.math.roundToInt
  * @param value: The JSON value containing the rectangle. This must include `x`, `y`, `width`, and `height` fields.
  * @param webView: The [WebView] that the rectangle is in.
  */
-class ITMRect(value: JSONObject, webView: WebView) {
+class ITMRect(value: Map<*, *>, webView: WebView) {
     /**
      * The x coordinate of the rectangle in [WebView] coordinates.
      */

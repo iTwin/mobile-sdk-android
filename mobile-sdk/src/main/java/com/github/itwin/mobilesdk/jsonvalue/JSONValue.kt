@@ -22,6 +22,20 @@ class JSONValue(value: Any? = null) {
     private var numberValue: Number? = null
     private var booleanValue: Boolean? = null
     private var isNullValue = false
+    private var isUnitValue = false
+
+    init {
+        when (value) {
+            null, JSONObject.NULL -> isNullValue = true
+            is Unit               -> isUnitValue = true
+            is Boolean            -> booleanValue = value
+            is String             -> stringValue = value
+            is Number             -> numberValue = value
+            is JSONArray          -> arrayValue = value
+            is JSONObject         -> objectValue = value
+            else                  -> throw Exception("Unsupported type in JSONValue constructor")
+        }
+    }
 
     companion object {
         /**
@@ -44,6 +58,10 @@ class JSONValue(value: Any? = null) {
                 return result
             } catch (_: Exception) {} // Ignore
             val trimmed = json.trim()
+            if (trimmed.isEmpty()) {
+                result.isUnitValue = true
+                return result
+            }
             if (trimmed.length > 1 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
                 result.stringValue = trimmed.substring(1, trimmed.length - 1)
                 return result
@@ -63,6 +81,12 @@ class JSONValue(value: Any? = null) {
      */
     val isNull: Boolean
         get() = isNullValue
+
+    /**
+     * Indicates whether or not the receiver is a Unit value (void).
+     */
+    val isUnit: Boolean
+        get() = isUnitValue
 
     /**
      * Indicates whether or not the receiver is an object.
@@ -98,7 +122,7 @@ class JSONValue(value: Any? = null) {
      * The value represented by the receiver.
      */
     val value: Any?
-        get() = booleanValue ?: numberValue ?: stringValue ?: arrayValue ?: objectValue
+        get() = if (isUnitValue) Unit else booleanValue ?: numberValue ?: stringValue ?: arrayValue ?: objectValue
 
     /**
      * The value represented by the receiver, but using [Map] for object values and [List] for array
@@ -180,6 +204,9 @@ class JSONValue(value: Any? = null) {
     override fun toString(): String {
         if (isNullValue) {
             return "null"
+        }
+        if (isUnitValue) {
+            return ""
         }
         booleanValue?.let {
             if (it) {
@@ -278,18 +305,6 @@ class JSONValue(value: Any? = null) {
      * If the receiver is not an array, or there is no value at the specified index, returns null.
      */
     fun opt(index: Int) = arrayValue?.opt(index)
-
-    init {
-        when (value) {
-            null, JSONObject.NULL -> isNullValue = true
-            is Boolean            -> booleanValue = value
-            is String             -> stringValue = value
-            is Number             -> numberValue = value
-            is JSONArray          -> arrayValue = value
-            is JSONObject         -> objectValue = value
-            else                  -> throw Exception("Unsupported type in JSONValue constructor")
-        }
-    }
 }
 
 /**
@@ -350,11 +365,23 @@ fun jsonOf(vararg pairs: Pair<String, *>): JSONValue {
 
 /**
  * Converts a value to a [JSONValue].
+ *
+ * The value must be JSON-compatible. JSON-compatible types are:
+ * * [String]
+ * * [Boolean]
+ * * [Number]
+ * * Array-like type containing JSON-compatible values.
+ * * Object-like type with [String] keys containing JSON-compatible values.
+ *
+ * Array-like types are [List], [Array], and [JSONArray].
+ *
+ * Object-like types are [Map] and [JSONObject].
  */
 fun toJSON(value: Any?): JSONValue {
     return when (value) {
-        null -> JSONValue()
-        is Int, is Number, is Boolean, is String, is JSONArray, is JSONObject -> JSONValue(value)
+        null         -> JSONValue()
+        is Unit      -> JSONValue(Unit)
+        is Number, is Boolean, is String, is JSONArray, is JSONObject -> JSONValue(value)
         is Map<*, *> -> {
             val json = JSONObject()
             for ((k, v) in value) {
@@ -363,12 +390,12 @@ fun toJSON(value: Any?): JSONValue {
             }
             JSONValue(json)
         }
-        is Array<*> -> {
+        is Array<*>  -> {
             val json = JSONArray()
             value.forEach { item -> json.put(toJSON(item).value) }
             JSONValue(json)
         }
-        is List<*> -> {
+        is List<*>   -> {
             val json = JSONArray()
             value.forEach { item -> json.put(toJSON(item).value) }
             JSONValue(json)
@@ -377,28 +404,3 @@ fun toJSON(value: Any?): JSONValue {
         else -> throw java.lang.Exception("Cannot convert to JSON: $value")
     }
 }
-
-/**
- * Verify that all entries in the receiver have a key type of `K` and a value type of `V`.
- * @return The receiver specialized with `K` and `V` if the key and value types match, otherwise
- * `null`.
- */
-inline fun <reified K: Any, reified V: Any> Map<*,*>.checkEntriesAre(): Map<K, V>? {
-    forEach {
-        if (it.key !is K) return null
-        if (it.value !is V) return null
-    }
-    @Suppress("UNCHECKED_CAST")
-    return this as Map<K, V>
-}
-
-/**
- * Verify that all items in the receiver have a type of `T`.
- * @return The receiver specialized with `T` if the item types match, otherwise `null`.
- */
-inline fun <reified T> List<*>.checkItemsAre(): List<T>? =
-    if (all { it is T })
-        @Suppress("UNCHECKED_CAST")
-        this as List<T>
-    else
-        null

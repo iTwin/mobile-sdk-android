@@ -7,11 +7,6 @@ package com.github.itwin.mobilesdk
 import android.graphics.Color
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
-import com.github.itwin.mobilesdk.jsonvalue.JSONValue
-import com.github.itwin.mobilesdk.jsonvalue.checkEntriesAre
-import com.github.itwin.mobilesdk.jsonvalue.toList
-import org.json.JSONArray
-import org.json.JSONObject
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 
@@ -21,17 +16,17 @@ import kotlin.coroutines.resume
  * @param nativeUI The [ITMNativeUI] in which the UI will display.
  */
 abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(nativeUI) {
-    protected var continuation: Continuation<JSONValue>? = null
+    protected var continuation: Continuation<String?>? = null
     companion object {
         /**
          * Returns a list of [Action]'s and the cancel action (if defined in the input json).
          *
-         * @param actionsValue An array of [JSONObject] values containing the actions.
+         * @param tsActions A List of [Map] values containing the actions.
          */
-        fun readActions(actionsValue: JSONArray): Pair<List<Action>, Action?> {
+        fun readActions(tsActions: List<*>): Pair<List<Action>, Action?> {
             val actions: MutableList<Action> = mutableListOf()
             var cancelAction: Action? = null
-            actionsValue.toList().forEach { actionValue ->
+            tsActions.forEach { actionValue ->
                 (actionValue as? Map<*, *>)?.checkEntriesAre<String, String>()?.let {
                     val action = Action(it)
                     if (action.style == Action.Style.Cancel) {
@@ -86,7 +81,7 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
     /**
      * Should be called by sub-classes when an action is selected or cancelled.
      */
-    protected fun resume(result: JSONValue) {
+    protected fun resume(result: String?) {
         removeUI()
         continuation?.resume(result)
         continuation = null

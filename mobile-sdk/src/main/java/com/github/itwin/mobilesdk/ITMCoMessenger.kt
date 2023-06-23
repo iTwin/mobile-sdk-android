@@ -4,7 +4,6 @@
 *--------------------------------------------------------------------------------------------*/
 package com.github.itwin.mobilesdk
 
-import com.github.itwin.mobilesdk.jsonvalue.JSONValue
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
@@ -21,12 +20,27 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      * Convenience wrapper around [ITMMessenger.send].
      */
     @Suppress("unused")
-    fun send(type: String, data: JSONValue? = null) {
+    fun <I> send(type: String, data: I) {
         messenger.send(type, data)
     }
 
     /**
-     * Send query to the [web view][ITMApplication.webView] and receive the result using a coroutine. Errors thrown.
+     * Convenience wrapper around [ITMMessenger.send]
+     */
+    @Suppress("unused")
+    fun send(type: String) {
+        messenger.send(type)
+    }
+
+    /**
+     * Send query to the [web view][ITMApplication.webView] and receive the result using a
+     * coroutine. Errors thrown.
+     *
+     * __Note__: Both the [I] and [O] types must be JSON-compatible. JSON-compatible types are
+     * documented in [toJson][com.github.itwin.mobilesdk.jsonvalue.toJSON]. Additionally, always
+     * use [List] for array-like types and [Map] for object-like types. If the type you use for [O]
+     * does not match the type of the data returned by the web view, an exception will be thrown
+     * indicating that.
      *
      * @param type Query type.
      * @param data Optional request data to send.
@@ -34,10 +48,10 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      * @return The result from the web app.
      */
     @Suppress("unused")
-    suspend fun query(type: String, data: JSONValue? = null): JSONValue? {
+    suspend fun <I, O> query(type: String, data: I): O {
         return suspendCoroutine { continuation ->
             try {
-                messenger.query(type, data, { data ->
+                messenger.query<I, O>(type, data, { data ->
                     continuation.resume(data)
                 }, { error ->
                     continuation.resumeWithException(error)
@@ -49,7 +63,31 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
     }
 
     /**
+     * Send query with no data to the [web view][ITMApplication.webView] and receive the result
+     * using a coroutine. Errors thrown.
+     *
+     * __Note__: The [O] type must be JSON-compatible. JSON-compatible types are documented in
+     * [toJson][com.github.itwin.mobilesdk.jsonvalue.toJSON]. Additionally, always use [List] for
+     * array-like types and [Map] for object-like types. If the type you use for [O] does not match
+     * the type of the data returned by the web view, an exception will be thrown indicating that.
+     *
+     * @param type Query type.
+     *
+     * @return The result from the web app.
+     */
+    @Suppress("unused")
+    suspend fun <O> query(type: String): O {
+        return query(type, Unit)
+    }
+
+    /**
      * Add a coroutine-based handler for queries from the web view that do not include a response.
+     *
+     * __Note__: The [I] type must be JSON-compatible. JSON-compatible types are documented in
+     * [toJson][com.github.itwin.mobilesdk.jsonvalue.toJSON]. Additionally, always use [List] for
+     * array-like types and [Map] for object-like types. If the data sent from the web view does
+     * not match the type specified for [I], an error response will be sent to the web view
+     * indicating that.
      *
      * @param type Query type.
      * @param callback Coroutine Function called when a message is received.
@@ -57,23 +95,30 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
     @Suppress("unused")
-    fun registerMessageHandler(type: String, callback: suspend (JSONValue?) -> Unit): ITMMessenger.ITMHandler {
-        return registerQueryHandler(type) { value ->
+    fun <I> registerMessageHandler(type: String, callback: suspend(I) -> Unit): ITMMessenger.ITMHandler {
+        return registerQueryHandler<I, Unit>(type) { value ->
             callback.invoke(value)
-            null
         }
     }
 
     /**
      * Add a coroutine-based handler for queries from the [web view][ITMApplication.webView].
      *
+     * __Note__: Both the [I] and [O] types must be JSON-compatible. JSON-compatible types are
+     * documented in [toJson][com.github.itwin.mobilesdk.jsonvalue.toJSON]. Additionally, always
+     * use [List] for array-like types and [Map] for object-like types. If the data sent from the
+     * web view does not match the type specified for [I], an error response will be sent to the web
+     * view indicating that.
+     *
      * @param type Query type.
-     * @param callback Coroutine function to respond to the query. Throws in the case of error, otherwise optionally return a value.
+     * @param callback Coroutine function to respond to the query. Throws in the case of error,
+     * otherwise optionally return a value.
      *
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
-    fun registerQueryHandler(type: String, callback: suspend (JSONValue?) -> JSONValue?): ITMMessenger.ITMHandler {
-        return messenger.registerQueryHandler(type) { value, success, failure ->
+    @Suppress("unused")
+    fun <I, O> registerQueryHandler(type: String, callback: suspend (I) -> O): ITMMessenger.ITMHandler {
+        return messenger.registerQueryHandler<I, O>(type) { value, success, failure ->
             MainScope().launch {
                 try {
                     val result = callback.invoke(value)
