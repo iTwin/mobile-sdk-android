@@ -236,6 +236,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * __Note:__ If you plan to override this without calling super, you need to inspect this source
      * code.
      */
+    @Suppress("NestedBlockDepth")
     private fun handleQueryResponse(responseString: String) {
         try {
             // Note: if there is anything wrong with responseString, it will trigger an exception,
