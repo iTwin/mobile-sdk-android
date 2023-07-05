@@ -11,6 +11,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.github.itwin.mobilesdk.jsonvalue.JSONValue
 import com.github.itwin.mobilesdk.jsonvalue.toJSON
+import com.github.itwin.mobilesdk.jsonvalue.tryToJSON
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
@@ -251,7 +252,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
                         onFailure?.invoke(Exception(error.toString()))
                     } else {
                         val data = if (response.contains(RESPONSE_KEY)) response[RESPONSE_KEY] else Unit
-                        logQuery("Response JS -> Kotlin", queryId, type, toJSON(data))
+                        logQuery("Response JS -> Kotlin", queryId, type, tryToJSON(data))
                         onSuccess?.invoke(data)
                     }
                 } catch (error: Throwable) {
@@ -330,7 +331,7 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      */
     private fun logQuery(title: String, queryId: Int, type: String, data: JSONValue?) {
         val prettyDataString = try {
-            data?.toPrettyString()
+            data?.toPrettyString() ?: "<void>"
         } finally {
         }
 
@@ -417,9 +418,9 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
         mainScope.launch {
             frontendLaunchJob.join()
             val queryId = queryIdCounter.incrementAndGet()
-            val dataValue = toJSON(data)
+            val dataValue = tryToJSON(data)
             logQuery("Request Kotlin -> JS", queryId, type, dataValue)
-            val dataString = Base64.encodeToString(dataValue.toString().toByteArray(), Base64.NO_WRAP)
+            val dataString = Base64.encodeToString((dataValue?.toString() ?: "").toByteArray(), Base64.NO_WRAP)
             try {
                 @Suppress("UNCHECKED_CAST")
                 pendingQueries[queryId] = Triple(type, success as? ITMSuccessCallback<Any?>, failure)

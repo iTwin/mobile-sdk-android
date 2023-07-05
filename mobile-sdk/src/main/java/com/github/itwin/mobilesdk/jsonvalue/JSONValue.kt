@@ -22,17 +22,12 @@ class JSONValue private constructor(value: Any?) {
     private var numberValue: Number? = null
     private var booleanValue: Boolean? = null
     private var isNullValue = false
-    private var isUnitValue = false
 
     /**
      * Construct a [JSONValue] representing `null`.
      */
     constructor() : this(null as Any?)
 
-    /**
-     * Construct a [JSONValue] representing `Unit` (void).
-     */
-    constructor(value: Unit) : this(value as Any)
     /**
      * Construct a [JSONValue] from the given optional [JSONObject].
      */
@@ -58,7 +53,6 @@ class JSONValue private constructor(value: Any?) {
     init {
         when (value) {
             null, JSONObject.NULL -> isNullValue = true
-            is Unit               -> isUnitValue = true
             is Boolean            -> booleanValue = value
             is String             -> stringValue = value
             is Number             -> numberValue = value
@@ -90,8 +84,7 @@ class JSONValue private constructor(value: Any?) {
             } catch (_: Exception) {} // Ignore
             val trimmed = json.trim()
             if (trimmed.isEmpty()) {
-                result.isUnitValue = true
-                return result
+                throw Exception("Invalid JSON")
             }
             if (trimmed.length > 1 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
                 result.stringValue = trimmed.substring(1, trimmed.length - 1)
@@ -112,12 +105,6 @@ class JSONValue private constructor(value: Any?) {
      */
     val isNull: Boolean
         get() = isNullValue
-
-    /**
-     * Indicates whether or not the receiver is a Unit value (void).
-     */
-    val isUnit: Boolean
-        get() = isUnitValue
 
     /**
      * Indicates whether or not the receiver is an object.
@@ -155,7 +142,7 @@ class JSONValue private constructor(value: Any?) {
      * The value represented by the receiver.
      */
     val value: Any?
-        get() = if (isUnitValue) Unit else booleanValue ?: numberValue ?: stringValue ?: arrayValue ?: objectValue
+        get() = booleanValue ?: numberValue ?: stringValue ?: arrayValue ?: objectValue
 
     /**
      * The value represented by the receiver, but using [Map] for object values and [List] for array
@@ -379,6 +366,17 @@ fun jsonOf(vararg pairs: Pair<String, *>): JSONValue {
 }
 
 /**
+ * Try to convert a value to a [JSONValue].
+ *
+ * This returns the result of [toJSON], or if that fails (throws an exception), `null`.
+ */
+fun tryToJSON(value: Any?): JSONValue? = try {
+    toJSON(value)
+} catch (_: Throwable) {
+    null
+}
+
+/**
  * Converts a value to a [JSONValue].
  *
  * The value must be JSON-compatible. JSON-compatible types are:
@@ -394,7 +392,6 @@ fun jsonOf(vararg pairs: Pair<String, *>): JSONValue {
  */
 fun toJSON(value: Any?): JSONValue = when (value) {
     null          -> JSONValue()
-    is Unit       -> JSONValue(Unit)
     is Number     -> JSONValue(value)
     is Boolean    -> JSONValue(value)
     is String     -> JSONValue(value)
