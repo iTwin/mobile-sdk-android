@@ -93,7 +93,7 @@ class JSONValue private constructor(value: Any?) {
                 result.isUnitValue = true
                 return result
             }
-            if (trimmed.length > 1 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+            if (trimmed.length > 1 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
                 result.stringValue = trimmed.substring(1, trimmed.length - 1)
                 return result
             }
