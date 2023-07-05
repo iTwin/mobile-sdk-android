@@ -59,8 +59,10 @@ class HashParam(val name: String, val value: String?) {
             // though configData can be null.
             @Suppress("UNNECESSARY_SAFE_CALL")
             configData?.let {
-                it.optString(configKey)?.let { value ->
-                    return HashParam(name, value)
+                it.optString(configKey).let { value ->
+                    if (value.isNotEmpty()) {
+                        return HashParam(name, value)
+                    }
                 }
             }
             return null

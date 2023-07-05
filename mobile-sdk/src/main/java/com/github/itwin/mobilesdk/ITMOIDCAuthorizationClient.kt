@@ -117,11 +117,11 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         private const val DEFAULT_SCOPES = "projects:read imodelaccess:read itwinjs organization profile email imodels:read realitydata:read savedviews:read savedviews:modify itwins:read openid offline_access"
         private const val DEFAULT_REDIRECT_URI = "imodeljs://app/signin-callback"
         private fun parseConfigData(configData: JSONObject): ITMAuthSettings {
-            val apiPrefix = configData.optString("ITMAPPLICATION_API_PREFIX") ?: ""
-            val issuerUrl = configData.optString("ITMAPPLICATION_ISSUER_URL") ?: "https://${apiPrefix}ims.bentley.com/"
-            val clientId = configData.optString("ITMAPPLICATION_CLIENT_ID") ?: ""
-            val redirectUrl = configData.optString("ITMAPPLICATION_REDIRECT_URI") ?: DEFAULT_REDIRECT_URI
-            val scope = configData.optString("ITMAPPLICATION_SCOPE") ?: DEFAULT_SCOPES
+            val apiPrefix = configData.optString("ITMAPPLICATION_API_PREFIX", "")
+            val issuerUrl = configData.optString("ITMAPPLICATION_ISSUER_URL", "https://${apiPrefix}ims.bentley.com/")
+            val clientId = configData.optString("ITMAPPLICATION_CLIENT_ID", "")
+            val redirectUrl = configData.optString("ITMAPPLICATION_REDIRECT_URI", DEFAULT_REDIRECT_URI)
+            val scope = configData.optString("ITMAPPLICATION_SCOPE", DEFAULT_SCOPES)
             return ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
         }
     }
@@ -267,6 +267,9 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         val tokens = setOfNotNull(authState.idToken, authState.accessToken, authState.refreshToken).takeIf { it.isNotEmpty() } ?: return
         val revokeURLString = authState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optString("revocation_endpoint")
             ?: throw Exception("Could not find valid revocation URL.")
+        if (revokeURLString.isEmpty()) {
+            throw Exception("Could not find valid revocation URL.")
+        }
         val revokeURL = URL(revokeURLString).takeIf { it.protocol.equals("https", true) }
             ?: throw Exception("Token revocation URL is not https.")
         val authorization = Base64.getEncoder().encodeToString("${authSettings.clientId}:".toByteArray())
