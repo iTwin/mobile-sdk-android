@@ -55,14 +55,9 @@ class HashParam(val name: String, val value: String?) {
          * if [configData] is null or the value does not exist.
          */
         fun fromConfigData(configData: JSONObject?, configKey: String, name: String): HashParam? {
-            // The IDE appears to be BROKEN. It claims that the ?.let below is unnecessary, even
-            // though configData can be null.
-            @Suppress("UNNECESSARY_SAFE_CALL")
-            configData?.let {
-                it.optString(configKey).let { value ->
-                    if (value.isNotEmpty()) {
-                        return HashParam(name, value)
-                    }
+            configData?.optString(configKey)?.let { value ->
+                if (value.isNotEmpty()) {
+                    return HashParam(name, value)
                 }
             }
             return null
