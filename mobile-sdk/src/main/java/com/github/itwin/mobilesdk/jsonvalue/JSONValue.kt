@@ -244,11 +244,7 @@ class JSONValue private constructor(value: Any?) {
     /**
      * A pretty-printed JSON string with 2-space indents representing the receiver.
      */
-    fun toPrettyString(): String {
-        objectValue?.let { return it.toString(2) }
-        arrayValue?.let { return it.toString(2) }
-        return toString()
-    }
+    fun toPrettyString() = objectValue?.toString(2) ?: arrayValue?.toString(2) ?: toString()
 
     /**
      * If the receiver is an object, returns the value of the specified key in the object. If the
