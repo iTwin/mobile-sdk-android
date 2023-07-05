@@ -392,34 +392,32 @@ fun jsonOf(vararg pairs: Pair<String, *>): JSONValue {
  *
  * Object-like types are [Map] and [JSONObject].
  */
-fun toJSON(value: Any?): JSONValue {
-    return when (value) {
-        null          -> JSONValue()
-        is Unit       -> JSONValue(Unit)
-        is Number     -> JSONValue(value)
-        is Boolean    -> JSONValue(value)
-        is String     -> JSONValue(value)
-        is JSONArray  -> JSONValue(value)
-        is JSONObject -> JSONValue(value)
-        is Map<*, *>  -> {
-            val json = JSONObject()
-            for ((k, v) in value) {
-                if (k !is String) throw java.lang.Exception("JSON object keys must be Strings, got: $k")
-                json.putOpt(k, toJSON(v).value)
-            }
-            JSONValue(json)
+fun toJSON(value: Any?): JSONValue = when (value) {
+    null          -> JSONValue()
+    is Unit       -> JSONValue(Unit)
+    is Number     -> JSONValue(value)
+    is Boolean    -> JSONValue(value)
+    is String     -> JSONValue(value)
+    is JSONArray  -> JSONValue(value)
+    is JSONObject -> JSONValue(value)
+    is Map<*, *>  -> {
+        val json = JSONObject()
+        for ((k, v) in value) {
+            if (k !is String) throw java.lang.Exception("JSON object keys must be Strings, got: $k")
+            json.putOpt(k, toJSON(v).value)
         }
-        is Array<*>   -> {
-            val json = JSONArray()
-            value.forEach { item -> json.put(toJSON(item).value) }
-            JSONValue(json)
-        }
-        is List<*>    -> {
-            val json = JSONArray()
-            value.forEach { item -> json.put(toJSON(item).value) }
-            JSONValue(json)
-        }
-        is JSONValue  -> value
-        else -> throw java.lang.Exception("Cannot convert to JSON: $value")
+        JSONValue(json)
     }
+    is Array<*>   -> {
+        val json = JSONArray()
+        value.forEach { item -> json.put(toJSON(item).value) }
+        JSONValue(json)
+    }
+    is List<*>    -> {
+        val json = JSONArray()
+        value.forEach { item -> json.put(toJSON(item).value) }
+        JSONValue(json)
+    }
+    is JSONValue  -> value
+    else -> throw java.lang.Exception("Cannot convert to JSON: $value")
 }
