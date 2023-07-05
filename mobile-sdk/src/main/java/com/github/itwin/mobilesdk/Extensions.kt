@@ -48,18 +48,6 @@ fun String.iso8601ToDate(): Date? {
 }
 
 /**
- * Suspend function wrapper of AuthState.performActionWithFreshTokens
- */
-suspend fun AuthState.performActionWithFreshTokens(service: AuthorizationService) = suspendCoroutine { continuation ->
-    performActionWithFreshTokens(service) { accessToken, idToken, ex ->
-        if (ex != null)
-            continuation.resumeWithException(ex)
-        else
-            continuation.resume(Pair(accessToken, idToken))
-    }
-}
-
-/**
  * Returns the value corresponding to the given [key] as a [String], or `null` if such a key is not
  * present in the map, or contains a value that is not a [String].
  */

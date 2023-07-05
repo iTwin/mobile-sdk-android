@@ -298,6 +298,18 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
 //region Extension Functions
 
 /**
+ * Suspend function wrapper of AuthState.performActionWithFreshTokens
+ */
+suspend fun AuthState.performActionWithFreshTokens(service: AuthorizationService) = suspendCoroutine { continuation ->
+    performActionWithFreshTokens(service) { accessToken, idToken, ex ->
+        if (ex != null)
+            continuation.resumeWithException(ex)
+        else
+            continuation.resume(Pair(accessToken, idToken))
+    }
+}
+
+/**
  * Suspend function wrapper of AuthorizationService.performTokenRequest
  */
 suspend fun AuthorizationService.performTokenRequest(request: TokenRequest) = suspendCoroutine { continuation ->
