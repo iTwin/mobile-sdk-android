@@ -5,14 +5,9 @@
 @file:Suppress("unused")
 package com.github.itwin.mobilesdk
 
-import net.openid.appauth.AuthState
-import net.openid.appauth.AuthorizationService
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.*
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 /**
  * Convenience function convert a [Long] containing the number of milliseconds since the epoch into an
