@@ -140,12 +140,14 @@ class JSONValue private constructor(value: Any?) {
     /**
      * Indicates whether or not the receiver is a [Boolean].
      */
+    @Suppress("MemberVisibilityCanBePrivate")
     val isBoolean: Boolean
         get() = booleanValue != null
 
     /**
      * Indicates whether or not the receiver is a [String].
      */
+    @Suppress("MemberVisibilityCanBePrivate")
     val isString: Boolean
         get() = stringValue != null
 
@@ -232,25 +234,11 @@ class JSONValue private constructor(value: Any?) {
     /**
      * A JSON string representing the receiver.
      */
-    override fun toString(): String {
-        if (isNullValue) {
-            return "null"
-        }
-        if (isUnitValue) {
-            return ""
-        }
-        booleanValue?.let {
-            if (it) {
-                return "true"
-            } else {
-                return "false"
-            }
-        }
-        numberValue?.let { return it.toString() }
-        stringValue?.let { return "\"${it}\"" }
-        arrayValue?.let { return it.toString() }
-        objectValue?.let { return it.toString() }
-        return "" // It should be impossible to get here
+    override fun toString() = when {
+        isNullValue -> "null"
+        isBoolean   -> if (booleanValue == true) "true" else "false"
+        isString    -> "\"${stringValue}\""
+        else        -> (numberValue ?: arrayValue ?: objectValue ?: "").toString()
     }
 
     /**
