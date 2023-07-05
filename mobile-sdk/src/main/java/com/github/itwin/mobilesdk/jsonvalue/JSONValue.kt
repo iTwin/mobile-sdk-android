@@ -15,7 +15,7 @@ import org.json.JSONObject
  * [Boolean], [String], [Number], [JSONArray], or [JSONObject]. If you need a [JSONValue] built from
  * any other type, use [toJSON].
  */
-class JSONValue(value: Any? = null) {
+class JSONValue private constructor(value: Any?) {
     private var objectValue: JSONObject? = null
     private var arrayValue: JSONArray? = null
     private var stringValue: String? = null
@@ -23,6 +23,37 @@ class JSONValue(value: Any? = null) {
     private var booleanValue: Boolean? = null
     private var isNullValue = false
     private var isUnitValue = false
+
+    /**
+     * Construct a [JSONValue] representing `null`.
+     */
+    constructor() : this(null as Any?)
+
+    /**
+     * Construct a [JSONValue] representing `Unit` (void).
+     */
+    constructor(value: Unit) : this(value as Any)
+    /**
+     * Construct a [JSONValue] from the given optional [JSONObject].
+     */
+    constructor(value: JSONObject?) : this(value as Any)
+
+    /**
+     * Construct a [JSONValue] from the given optional [JSONArray].
+     */
+    constructor(value: JSONArray?) : this(value as Any)
+    /**
+     * Construct a [JSONValue] from the given optional [String].
+     */
+    constructor(value: String?) : this(value as Any)
+    /**
+     * Construct a [JSONValue] from the given optional [Number].
+     */
+    constructor(value: Number?) : this(value as Any)
+    /**
+     * Construct a [JSONValue] from the given optional [Boolean].
+     */
+    constructor(value: Boolean?) : this(value as Any)
 
     init {
         when (value) {
@@ -379,10 +410,14 @@ fun jsonOf(vararg pairs: Pair<String, *>): JSONValue {
  */
 fun toJSON(value: Any?): JSONValue {
     return when (value) {
-        null         -> JSONValue()
-        is Unit      -> JSONValue(Unit)
-        is Number, is Boolean, is String, is JSONArray, is JSONObject -> JSONValue(value)
-        is Map<*, *> -> {
+        null          -> JSONValue()
+        is Unit       -> JSONValue(Unit)
+        is Number     -> JSONValue(value)
+        is Boolean    -> JSONValue(value)
+        is String     -> JSONValue(value)
+        is JSONArray  -> JSONValue(value)
+        is JSONObject -> JSONValue(value)
+        is Map<*, *>  -> {
             val json = JSONObject()
             for ((k, v) in value) {
                 if (k !is String) throw java.lang.Exception("JSON object keys must be Strings, got: $k")
@@ -390,17 +425,17 @@ fun toJSON(value: Any?): JSONValue {
             }
             JSONValue(json)
         }
-        is Array<*>  -> {
+        is Array<*>   -> {
             val json = JSONArray()
             value.forEach { item -> json.put(toJSON(item).value) }
             JSONValue(json)
         }
-        is List<*>   -> {
+        is List<*>    -> {
             val json = JSONArray()
             value.forEach { item -> json.put(toJSON(item).value) }
             JSONValue(json)
         }
-        is JSONValue -> value
+        is JSONValue  -> value
         else -> throw java.lang.Exception("Cannot convert to JSON: $value")
     }
 }
