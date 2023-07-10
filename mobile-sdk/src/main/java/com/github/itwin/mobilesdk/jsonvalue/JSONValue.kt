@@ -300,9 +300,8 @@ class JSONValue private constructor(value: Any?) {
 /**
  * Returns true if the receiver is a string with a value of "yes", or false otherwise.
  */
-fun JSONObject.isYes(propertyName: String): Boolean {
-    return optString(propertyName).lowercase() == "yes"
-}
+fun JSONObject.isYes(propertyName: String) =
+    optString(propertyName).lowercase() == "yes"
 
 /**
  * Converts the receiver to a map, converting all [JSONObject] values to maps, all [JSONArray]
