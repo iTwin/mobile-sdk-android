@@ -55,10 +55,8 @@ class HashParam(val name: String, val value: String?) {
          * if [configData] is null or the value does not exist.
          */
         fun fromConfigData(configData: JSONObject?, configKey: String, name: String): HashParam? {
-            configData?.optString(configKey)?.let { value ->
-                if (value.isNotEmpty()) {
-                    return HashParam(name, value)
-                }
+            configData?.optString(configKey)?.takeIf { it.isNotEmpty() }?.let { value ->
+                return HashParam(name, value)
             }
             return null
         }
