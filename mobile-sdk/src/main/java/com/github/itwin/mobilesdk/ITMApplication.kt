@@ -25,6 +25,7 @@ import androidx.lifecycle.MutableLiveData
 import com.bentley.itwin.AuthorizationClient
 import com.bentley.itwin.IModelJsHost
 import com.github.itwin.mobilesdk.jsonvalue.isYes
+import com.github.itwin.mobilesdk.jsonvalue.optStringOrNull
 import com.github.itwin.mobilesdk.jsonvalue.toMap
 import kotlinx.coroutines.*
 import org.json.JSONObject
@@ -54,12 +55,10 @@ class HashParam(val name: String, val value: String?) {
          * @return A [HashParam] with the string value contained in the given value in [configData], or null
          * if [configData] is null or the value does not exist.
          */
-        fun fromConfigData(configData: JSONObject?, configKey: String, name: String): HashParam? {
-            configData?.optString(configKey)?.takeIf { it.isNotEmpty() }?.let { value ->
-                return HashParam(name, value)
+        fun fromConfigData(configData: JSONObject?, configKey: String, name: String) =
+            configData?.optStringOrNull(configKey)?.let { value ->
+                HashParam(name, value)
             }
-            return null
-        }
     }
 
     /**
@@ -737,7 +736,7 @@ open class ITMApplication(
      * __Note:__ The default URL is designed to work with [ITMWebAssetLoader].
      */
     open fun getBaseUrl(): String {
-        configData?.optString("ITMAPPLICATION_BASE_URL")?.let { baseUrl ->
+        configData?.optStringOrNull("ITMAPPLICATION_BASE_URL")?.let { baseUrl ->
             usingRemoteServer = true
             return baseUrl
         }

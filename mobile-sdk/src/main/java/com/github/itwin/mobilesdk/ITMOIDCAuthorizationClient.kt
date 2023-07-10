@@ -17,6 +17,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.bentley.itwin.AuthTokenCompletionAction
 import com.bentley.itwin.AuthorizationClient
+import com.github.itwin.mobilesdk.jsonvalue.optStringOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -117,9 +118,9 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         private const val DEFAULT_SCOPES = "projects:read imodelaccess:read itwinjs organization profile email imodels:read realitydata:read savedviews:read savedviews:modify itwins:read openid offline_access"
         private const val DEFAULT_REDIRECT_URI = "imodeljs://app/signin-callback"
         private fun parseConfigData(configData: JSONObject): ITMAuthSettings {
-            val apiPrefix = configData.optString("ITMAPPLICATION_API_PREFIX", "")
+            val apiPrefix = configData.optString("ITMAPPLICATION_API_PREFIX")
             val issuerUrl = configData.optString("ITMAPPLICATION_ISSUER_URL", "https://${apiPrefix}ims.bentley.com/")
-            val clientId = configData.optString("ITMAPPLICATION_CLIENT_ID", "")
+            val clientId = configData.optString("ITMAPPLICATION_CLIENT_ID")
             val redirectUrl = configData.optString("ITMAPPLICATION_REDIRECT_URI", DEFAULT_REDIRECT_URI)
             val scope = configData.optString("ITMAPPLICATION_SCOPE", DEFAULT_SCOPES)
             return ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
@@ -265,7 +266,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         val authState = authStateManager.current
         if (!authState.isAuthorized) return
         val tokens = setOfNotNull(authState.idToken, authState.accessToken, authState.refreshToken).takeIf { it.isNotEmpty() } ?: return
-        val revokeURLString = authState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optString("revocation_endpoint")
+        val revokeURLString = authState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optStringOrNull("revocation_endpoint")
             ?: throw Exception("Could not find valid revocation URL.")
         if (revokeURLString.isEmpty()) {
             throw Exception("Could not find valid revocation URL.")

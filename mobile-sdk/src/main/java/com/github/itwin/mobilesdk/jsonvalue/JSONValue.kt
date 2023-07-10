@@ -322,6 +322,14 @@ fun JSONObject.toMap(): Map<String, Any?> {
 }
 
 /**
+ * Returns the value mapped by [name] if it exists, coercing it if necessary, or `null` if no such
+ * mapping exists.
+ *
+ * __Note:__ This is like optString, but returns `null` instead of empty string.
+ */
+fun JSONObject.optStringOrNull(name: String) = optString(name).takeIf { it.isNotEmpty() }
+
+/**
  * Converts the receiver to a list, converting all [JSONObject] values to maps, all [JSONArray]
  * values to lists, and all [JSONObject.NULL] values to `null`.*
  */
