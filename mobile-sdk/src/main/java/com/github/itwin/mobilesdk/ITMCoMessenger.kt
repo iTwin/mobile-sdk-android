@@ -81,6 +81,22 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
     }
 
     /**
+     * Add a coroutine-based handler for queries from the web view that do not include a response
+     * and do not include input data.
+     *
+     * @param type Query type.
+     * @param callback Coroutine Function called when a message is received.
+     *
+     * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
+     */
+    @Suppress("unused")
+    fun registerMessageHandler(type: String, callback: suspend() -> Unit): ITMMessenger.ITMHandler {
+        return registerQueryHandler<Unit, Unit>(type) {
+            callback.invoke()
+        }
+    }
+
+    /**
      * Add a coroutine-based handler for queries from the web view that do not include a response.
      *
      * __Note__: The [I] type must be JSON-compatible. JSON-compatible types are documented in
