@@ -541,7 +541,7 @@ open class ITMApplication(
             webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
         }
         messenger.registerQueryHandler<Map<String, Number>, Unit>("Bentley_ITM_updatePreferredColorScheme") { value, _, _ ->
-            value.optLong("preferredColorScheme")?.let { longValue ->
+            value.getOptionalLong("preferredColorScheme")?.let { longValue ->
                 preferredColorScheme = PreferredColorScheme.fromLong(longValue) ?: PreferredColorScheme.Automatic
                 applyPreferredColorScheme()
             }

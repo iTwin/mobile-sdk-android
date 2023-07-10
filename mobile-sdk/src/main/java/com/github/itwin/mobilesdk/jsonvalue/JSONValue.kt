@@ -260,47 +260,35 @@ class JSONValue private constructor(value: Any?) {
     fun put(index: Int, value: Any?): JSONArray = arrayValue!!.put(index, value)
 
     /**
+     * If the receiver is an object, returns the optional value of the specified key in the object
+     * if that value is a String, or `null` otherwise.
+     */
+    fun getOptionalString(key: String) = opt(key) as? String
+
+    /**
+     * If the receiver is an object, returns the optional value of the specified key in the object
+     * if that value is an Int, or `null` otherwise.
+     */
+    fun getOptionalInt(key: String) = opt(key)?.let { it as? Int ?: (it as? Number)?.toInt() }
+
+    /**
+     * If the receiver is an object, returns the optional value of the specified key in the object
+     * if that value is a Long, or `null` otherwise.
+     */
+    fun getOptionalLong(key: String) = opt(key)?.let { it as? Long ?: (it as? Number)?.toLong() }
+
+    /**
+     * If the receiver is an object, returns the optional value of the specified key in the object
+     * if that value is a Double, or `null` otherwise.
+     */
+    fun getOptionalDouble(key: String) = opt(key)?.let { it as? Double ?: (it as? Number)?.toDouble() }
+
+    /**
      * If the receiver is an object, returns the optional value of the specified key in the object.
      * If the receiver is not an object, or the key does not exist, returns null.
      */
     @Suppress("MemberVisibilityCanBePrivate")
     fun opt(key: String) = objectValue?.opt(key)
-
-    /**
-     * If the receiver is an object, returns the optional value of the specified key in the object
-     * if that value is a String, or `null` otherwise.
-     *
-     * __Note__: This returns `null` if the lookup fails or the type is wrong, not empty string
-     * like [JSONObject.optString].
-     */
-    fun optString(key: String) = opt(key) as? String
-
-    /**
-     * If the receiver is an object, returns the optional value of the specified key in the object
-     * if that value is an Int, or `null` otherwise.
-     *
-     * __Note__: This returns `null` if the lookup fails or the type is wrong, not 0 like
-     * [JSONObject.optInt].
-     */
-    fun optInt(key: String) = opt(key)?.let { it as? Int ?: (it as? Number)?.toInt() }
-
-    /**
-     * If the receiver is an object, returns the optional value of the specified key in the object
-     * if that value is a Long, or `null` otherwise.
-     *
-     * __Note__: This returns `null` if the lookup fails or the type is wrong, not 0 like
-     * [JSONObject.optLong].
-     */
-    fun optLong(key: String) = opt(key)?.let { it as? Long ?: (it as? Number)?.toLong() }
-
-    /**
-     * If the receiver is an object, returns the optional value of the specified key in the object
-     * if that value is a Double, or `null` otherwise.
-     *
-     * __Note__: This returns `null` if the lookup fails or the type is wrong, not NaN like
-     * [JSONObject.optDouble].
-     */
-    fun optDouble(key: String) = opt(key)?.let { it as? Double ?: (it as? Number)?.toDouble() }
 
     /**
      * If the receiver is an array, returns the optional value at the specified index in the array.

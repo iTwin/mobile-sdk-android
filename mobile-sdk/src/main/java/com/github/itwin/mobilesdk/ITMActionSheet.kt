@@ -52,7 +52,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
             addAnchor(ITMRect(params["sourceRect"] as Map<*, *>, webView))
             return suspendCoroutine { continuation ->
                 this.continuation = continuation
-                val popupGravity = params.optString("gravity")?.toGravity() ?: Gravity.NO_GRAVITY
+                val popupGravity = params.getOptionalString("gravity")?.toGravity() ?: Gravity.NO_GRAVITY
                 with(PopupMenu(context, anchor, popupGravity)) {
                     setOnMenuItemClickListener { item ->
                         removeAnchor()
@@ -66,12 +66,12 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
                         popupMenu = null
                         resume(cancelAction?.name)
                     }
-                    params.optString("title")?.let { title ->
+                    params.getOptionalString("title")?.let { title ->
                         with(menu.add(Menu.NONE, -1, Menu.NONE, title)) {
                             isEnabled = false
                         }
                     }
-                    params.optString("message")?.let { message ->
+                    params.getOptionalString("message")?.let { message ->
                         with(menu.add(Menu.NONE, -1, Menu.NONE, message)) {
                             isEnabled = false
                         }

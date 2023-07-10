@@ -46,7 +46,7 @@ fun String.iso8601ToDate(): Date? {
  * Returns the value corresponding to the given [key] as a [String], or `null` if such a key is not
  * present in the map, or contains a value that is not a [String].
  */
-fun <K, V> Map<K, V>.optString(key: K): String? {
+fun <K, V> Map<K, V>.getOptionalString(key: K): String? {
     return this[key] as? String
 }
 
@@ -54,7 +54,7 @@ fun <K, V> Map<K, V>.optString(key: K): String? {
  * Returns the value corresponding to the given [key] as a [Boolean], or `null` if such a key is not
  * present in the map, or contains a value that is not a [Boolean].
  */
-fun <K, V> Map<K, V>.optBoolean(key: K): Boolean? {
+fun <K, V> Map<K, V>.getOptionalBoolean(key: K): Boolean? {
     return this[key] as? Boolean
 }
 
@@ -62,7 +62,7 @@ fun <K, V> Map<K, V>.optBoolean(key: K): Boolean? {
  * Returns the value corresponding to the given [key] as an [Int], or `null` if such a key is not
  * present in the map, or contains a value that is not an [Int].
  */
-fun <K, V> Map<K, V>.optInt(key: K): Int? {
+fun <K, V> Map<K, V>.getOptionalInt(key: K): Int? {
     return this[key]?.let { it as? Int ?: (it as? Number)?.toInt() }
 }
 
@@ -70,7 +70,7 @@ fun <K, V> Map<K, V>.optInt(key: K): Int? {
  * Returns the value corresponding to the given [key] as a [Long], or `null` if such a key is not
  * present in the map, or contains a value that is not a [Long].
  */
-fun <K, V> Map<K, V>.optLong(key: K): Long? {
+fun <K, V> Map<K, V>.getOptionalLong(key: K): Long? {
     return this[key]?.let { it as? Long ?: (it as? Number)?.toLong() }
 }
 
@@ -78,7 +78,7 @@ fun <K, V> Map<K, V>.optLong(key: K): Long? {
  * Returns the value corresponding to the given [key] as a [Float], or `null` if such a key is not
  * present in the map, or contains a value that is not a [Float].
  */
-fun <K, V> Map<K, V>.optFloat(key: K): Float? {
+fun <K, V> Map<K, V>.getOptionalFloat(key: K): Float? {
     return this[key]?.let { it as? Float ?: (it as? Number)?.toFloat() }
 }
 
@@ -86,7 +86,7 @@ fun <K, V> Map<K, V>.optFloat(key: K): Float? {
  * Returns the value corresponding to the given [key] as a [Double], or `null` if such a key is not
  * present in the map, or contains a value that is not a [Double].
  */
-fun <K, V> Map<K, V>.optDouble(key: K): Double? {
+fun <K, V> Map<K, V>.getOptionalDouble(key: K): Double? {
     return this[key]?.let { it as? Double ?: (it as? Number)?.toDouble() }
 }
 
