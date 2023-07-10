@@ -17,17 +17,15 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.bentley.itwin.AuthTokenCompletionAction
 import com.bentley.itwin.AuthorizationClient
-import com.eclipsesource.json.JsonObject
-import com.github.itwin.mobilesdk.jsonvalue.getOptionalString
+import com.github.itwin.mobilesdk.jsonvalue.optStringOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.openid.appauth.*
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.time.Instant
 import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -45,7 +43,7 @@ import kotlin.coroutines.suspendCoroutine
  *
  * By using [ActivityResultCaller], the primary constructor is compatible with both [Fragment] and [ComponentActivity].
  */
-open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication, configData: JsonObject) : AuthorizationClient() {
+open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication, configData: JSONObject) : AuthorizationClient() {
     private data class ITMAuthSettings(val issuerUri: Uri, val clientId: String, val redirectUri: Uri, val scope: String)
     private data class AccessToken(val token: String? = null, val expirationDate: String? = null)
 
@@ -72,12 +70,22 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     /**
+     * Associates with the given activity.
+     *
+     * @param activity The [ComponentActivity] to associate with.
+     */
+    fun associateWithActivity(activity: ComponentActivity) {
+        associateWithResultCallerAndOwner(activity, activity, activity)
+    }
+
+    /**
      * Associates with the given objects (usually an Activity or Fragment).
      *
      * @param resultCaller The [ActivityResultCaller] to use for location permission and services requests.
      * @param owner The [LifecycleOwner] to observe for stopping and destroying.
      * @param context The Context.
      */
+    @Suppress("MemberVisibilityCanBePrivate")
     fun associateWithResultCallerAndOwner(resultCaller: ActivityResultCaller, owner: LifecycleOwner, context: Context) {
         this.context = context
         getAuthorizationResponse = GetAuthorizationResponse(resultCaller, owner)
@@ -109,12 +117,12 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     companion object {
         private const val DEFAULT_SCOPES = "projects:read imodelaccess:read itwinjs organization profile email imodels:read realitydata:read savedviews:read savedviews:modify itwins:read openid offline_access"
         private const val DEFAULT_REDIRECT_URI = "imodeljs://app/signin-callback"
-        private fun parseConfigData(configData: JsonObject): ITMAuthSettings {
-            val apiPrefix = configData.getOptionalString("ITMAPPLICATION_API_PREFIX") ?: ""
-            val issuerUrl = configData.getOptionalString("ITMAPPLICATION_ISSUER_URL") ?: "https://${apiPrefix}ims.bentley.com/"
-            val clientId = configData.getOptionalString("ITMAPPLICATION_CLIENT_ID") ?: ""
-            val redirectUrl = configData.getOptionalString("ITMAPPLICATION_REDIRECT_URI") ?: DEFAULT_REDIRECT_URI
-            val scope = configData.getOptionalString("ITMAPPLICATION_SCOPE") ?: DEFAULT_SCOPES
+        private fun parseConfigData(configData: JSONObject): ITMAuthSettings {
+            val apiPrefix = configData.optString("ITMAPPLICATION_API_PREFIX")
+            val issuerUrl = configData.optString("ITMAPPLICATION_ISSUER_URL", "https://${apiPrefix}ims.bentley.com/")
+            val clientId = configData.optString("ITMAPPLICATION_CLIENT_ID")
+            val redirectUrl = configData.optString("ITMAPPLICATION_REDIRECT_URI", DEFAULT_REDIRECT_URI)
+            val scope = configData.optString("ITMAPPLICATION_SCOPE", DEFAULT_SCOPES)
             return ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
         }
     }
@@ -258,8 +266,11 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         val authState = authStateManager.current
         if (!authState.isAuthorized) return
         val tokens = setOfNotNull(authState.idToken, authState.accessToken, authState.refreshToken).takeIf { it.isNotEmpty() } ?: return
-        val revokeURLString = authState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optString("revocation_endpoint")
+        val revokeURLString = authState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optStringOrNull("revocation_endpoint")
             ?: throw Exception("Could not find valid revocation URL.")
+        if (revokeURLString.isEmpty()) {
+            throw Exception("Could not find valid revocation URL.")
+        }
         val revokeURL = URL(revokeURLString).takeIf { it.protocol.equals("https", true) }
             ?: throw Exception("Token revocation URL is not https.")
         val authorization = Base64.getEncoder().encodeToString("${authSettings.clientId}:".toByteArray())
@@ -291,39 +302,6 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
 //region Extension Functions
 
 /**
- * Convenience function convert a [Long] containing the number of milliseconds since the epoch into an
- * ISO 8601-formatted [String].
- *
- * @return A [String] containing an ISO 8601 format date.
- */
-fun Long.epochMillisToISO8601(): String {
-    return Instant.ofEpochMilli(this).toString()
-}
-
-/**
- * Convenience function to convert a [String] containing an ISO 8601 date into a [Date] object.
- *
- * @return The parsed [Date], or null if the receiver string could not be parsed into a valid [Date].
- */
-fun String.iso8601ToDate(): Date? {
-    try {
-        return Date(Instant.parse(this).toEpochMilli())
-    } catch (ex: Exception) {
-        // Ignore
-    }
-    return try {
-        @Suppress("SpellCheckingInspection")
-        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-        if (this.endsWith('Z')) {
-            format.timeZone = TimeZone.getTimeZone("UTC")
-        }
-        format.parse(this)
-    } catch (ex: Exception) {
-        return null
-    }
-}
-
-/**
  * Suspend function wrapper of AuthState.performActionWithFreshTokens
  */
 suspend fun AuthState.performActionWithFreshTokens(service: AuthorizationService) = suspendCoroutine { continuation ->
@@ -347,6 +325,8 @@ suspend fun AuthorizationService.performTokenRequest(request: TokenRequest) = su
     }
 }
 
+//endregion
+
 /**
  * Suspend function wrapper of AuthorizationServiceConfiguration.fetchFromIssuer
  */
@@ -358,5 +338,3 @@ suspend fun fetchConfigFromIssuer(openIdConnectIssuerUri: Uri) = suspendCoroutin
             continuation.resume(config)
     }
 }
-
-//endregion

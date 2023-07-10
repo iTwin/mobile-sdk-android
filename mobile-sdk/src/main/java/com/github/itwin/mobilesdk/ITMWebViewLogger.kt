@@ -27,7 +27,7 @@ open class ITMWebViewLogger(
     }
 
     companion object {
-        private const val injectedJs =
+        private const val INJECTED_JS =
 """(function() {
     var injectLogger = function(type) {
         var originalLogger = console[type];
@@ -57,7 +57,7 @@ open class ITMWebViewLogger(
         return false;
     });
 })();"""
-        private const val jsInterfaceName = "Bentley_ITMConsoleLogger"
+        private const val JS_INTERFACE_NAME = "Bentley_ITMConsoleLogger"
     }
 
     init {
@@ -76,14 +76,14 @@ open class ITMWebViewLogger(
                 }
                 callback(type, message)
             }
-        }, jsInterfaceName)
+        }, JS_INTERFACE_NAME)
     }
 
     /**
      * Inject the appropriate JavaScript code into [webView] to handle the console redirection.
      */
     open fun inject() {
-        webView.evaluateJavascript(injectedJs, null)
+        webView.evaluateJavascript(INJECTED_JS, null)
     }
 
     /**
@@ -91,6 +91,6 @@ open class ITMWebViewLogger(
      */
     @Suppress("unused")
     fun detach() {
-        webView.removeJavascriptInterface(jsInterfaceName)
+        webView.removeJavascriptInterface(JS_INTERFACE_NAME)
     }
 }

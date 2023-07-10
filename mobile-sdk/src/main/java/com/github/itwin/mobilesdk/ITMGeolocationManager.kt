@@ -19,7 +19,7 @@ import androidx.activity.ComponentActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import com.eclipsesource.json.JsonObject
+import com.github.itwin.mobilesdk.jsonvalue.JSONValue
 import com.github.itwin.mobilesdk.jsonvalue.jsonOf
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -87,7 +87,7 @@ class ITMGeolocationManager(private var context: Context) {
             TIMEOUT(3),
         }
 
-        fun toJson(): JsonObject {
+        fun toJSON(): JSONValue {
             return jsonOf(
                 "code" to code.value,
                 "message" to (message ?: ""),
@@ -411,7 +411,7 @@ class ITMGeolocationManager(private var context: Context) {
         val webView = this.webView ?: return
         val errorJson = jsonOf(
             "positionId" to positionId,
-            "error" to error.toJson()
+            "error" to error.toJSON()
         )
         val errorResponse = Base64.encodeToString(errorJson.toString().toByteArray(), Base64.NO_WRAP)
         val js = "window.Bentley_ITMGeolocationResponse('$messageName', '$errorResponse')"
