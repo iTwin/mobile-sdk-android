@@ -729,7 +729,7 @@ open class ITMApplication(
      * @return The default [ITMApplication] [HashParam] values based on the contents of
      * [configData].
      */
-    open suspend fun getUrlHashParams() =
+    open suspend fun getUrlHashParams(): HashParams =
         listOfNotNull(
             HashParam.fromConfigData(configData, "ITMAPPLICATION_API_PREFIX", "apiPrefix")
         )
