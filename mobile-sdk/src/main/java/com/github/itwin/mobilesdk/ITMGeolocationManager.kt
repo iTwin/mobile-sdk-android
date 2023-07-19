@@ -325,17 +325,20 @@ class ITMGeolocationManager(private var context: Context) {
                 "Location permission denied"
             )
         } else {
-            val lastLocation = if (lastLocationTimeThresholdMillis > 0) fusedLocationClient.lastLocation.await() else null
-            val elapsedMax = lastLocationTimeThresholdMillis * 1000000
-            val elapsed = if (lastLocation != null) SystemClock.elapsedRealtimeNanos() - lastLocation.elapsedRealtimeNanos else -1
-            if ((lastLocation != null) && (elapsed in (0 until elapsedMax))) {
-                lastLocation
-            } else {
-                fusedLocationClient.getCurrentLocation(
-                    Priority.PRIORITY_HIGH_ACCURACY,
-                    cancellationTokenSource.token
-                ).await()
+            suspend fun getRecentLastLocation(): Location? {
+                val lastLocation = if (lastLocationTimeThresholdMillis > 0) fusedLocationClient.lastLocation.await() else null
+                val elapsedMax = lastLocationTimeThresholdMillis * 1000000
+                val elapsed = if (lastLocation != null) SystemClock.elapsedRealtimeNanos() - lastLocation.elapsedRealtimeNanos else -1
+                return if (elapsed in (0 until elapsedMax)) {
+                    lastLocation
+                } else {
+                    null
+                }
             }
+            getRecentLastLocation() ?: fusedLocationClient.getCurrentLocation(
+                Priority.PRIORITY_HIGH_ACCURACY,
+                cancellationTokenSource.token
+            ).await()
         }
     //endregion
 
