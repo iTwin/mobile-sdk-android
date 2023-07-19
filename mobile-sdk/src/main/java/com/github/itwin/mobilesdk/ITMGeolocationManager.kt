@@ -12,6 +12,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.Location
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -109,6 +110,18 @@ class ITMGeolocationManager(private var context: Context) {
 
     private var scope = MainScope()
     private var requester: ITMGeolocationRequester? = null
+    private var lastLocationTimeThresholdMillis = 0L
+
+    /**
+     * Sets the threshold when "last location" is used in location requests instead of requesting a
+     * new location. The default of 0 means that all location requests ask for the location (which
+     * can take time).
+     * @param value The threshold value (in milliseconds)
+     */
+    @Suppress("unused")
+    fun setLastLocationTimeThreshold(value: Long) {
+        lastLocationTimeThresholdMillis = value
+    }
 
     /**
      * Adds a lifecycle observer that does the following:
@@ -312,10 +325,17 @@ class ITMGeolocationManager(private var context: Context) {
                 "Location permission denied"
             )
         } else {
-            fusedLocationClient.getCurrentLocation(
-                Priority.PRIORITY_HIGH_ACCURACY,
-                cancellationTokenSource.token
-            ).await()
+            val lastLocation = if (lastLocationTimeThresholdMillis > 0) fusedLocationClient.lastLocation.await() else null
+            val elapsedMax = lastLocationTimeThresholdMillis * 1000000
+            val elapsed = if (lastLocation != null) SystemClock.elapsedRealtimeNanos() - lastLocation.elapsedRealtimeNanos else -1
+            if ((lastLocation != null) && (elapsed in (0 until elapsedMax))) {
+                lastLocation
+            } else {
+                fusedLocationClient.getCurrentLocation(
+                    Priority.PRIORITY_HIGH_ACCURACY,
+                    cancellationTokenSource.token
+                ).await()
+            }
         }
     //endregion
 
