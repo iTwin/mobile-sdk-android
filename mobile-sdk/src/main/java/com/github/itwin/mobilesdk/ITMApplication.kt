@@ -763,7 +763,7 @@ open class ITMApplication(
      *
      * @return An instance of [ITMGeolocationManager] or null if your app doesn't need geolocation.
      */
-    open fun createGeolocationManager() = ITMGeolocationManager(appContext)
+    open fun createGeolocationManager(): ITMGeolocationManager? = ITMGeolocationManager(appContext)
 
     /**
      * If the [geolocationManager] is null, first sets it using [createGeolocationManager].
@@ -785,7 +785,7 @@ open class ITMApplication(
      * @param activity The Activity to associate.
      */
     open fun associateWithActivity(activity: ComponentActivity) {
-        provideGeolocationManager().associateWithActivity(activity)
+        provideGeolocationManager()?.associateWithActivity(activity)
         (provideAuthorizationClient() as? ITMOIDCAuthorizationClient)?.associateWithActivity(activity)
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onPause(owner: LifecycleOwner) {
