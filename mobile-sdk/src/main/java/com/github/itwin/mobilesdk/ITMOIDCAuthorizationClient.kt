@@ -180,8 +180,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
      * @return The [AccessToken]. Note: if the login process fails for any reason, this [AccessToken]
      * will not be valid.
      */
-    private suspend fun getAccessToken() =
-        tryRefresh() ?: signIn()
+    private suspend fun getAccessToken() = tryRefresh() ?: signIn()
 
     private fun updateCachedToken(): AccessToken {
         val authState = authStateManager.current

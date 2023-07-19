@@ -15,8 +15,7 @@ import java.util.*
  *
  * @return A [String] containing an ISO 8601 format date.
  */
-fun Long.epochMillisToISO8601() =
-    Instant.ofEpochMilli(this).toString()
+fun Long.epochMillisToISO8601() = Instant.ofEpochMilli(this).toString()
 
 /**
  * Convenience function to convert a [String] containing an ISO 8601 date into a [Date] object.
@@ -45,15 +44,13 @@ fun String.iso8601ToDate(): Date? {
  * Returns the value corresponding to the given [key] as a [String], or `null` if such a key is not
  * present in the map, or contains a value that is not a [String].
  */
-fun <K, V> Map<K, V>.getOptionalString(key: K) =
-    this[key] as? String
+fun <K, V> Map<K, V>.getOptionalString(key: K) = this[key] as? String
 
 /**
  * Returns the value corresponding to the given [key] as a [Boolean], or `null` if such a key is not
  * present in the map, or contains a value that is not a [Boolean].
  */
-fun <K, V> Map<K, V>.getOptionalBoolean(key: K) =
-    this[key] as? Boolean
+fun <K, V> Map<K, V>.getOptionalBoolean(key: K) = this[key] as? Boolean
 
 /**
  * Returns the value corresponding to the given [key] as an [Int], or `null` if such a key is not

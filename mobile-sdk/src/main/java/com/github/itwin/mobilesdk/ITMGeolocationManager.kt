@@ -303,8 +303,7 @@ class ITMGeolocationManager(private var context: Context) {
         return getCurrentLocation()
     }
 
-    private suspend fun getGeolocationPosition() =
-         getGeolocation().toGeolocationPosition()
+    private suspend fun getGeolocationPosition() = getGeolocation().toGeolocationPosition()
 
     private suspend fun getCurrentLocation() =
         if (!context.checkFineLocationPermission()) {
