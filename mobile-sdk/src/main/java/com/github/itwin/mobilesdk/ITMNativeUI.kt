@@ -39,9 +39,8 @@ class ITMRect(value: Map<*, *>, webView: WebView) {
 
     init {
         val density = webView.resources.displayMetrics.density
-        fun getField(fieldName: String): Int {
-            return ((value[fieldName] as Number).toFloat() * density).roundToInt()
-        }
+        fun getField(fieldName: String) =
+            ((value[fieldName] as Number).toFloat() * density).roundToInt()
         x = getField("x")
         y = getField("y")
         width = getField("width")

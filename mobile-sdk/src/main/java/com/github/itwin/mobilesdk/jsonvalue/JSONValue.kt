@@ -158,65 +158,47 @@ class JSONValue private constructor(value: Any?) {
     /**
      * The receiver as a [JSONObject], or null if the receiver is not an object.
      */
-    fun asObject(): JSONObject? {
-        return objectValue
-    }
+    fun asObject() = objectValue
 
     /**
      * The receiver as a [JSONArray], or null if the receiver is not an array.
      */
-    fun asArray(): JSONArray? {
-        return arrayValue
-    }
+    fun asArray() = arrayValue
 
     /**
      * The receiver as a [Number], or null if the receiver is not a numeric value.
      */
-    fun asNumber(): Number? {
-        return numberValue
-    }
+    fun asNumber() = numberValue
 
     /**
      * The receiver as an [Int], or null if the receiver is not a numeric value.
      */
-    fun asInt(): Int? {
-        return numberValue?.toInt()
-    }
+    fun asInt() = numberValue?.toInt()
 
     /**
      * The receiver as a [Long], or null if the receiver is not a numeric value.
      */
-    fun asLong(): Long? {
-        return numberValue?.toLong()
-    }
+    fun asLong() = numberValue?.toLong()
 
     /**
      * The receiver as a [Float], or null if the receiver is not a numeric value.
      */
-    fun asFloat(): Float? {
-        return numberValue?.toFloat()
-    }
+    fun asFloat() = numberValue?.toFloat()
 
     /**
      * The receiver as a [Double], or null if the receiver is not a numeric value.
      */
-    fun asDouble(): Double? {
-        return numberValue?.toDouble()
-    }
+    fun asDouble() = numberValue?.toDouble()
 
     /**
      * The receiver as a [Boolean], or null if the receiver is not a boolean value.
      */
-    fun asBoolean(): Boolean? {
-        return booleanValue
-    }
+    fun asBoolean() = booleanValue
 
     /**
      * The receiver as a [String], or null if the receiver is not a string value.
      */
-    fun asString(): String? {
-        return stringValue
-    }
+    fun asString() = stringValue
 
     /**
      * A JSON string representing the receiver.
@@ -356,9 +338,8 @@ fun JSONArray.toList(): List<Any?> {
  * __Note__: This is conceptually the same as [mapOf], but creating a [JSONValue] instead of a
  * [Map].
  */
-fun jsonOf(vararg pairs: Pair<String, *>): JSONValue {
-    return toJSON(mapOf(*pairs))
-}
+fun jsonOf(vararg pairs: Pair<String, *>) =
+    toJSON(mapOf(*pairs))
 
 /**
  * Try to convert a value to a [JSONValue].

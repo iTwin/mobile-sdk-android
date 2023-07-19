@@ -277,14 +277,11 @@ open class ITMApplication(
      * @return The parsed contents of `ITMApplication/ITMAppConfig.json`, or null if the file does not
      * exist, or there is an error parsing the file.
      */
-    open fun loadITMAppConfig(): JSONObject? {
+    open fun loadITMAppConfig() = try {
         val manager = appContext.assets
-        try {
-            return JSONObject(manager.open("ITMApplication/ITMAppConfig.json").bufferedReader().use { it.readText() })
-        } catch (ex: Exception) {
-            // Ignore
-        }
-        return null
+        JSONObject(manager.open("ITMApplication/ITMAppConfig.json").bufferedReader().use { it.readText() })
+    } catch (ex: Exception) {
+        null
     }
 
     /**
@@ -375,9 +372,7 @@ open class ITMApplication(
                         maxOverScrollX: Int,
                         maxOverScrollY: Int,
                         isTouchEvent: Boolean
-                    ): Boolean {
-                        return false
-                    }
+                    ) = false
 
                     @Suppress("EmptyFunctionBlock")
                     override fun scrollTo(x: Int, y: Int) {
@@ -467,11 +462,10 @@ open class ITMApplication(
      * Function that creates an [ITMNativeUI] object for this [ITMApplication]. Override to return a
      * custom [ITMNativeUI] subclass.
      */
-    open fun createNativeUI(context: Context): ITMNativeUI? {
-        return webView?.let {
+    open fun createNativeUI(context: Context) =
+        webView?.let {
             ITMNativeUI(context, it, coMessenger)
         }
-    }
 
     /**
      * Clean up any existing frontend and initialize the frontend again.
@@ -516,9 +510,7 @@ open class ITMApplication(
      * Function that creates an [ITMMessenger] object for this [ITMApplication]. Override to return a
      * custom [ITMMessenger] subclass.
      */
-    open fun createMessenger(): ITMMessenger {
-        return ITMMessenger(this)
-    }
+    open fun createMessenger() = ITMMessenger(this)
 
     /**
      * Update the application to conform to the [preferredColorScheme].
@@ -545,9 +537,8 @@ open class ITMApplication(
         }
         webView.settings.setSupportZoom(false)
         webView.webViewClient = object : WebViewClient() {
-            fun shouldIgnoreUrl(url: String): Boolean {
-                return url.startsWith("file:///android_asset/frontend")
-            }
+            fun shouldIgnoreUrl(url: String) =
+                url.startsWith("file:///android_asset/frontend")
 
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                 if (shouldIgnoreUrl(url)) {
@@ -659,36 +650,29 @@ open class ITMApplication(
      *
      * This default implementation simply returns null.
      */
-    open fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-        return assetLoader.shouldInterceptRequest(request.url)
-    }
+    open fun shouldInterceptRequest(view: WebView, request: WebResourceRequest) =
+        assetLoader.shouldInterceptRequest(request.url)
 
     /**
      * Called when the [webView]'s [WebViewClient] calls [WebViewClient.shouldOverrideUrlLoading].
      *
      * This default implementation simply returns false.
      */
-    open fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-        return false
-    }
+    open fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = false
 
     /**
      * Called when the [webView]'s [WebViewClient] calls [WebViewClient.onRenderProcessGone].
      *
      * This default implementation simply returns false.
      */
-    open fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-        return false
-    }
+    open fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail) = false
 
     /**
      * Called when the [webView]'s [WebViewClient] calls [WebViewClient.onReceivedError].
      *
      * This default implementation simply returns false.
      */
-    open fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError): Boolean {
-        return false
-    }
+    open fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) = false
 
     /**
      * Callback function for the [ITMWebViewLogger] attached to [webView] (if any).
@@ -703,9 +687,7 @@ open class ITMApplication(
      * @return The relative path to where the backend home should go. The default implementation returns
      * `"ITMApplication/home"`.
      */
-    open fun getBackendHomePath(): String {
-        return "ITMApplication/home"
-    }
+    open fun getBackendHomePath() = "ITMApplication/home"
 
     /**
      * Get the relative path used where the backend is stored in the app assets.
@@ -713,9 +695,7 @@ open class ITMApplication(
      * @return The relative path to where the backend home should go. The default implementation returns
      * `"ITMApplication/backend"`.
      */
-    open fun getBackendPath(): String {
-        return "ITMApplication/backend"
-    }
+    open fun getBackendPath() = "ITMApplication/backend"
 
     /**
      * Get name of the entry point JavaScript file for the backend.
@@ -723,9 +703,7 @@ open class ITMApplication(
      * @return The relative path to where the backend home should go. The default implementation returns
      * `"main.js"`.
      */
-    open fun getBackendEntryPointScript(): String {
-        return "main.js"
-    }
+    open fun getBackendEntryPointScript() = "main.js"
 
     /**
      * Get the base URL for the frontend.
@@ -751,11 +729,10 @@ open class ITMApplication(
      * @return The default [ITMApplication] [HashParam] values based on the contents of
      * [configData].
      */
-    open suspend fun getUrlHashParams(): HashParams {
-        return listOfNotNull(
+    open suspend fun getUrlHashParams() =
+        listOfNotNull(
             HashParam.fromConfigData(configData, "ITMAPPLICATION_API_PREFIX", "apiPrefix")
         )
-    }
 
     /**
      * Creates the [AuthorizationClient] to be used for this iTwin Mobile web app.
@@ -766,11 +743,10 @@ open class ITMApplication(
      *
      * @return An instance of [AuthorizationClient], or null if you don't want any authentication in your app.
      */
-    open fun createAuthorizationClient(): AuthorizationClient? {
-        return configData?.let { configData ->
+    open fun createAuthorizationClient() =
+        configData?.let { configData ->
             ITMOIDCAuthorizationClient(this, configData)
         }
-    }
 
     /**
      * If the [authorizationClient] is null, first sets it using [createAuthorizationClient].
@@ -779,18 +755,15 @@ open class ITMApplication(
      *
      * @return The [authorizationClient] value.
      */
-    open fun provideAuthorizationClient(): AuthorizationClient? {
-        return authorizationClient ?: createAuthorizationClient().also { authorizationClient = it }
-    }
+    open fun provideAuthorizationClient() =
+        authorizationClient ?: createAuthorizationClient().also { authorizationClient = it }
 
     /**
      * Creates the [ITMGeolocationManager] to be used for this iTwin Mobile web app.
      *
      * @return An instance of [ITMGeolocationManager] or null if your app doesn't need geolocation.
      */
-    open fun createGeolocationManager(): ITMGeolocationManager? {
-        return ITMGeolocationManager(appContext)
-    }
+    open fun createGeolocationManager() = ITMGeolocationManager(appContext)
 
     /**
      * If the [geolocationManager] is null, first sets it using [createGeolocationManager].
@@ -799,9 +772,8 @@ open class ITMApplication(
      *
      * @return The [geolocationManager] value.
      */
-    open fun provideGeolocationManager(): ITMGeolocationManager? {
-        return geolocationManager ?: createGeolocationManager().also { geolocationManager = it }
-    }
+    open fun provideGeolocationManager() =
+        geolocationManager ?: createGeolocationManager().also { geolocationManager = it }
 
     /**
      * Associates the given activity with the [geolocationManager] and [authorizationClient], and
@@ -813,7 +785,7 @@ open class ITMApplication(
      * @param activity The Activity to associate.
      */
     open fun associateWithActivity(activity: ComponentActivity) {
-        provideGeolocationManager()?.associateWithActivity(activity)
+        provideGeolocationManager().associateWithActivity(activity)
         (provideAuthorizationClient() as? ITMOIDCAuthorizationClient)?.associateWithActivity(activity)
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onPause(owner: LifecycleOwner) {

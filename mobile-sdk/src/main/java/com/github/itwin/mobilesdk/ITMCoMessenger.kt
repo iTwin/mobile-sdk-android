@@ -90,11 +90,10 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
     @Suppress("unused")
-    fun registerMessageHandler(type: String, callback: suspend() -> Unit): ITMMessenger.ITMHandler {
-        return registerQueryHandler<Unit, Unit>(type) {
+    fun registerMessageHandler(type: String, callback: suspend() -> Unit) =
+        registerQueryHandler<Unit, Unit>(type) {
             callback.invoke()
         }
-    }
 
     /**
      * Add a coroutine-based handler for queries from the web view that do not include a response.
@@ -111,11 +110,10 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
     @Suppress("unused")
-    fun <I> registerMessageHandler(type: String, callback: suspend(I) -> Unit): ITMMessenger.ITMHandler {
-        return registerQueryHandler<I, Unit>(type) { value ->
+    fun <I> registerMessageHandler(type: String, callback: suspend(I) -> Unit) =
+        registerQueryHandler<I, Unit>(type) { value ->
             callback.invoke(value)
         }
-    }
 
     /**
      * Add a coroutine-based handler for queries from the [web view][ITMApplication.webView].
@@ -133,8 +131,8 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
     @Suppress("unused")
-    fun <I, O> registerQueryHandler(type: String, callback: suspend (I) -> O): ITMMessenger.ITMHandler {
-        return messenger.registerQueryHandler<I, O>(type) { value, success, failure ->
+    fun <I, O> registerQueryHandler(type: String, callback: suspend (I) -> O) =
+        messenger.registerQueryHandler<I, O>(type) { value, success, failure ->
             MainScope().launch {
                 try {
                     val result = callback.invoke(value)
@@ -144,7 +142,6 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
                 }
             }
         }
-    }
 
     /**
      * Convenience wrapper around [ITMMessenger.removeHandler].

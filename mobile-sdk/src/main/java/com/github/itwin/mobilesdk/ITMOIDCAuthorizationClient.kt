@@ -97,10 +97,9 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     private var cachedToken: AccessToken? = null
-        get() {
+        get() =
             // only return the token if it hasn't expired
-            return field?.takeIf { Date().time < (it.expirationDate?.iso8601ToDate()?.time ?: 0) }
-        }
+            field?.takeIf { Date().time < (it.expirationDate?.iso8601ToDate()?.time ?: 0) }
 
     /**
      * Disposes of any open resources held by this class.
@@ -110,9 +109,8 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         authService = null
     }
 
-    private fun requireAuthService(): AuthorizationService {
-        return authService ?: AuthorizationService(context).also { authService = it }
-    }
+    private fun requireAuthService() =
+        authService ?: AuthorizationService(context).also { authService = it }
 
     companion object {
         private const val DEFAULT_SCOPES = "projects:read imodelaccess:read itwinjs organization profile email imodels:read realitydata:read savedviews:read savedviews:modify itwins:read openid offline_access"
@@ -146,37 +144,32 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         return requireAuthService().getAuthorizationRequestIntent(authRequest)
     }
 
-    private suspend fun launchRequestAuthorization(authState: AuthState): AccessToken {
-        return getAuthorizationResponse(getAuthorizationRequestIntent(authState)).takeIf { result ->
+    private suspend fun launchRequestAuthorization(authState: AuthState) =
+        getAuthorizationResponse(getAuthorizationRequestIntent(authState)).takeIf { result ->
             result.resultCode == Activity.RESULT_OK
         }?.data?.let {
             handleAuthorizationResponse(it)
         } ?: AccessToken()
+
+    private suspend fun tryRefresh() = try {
+        authStateManager.current.performActionWithFreshTokens(requireAuthService())
+        authStateManager.updated()
+        updateCachedToken()
+    } catch (ex: Throwable) {
+        if (ex == AuthorizationException.TokenRequestErrors.INVALID_GRANT) {
+            try {
+                signOut()
+            } catch (_: Throwable) {} // ignore
+        }
+        null
     }
 
-    private suspend fun tryRefresh(): AccessToken? {
-        return try {
-            authStateManager.current.performActionWithFreshTokens(requireAuthService())
-            authStateManager.updated()
-            updateCachedToken()
-        } catch (ex: Throwable) {
-            if (ex == AuthorizationException.TokenRequestErrors.INVALID_GRANT) {
-                try {
-                    signOut()
-                } catch (_: Throwable) {} // ignore
-            }
-            null
-        }
-    }
-
-    private suspend fun signIn(): AccessToken {
-        return try {
-            initAuthState()
-            launchRequestAuthorization(authStateManager.current)
-        } catch (ex: Exception) {
-            itmApplication.logger.log(ITMLogger.Severity.Error, "Error fetching token: $ex")
-            AccessToken()
-        }
+    private suspend fun signIn() = try {
+        initAuthState()
+        launchRequestAuthorization(authStateManager.current)
+    } catch (ex: Exception) {
+        itmApplication.logger.log(ITMLogger.Severity.Error, "Error fetching token: $ex")
+        AccessToken()
     }
 
     /**
@@ -187,9 +180,8 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
      * @return The [AccessToken]. Note: if the login process fails for any reason, this [AccessToken]
      * will not be valid.
      */
-    private suspend fun getAccessToken(): AccessToken {
-        return tryRefresh() ?: signIn()
-    }
+    private suspend fun getAccessToken() =
+        tryRefresh() ?: signIn()
 
     private fun updateCachedToken(): AccessToken {
         val authState = authStateManager.current

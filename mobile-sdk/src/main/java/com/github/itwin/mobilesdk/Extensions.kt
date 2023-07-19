@@ -15,9 +15,8 @@ import java.util.*
  *
  * @return A [String] containing an ISO 8601 format date.
  */
-fun Long.epochMillisToISO8601(): String {
-    return Instant.ofEpochMilli(this).toString()
-}
+fun Long.epochMillisToISO8601() =
+    Instant.ofEpochMilli(this).toString()
 
 /**
  * Convenience function to convert a [String] containing an ISO 8601 date into a [Date] object.
@@ -46,49 +45,43 @@ fun String.iso8601ToDate(): Date? {
  * Returns the value corresponding to the given [key] as a [String], or `null` if such a key is not
  * present in the map, or contains a value that is not a [String].
  */
-fun <K, V> Map<K, V>.getOptionalString(key: K): String? {
-    return this[key] as? String
-}
+fun <K, V> Map<K, V>.getOptionalString(key: K) =
+    this[key] as? String
 
 /**
  * Returns the value corresponding to the given [key] as a [Boolean], or `null` if such a key is not
  * present in the map, or contains a value that is not a [Boolean].
  */
-fun <K, V> Map<K, V>.getOptionalBoolean(key: K): Boolean? {
-    return this[key] as? Boolean
-}
+fun <K, V> Map<K, V>.getOptionalBoolean(key: K) =
+    this[key] as? Boolean
 
 /**
  * Returns the value corresponding to the given [key] as an [Int], or `null` if such a key is not
  * present in the map, or contains a value that is not an [Int].
  */
-fun <K, V> Map<K, V>.getOptionalInt(key: K): Int? {
-    return this[key]?.let { it as? Int ?: (it as? Number)?.toInt() }
-}
+fun <K, V> Map<K, V>.getOptionalInt(key: K) =
+    this[key]?.let { it as? Int ?: (it as? Number)?.toInt() }
 
 /**
  * Returns the value corresponding to the given [key] as a [Long], or `null` if such a key is not
  * present in the map, or contains a value that is not a [Long].
  */
-fun <K, V> Map<K, V>.getOptionalLong(key: K): Long? {
-    return this[key]?.let { it as? Long ?: (it as? Number)?.toLong() }
-}
+fun <K, V> Map<K, V>.getOptionalLong(key: K) =
+    this[key]?.let { it as? Long ?: (it as? Number)?.toLong() }
 
 /**
  * Returns the value corresponding to the given [key] as a [Float], or `null` if such a key is not
  * present in the map, or contains a value that is not a [Float].
  */
-fun <K, V> Map<K, V>.getOptionalFloat(key: K): Float? {
-    return this[key]?.let { it as? Float ?: (it as? Number)?.toFloat() }
-}
+fun <K, V> Map<K, V>.getOptionalFloat(key: K) =
+    this[key]?.let { it as? Float ?: (it as? Number)?.toFloat() }
 
 /**
  * Returns the value corresponding to the given [key] as a [Double], or `null` if such a key is not
  * present in the map, or contains a value that is not a [Double].
  */
-fun <K, V> Map<K, V>.getOptionalDouble(key: K): Double? {
-    return this[key]?.let { it as? Double ?: (it as? Number)?.toDouble() }
-}
+fun <K, V> Map<K, V>.getOptionalDouble(key: K) =
+    this[key]?.let { it as? Double ?: (it as? Number)?.toDouble() }
 
 /**
  * Verify that all entries in the receiver have a key type of `K` and a value type of `V`.

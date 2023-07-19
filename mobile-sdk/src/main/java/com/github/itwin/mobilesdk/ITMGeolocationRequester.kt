@@ -32,9 +32,8 @@ import kotlinx.coroutines.tasks.await
  * to "recognize" that this is a permission check. I couldn't find a way to add the appropriate
  * attributes to the function instead of relying on this naming workaround.
  */
-fun Context.checkFineLocationPermission(): Boolean {
-    return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-}
+fun Context.checkFineLocationPermission() =
+    ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
 /**
  * Encapsulates the requesting of location permission and services. Used automatically by
@@ -114,15 +113,14 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
             return settingsClient.checkLocationSettings(settingsRequest)
         }
 
-        suspend fun isLocationServiceAvailable(context: Context, resolver: (suspend (intent: PendingIntent) -> Boolean)? = null): Boolean {
-            return try {
+        suspend fun isLocationServiceAvailable(context: Context, resolver: (suspend (intent: PendingIntent) -> Boolean)? = null) =
+            try {
                 createCheckLocationSettingsTask(context).await().locationSettingsStates?.isLocationUsable == true
             } catch (exception: ResolvableApiException) {
                 resolver?.invoke(exception.resolution) ?: false
             } catch (exception: Exception) {
                 false
             }
-        }
 
         suspend fun ensureLocationAvailability(context: Context) {
             if (!context.checkFineLocationPermission())
@@ -161,11 +159,10 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
         return task.await()
     }
 
-    private suspend fun isLocationServiceAvailable(): Boolean {
-        return Companion.isLocationServiceAvailable(context) {
+    private suspend fun isLocationServiceAvailable() =
+        Companion.isLocationServiceAvailable(context) {
             tryResolveLocationServiceException(it)
         }
-    }
 
     private suspend fun tryResolveLocationServiceException(resolution: PendingIntent): Boolean {
         val task = requestLocationServiceTask ?: CompletableDeferred<Boolean>().also {

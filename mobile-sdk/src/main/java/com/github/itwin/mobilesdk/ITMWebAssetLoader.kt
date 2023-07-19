@@ -30,9 +30,8 @@ class ITMWebAssetLoader(private val context: Context) {
         const val DEFAULT_MIME_TYPE = "text/plain"
     }
 
-    private fun guessMimeType(path: String): String {
-        return URLConnection.guessContentTypeFromName(path) ?: DEFAULT_MIME_TYPE
-    }
+    private fun guessMimeType(path: String) =
+        URLConnection.guessContentTypeFromName(path) ?: DEFAULT_MIME_TYPE
 
     /**
      * Checks the given [Uri], and if it has a prefix of [URL_PREFIX] (`https://appassets.itwinjs.org/assets/`),
