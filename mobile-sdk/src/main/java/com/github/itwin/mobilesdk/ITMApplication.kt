@@ -743,7 +743,7 @@ open class ITMApplication(
      *
      * @return An instance of [AuthorizationClient], or null if you don't want any authentication in your app.
      */
-    open fun createAuthorizationClient() =
+    open fun createAuthorizationClient(): AuthorizationClient? =
         configData?.let { configData ->
             ITMOIDCAuthorizationClient(this, configData)
         }
