@@ -19,7 +19,6 @@ import androidx.activity.ComponentActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import com.github.itwin.mobilesdk.jsonvalue.JSONValue
 import com.github.itwin.mobilesdk.jsonvalue.jsonOf
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -75,9 +74,8 @@ class ITMGeolocationManager(private var context: Context) {
     private data class GeolocationCoordinates(val latitude: Double, val longitude: Double, val accuracy: Double?, val heading: Double?)
     private data class GeolocationPosition(val coords: GeolocationCoordinates)
     private data class GeolocationRequestData(val positionId: String, val position: GeolocationPosition) {
-        fun toJsonString(): String {
-            return Gson().toJson(this)
-        }
+        fun toJsonString(): String =
+            Gson().toJson(this)
     }
 
     class GeolocationError(private val code: Code, message: String?) : Throwable(message) {
@@ -87,15 +85,14 @@ class ITMGeolocationManager(private var context: Context) {
             TIMEOUT(3),
         }
 
-        fun toJSON(): JSONValue {
-            return jsonOf(
+        fun toJSON() =
+            jsonOf(
                 "code" to code.value,
                 "message" to (message ?: ""),
                 "PERMISSION_DENIED" to Code.PERMISSION_DENIED.value,
                 "POSITION_UNAVAILABLE" to Code.POSITION_UNAVAILABLE.value,
                 "TIMEOUT" to Code.TIMEOUT.value,
             )
-        }
     }
 
     private fun Location.toGeolocationPosition(heading: Double? = null): GeolocationPosition {
@@ -164,14 +161,13 @@ class ITMGeolocationManager(private var context: Context) {
         addLifecycleObserver(fragment)
     }
 
-    private fun getFusedLocationProviderClient(): FusedLocationProviderClient {
+    private fun getFusedLocationProviderClient() =
         // Prefer the Activity-based location client over the generic context one
-        return if (context is Activity) {
+        if (context is Activity) {
             LocationServices.getFusedLocationProviderClient(context as Activity)
         } else {
             LocationServices.getFusedLocationProviderClient(context)
         }
-    }
 
     private var _fusedLocationClient: FusedLocationProviderClient? = null
     private val fusedLocationClient: FusedLocationProviderClient
@@ -307,16 +303,20 @@ class ITMGeolocationManager(private var context: Context) {
         return getCurrentLocation()
     }
 
-    private suspend fun getGeolocationPosition(): GeolocationPosition {
-        return getGeolocation().toGeolocationPosition()
-    }
+    private suspend fun getGeolocationPosition() = getGeolocation().toGeolocationPosition()
 
-    private suspend fun getCurrentLocation(): Location {
-        if (!context.checkFineLocationPermission())
-            throw GeolocationError(GeolocationError.Code.PERMISSION_DENIED, "Location permission denied")
-
-        return fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancellationTokenSource.token).await()
-    }
+    private suspend fun getCurrentLocation() =
+        if (!context.checkFineLocationPermission()) {
+            throw GeolocationError(
+                GeolocationError.Code.PERMISSION_DENIED,
+                "Location permission denied"
+            )
+        } else {
+            fusedLocationClient.getCurrentLocation(
+                Priority.PRIORITY_HIGH_ACCURACY,
+                cancellationTokenSource.token
+            ).await()
+        }
     //endregion
 
     //region Position tracking

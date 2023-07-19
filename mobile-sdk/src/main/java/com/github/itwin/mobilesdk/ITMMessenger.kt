@@ -445,9 +445,8 @@ class ITMMessenger(private val itmApplication: ITMApplication) {
      * @param failure Failure callback called when the web view returns an error from the query.
      */
     @Suppress("MemberVisibilityCanBePrivate")
-    fun <O> query(type: String, success: ITMSuccessCallback<O>?, failure: ITMFailureCallback? = null) {
-        return query(type, Unit, success, failure)
-    }
+    fun <O> query(type: String, success: ITMSuccessCallback<O>?, failure: ITMFailureCallback? = null) =
+        query(type, Unit, success, failure)
 
     /**
      * Add a handler for queries from the web view that include a response.

@@ -151,18 +151,16 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
     }
 }
 
-private fun String.toGravity(): Int {
-    return when (this) {
-        "top" -> Gravity.TOP
-        "bottom" -> Gravity.BOTTOM
-        "left" -> Gravity.LEFT
-        "right" -> Gravity.RIGHT
-        "topLeft" -> Gravity.TOP or Gravity.LEFT
-        "topRight" -> Gravity.TOP or Gravity.RIGHT
-        "bottomLeft" -> Gravity.BOTTOM or Gravity.LEFT
-        "bottomRight" -> Gravity.BOTTOM or Gravity.RIGHT
-        else -> Gravity.NO_GRAVITY
-    }
+private fun String.toGravity() = when (this) {
+    "top" -> Gravity.TOP
+    "bottom" -> Gravity.BOTTOM
+    "left" -> Gravity.LEFT
+    "right" -> Gravity.RIGHT
+    "topLeft" -> Gravity.TOP or Gravity.LEFT
+    "topRight" -> Gravity.TOP or Gravity.RIGHT
+    "bottomLeft" -> Gravity.BOTTOM or Gravity.LEFT
+    "bottomRight" -> Gravity.BOTTOM or Gravity.RIGHT
+    else -> Gravity.NO_GRAVITY
 }
 
 private fun View.screenLocation(): IntArray {
