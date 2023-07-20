@@ -17,6 +17,7 @@ import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
+import androidx.annotation.RequiresPermission
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -318,6 +319,15 @@ class ITMGeolocationManager(private var context: Context) {
 
     private suspend fun getGeolocationPosition() = getGeolocation().toGeolocationPosition()
 
+    @RequiresPermission(anyOf = ["android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION"])
+    private suspend fun getRecentLastLocation() =
+        lastLocationTimeThresholdMillis.takeIf { it > 0 }?.let {
+            val lastLocation = fusedLocationClient.lastLocation.await()
+            val elapsedMax = it * 1000000
+            val elapsed = SystemClock.elapsedRealtimeNanos() - lastLocation.elapsedRealtimeNanos
+            lastLocation.takeIf { elapsed in (0 until elapsedMax) }
+        }
+
     private suspend fun getCurrentLocation() =
         if (!context.checkFineLocationPermission()) {
             throw GeolocationError(
@@ -325,13 +335,6 @@ class ITMGeolocationManager(private var context: Context) {
                 "Location permission denied"
             )
         } else {
-            suspend fun getRecentLastLocation() =
-                lastLocationTimeThresholdMillis.takeIf { it > 0 }?.let {
-                    val lastLocation = fusedLocationClient.lastLocation.await()
-                    val elapsedMax = it * 1000000
-                    val elapsed = SystemClock.elapsedRealtimeNanos() - lastLocation.elapsedRealtimeNanos
-                    lastLocation.takeIf { elapsed in (0 until elapsedMax) }
-                }
             getRecentLastLocation() ?: fusedLocationClient.getCurrentLocation(
                 Priority.PRIORITY_HIGH_ACCURACY,
                 cancellationTokenSource.token
