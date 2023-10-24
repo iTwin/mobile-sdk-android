@@ -31,7 +31,6 @@ import com.github.itwin.mobilesdk.jsonvalue.optStringOrNull
 import com.github.itwin.mobilesdk.jsonvalue.toMap
 import kotlinx.coroutines.*
 import org.json.JSONObject
-import java.io.Serializable
 import java.lang.Integer.max
 import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicBoolean
@@ -608,7 +607,7 @@ open class ITMApplication(
         val third: C,
         val fourth: D,
         val fifth: E
-    ) : Serializable {
+    ) {
         /**
          * Returns string representation of the [Quint] including its [first], [second], [third], [fourth], and [fifth] values.
          */
@@ -631,6 +630,7 @@ open class ITMApplication(
         }
     }
 
+    @Suppress("DestructuringDeclarationWithTooManyEntries")
     private fun updateSafeAreas(view: View, insets: WindowInsets) {
         val activity = ((view.parent as? ViewGroup)?.context as? Activity) ?: return
         val (sides, left, right, top, bottom) = getSafeAreas(activity, view, insets)
