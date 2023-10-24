@@ -624,9 +624,8 @@ open class ITMApplication(
         if (activity.isInMultiWindowMode)
             insetsType = insetsType or WindowInsetsCompat.Type.systemBars()
 
-        val safeAreaInsets = WindowInsetsCompat.toWindowInsetsCompat(insets, view).getInsets(insetsType)
-        return safeAreaInsets.let {
-            Quint(toDp(max(it.left, it.right)), toDp(it.left), toDp(it.right), toDp(it.top), toDp(it.bottom))
+        return with(WindowInsetsCompat.toWindowInsetsCompat(insets, view).getInsets(insetsType)) {
+            Quint(toDp(max(left, right)), toDp(left), toDp(right), toDp(top), toDp(bottom))
         }
     }
 
