@@ -16,9 +16,11 @@ import android.net.Network
 import android.system.Os
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.webkit.*
 import androidx.activity.ComponentActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
@@ -29,7 +31,8 @@ import com.github.itwin.mobilesdk.jsonvalue.optStringOrNull
 import com.github.itwin.mobilesdk.jsonvalue.toMap
 import kotlinx.coroutines.*
 import org.json.JSONObject
-import java.lang.Float.max
+import java.io.Serializable
+import java.lang.Integer.max
 import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -592,38 +595,55 @@ open class ITMApplication(
         webView?.let { webView ->
             (webView.parent as? ViewGroup)?.removeView(webView)
             container.addView(webView)
-            webView.setOnApplyWindowInsetsListener { v, insets ->
-                updateSafeAreas(v)
-                v.onApplyWindowInsets(insets)
+            webView.setOnApplyWindowInsetsListener { view, insets ->
+                updateSafeAreas(view, insets)
+                view.onApplyWindowInsets(insets)
             }
         }
     }
 
-    private fun updateSafeAreas(view: View) {
-        val activity = ((view.parent as? ViewGroup)?.context as? Activity) ?: return
-        val window = activity.window ?: return
-        val message = mutableMapOf(
-            "left" to 0.0f,
-            "right" to 0.0f,
-            "top" to 0.0f,
-            "bottom" to 0.0f
-        )
-        window.decorView.rootWindowInsets?.displayCutout?.let { displayCutoutInsets ->
+    private data class Quint<out A, out B, out C, out D, out E>(
+        val first: A,
+        val second: B,
+        val third: C,
+        val fourth: D,
+        val fifth: E
+    ) : Serializable {
+        /**
+         * Returns string representation of the [Quint] including its [first], [second], [third], [fourth], and [fifth] values.
+         */
+        override fun toString(): String = "($first, $second, $third, $fourth, $fifth)"
+    }
+
+    private fun getSafeAreas(activity: Activity, view: View, insets: WindowInsets): Quint<Float, Float, Float, Float, Float> {
+        fun toDp(value: Int): Float {
             val density = activity.resources.displayMetrics.density
-            val top = displayCutoutInsets.safeInsetTop / density
-            val bottom = displayCutoutInsets.safeInsetBottom / density
-            val left = displayCutoutInsets.safeInsetLeft / density
-            val right = displayCutoutInsets.safeInsetRight / density
-            // Make both sides have the same safe area.
-            val sides = max(left, right)
-            message["left"] = sides
-            message["right"] = sides
-            // Include the actual left/right insets so developers can use them if desired.
-            message["minLeft"] = left
-            message["minRight"] = right
-            message["top"] = top
-            message["bottom"] = bottom
+            return value / density
         }
+        var insetsType = WindowInsetsCompat.Type.displayCutout()
+        // Ideally we'd always get system bars insets but before API 30 getInsets() returns bars insets even if they are overlaid on top.
+        if (activity.isInMultiWindowMode)
+            insetsType = insetsType or WindowInsetsCompat.Type.systemBars()
+
+        val safeAreaInsets = WindowInsetsCompat.toWindowInsetsCompat(insets, view).getInsets(insetsType)
+        return safeAreaInsets.let {
+            Quint(toDp(max(it.left, it.right)), toDp(it.left), toDp(it.right), toDp(it.top), toDp(it.bottom))
+        }
+    }
+
+    private fun updateSafeAreas(view: View, insets: WindowInsets) {
+        val activity = ((view.parent as? ViewGroup)?.context as? Activity) ?: return
+        val (sides, left, right, top, bottom) = getSafeAreas(activity, view, insets)
+        val message = mapOf(
+            // We want both sides to have the same safe area.
+            "left" to sides,
+            "right" to sides,
+            // Include the actual left/right insets so developers can use them if desired.
+            "minLeft" to left,
+            "minRight" to right,
+            "top" to top,
+            "bottom" to bottom,
+        )
         messenger.send("Bentley_ITM_muiUpdateSafeAreas", message)
     }
 
