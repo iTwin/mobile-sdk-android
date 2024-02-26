@@ -54,7 +54,12 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
             Destructive;
 
             companion object {
-                fun fromString(style: String?) = style?.takeIf { it.isNotEmpty() }?.let { Style.valueOf(style.replaceFirstChar { it.uppercase() }) } ?: Default
+                fun fromString(style: String?) =
+                    style?.takeIf {
+                        it.isNotEmpty()
+                    }?.let {
+                        Style.valueOf(style.replaceFirstChar { it.uppercase() })
+                    } ?: Default
             }
         }
 
