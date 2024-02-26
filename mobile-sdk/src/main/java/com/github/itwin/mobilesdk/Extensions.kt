@@ -95,6 +95,15 @@ inline fun <reified K: Any, reified V: Any> Map<*,*>.checkEntriesAre(): Map<K, V
 }
 
 /**
+ * Ensure that all entries in the receiver have a key type of `K` and a value type of `V`.
+ * @throws Throwable If the entries don't have the proper types, this throws while failing to convert
+ * `null` to `Map<K, V>`.
+ * @return The receiver specialized with `K` and `V`.
+ */
+inline fun <reified K: Any, reified V: Any> Map<*,*>.ensureEntriesAre(): Map<K, V> =
+    checkEntriesAre<K, V>() as Map<K, V>
+
+/**
  * Verify that all items in the receiver have a type of `T`.
  * @return The receiver specialized with `T` if the item types match, otherwise `null`.
  */

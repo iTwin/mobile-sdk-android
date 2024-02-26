@@ -19,7 +19,7 @@ import kotlin.coroutines.suspendCoroutine
  *
  * This class is used by the `presentActionSheet` TypeScript function in `@itwin/mobile-core`.
  *
- * __Note:__ Due to the cross-platform nature of `@itwin/mobile-core`, functionality like this that
+ * > __Note:__ Due to the cross-platform nature of `@itwin/mobile-core`, functionality like this that
  * is designed to use native underlying features runs into a possible confusion over different naming
  * on iOS vs. Android. On iOS, the `presentActionSheet` TypeScript function results in an alert
  * controller with a style of `actionSheet`. Functionally, that uses a popover on iPads and full screen
@@ -40,6 +40,18 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
         handler = coMessenger.registerQueryHandler("Bentley_ITM_presentActionSheet", ::handleQuery)
     }
 
+    private fun toGravity(value: String?) = when (value) {
+        "top" -> Gravity.TOP
+        "bottom" -> Gravity.BOTTOM
+        "left" -> Gravity.LEFT
+        "right" -> Gravity.RIGHT
+        "topLeft" -> Gravity.TOP or Gravity.LEFT
+        "topRight" -> Gravity.TOP or Gravity.RIGHT
+        "bottomLeft" -> Gravity.BOTTOM or Gravity.LEFT
+        "bottomRight" -> Gravity.BOTTOM or Gravity.RIGHT
+        else -> Gravity.NO_GRAVITY
+    }
+
     private suspend fun handleQuery(params: Map<String, Any>): String? {
         try {
             // Note: no input validation is intentional. If the input is malformed, it will trigger the exception handler, which will send
@@ -52,13 +64,13 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
             addAnchor(ITMRect(params["sourceRect"] as Map<*, *>, webView))
             return suspendCoroutine { continuation ->
                 this.continuation = continuation
-                val popupGravity = params.getOptionalString("gravity")?.toGravity() ?: Gravity.NO_GRAVITY
+                val popupGravity = toGravity(params.getOptionalString("gravity"))
                 with(PopupMenu(context, anchor, popupGravity)) {
-                    setOnMenuItemClickListener { item ->
+                    popupMenu = this
+                    setOnMenuItemClickListener {
                         removeAnchor()
                         popupMenu = null
-                        cancelAction = null
-                        resume(actions[item.itemId].name)
+                        resume(actions[it.itemId].name)
                         return@setOnMenuItemClickListener true
                     }
                     setOnDismissListener {
@@ -66,13 +78,13 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
                         popupMenu = null
                         resume(cancelAction?.name)
                     }
-                    params.getOptionalString("title")?.let { title ->
-                        with(menu.add(Menu.NONE, -1, Menu.NONE, title)) {
+                    params.getOptionalString("title")?.let {
+                        with(menu.add(Menu.NONE, -1, Menu.NONE, it)) {
                             isEnabled = false
                         }
                     }
-                    params.getOptionalString("message")?.let { message ->
-                        with(menu.add(Menu.NONE, -1, Menu.NONE, message)) {
+                    params.getOptionalString("message")?.let {
+                        with(menu.add(Menu.NONE, -1, Menu.NONE, it)) {
                             isEnabled = false
                         }
                     }
@@ -80,13 +92,11 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
                         menu.add(Menu.NONE, index, Menu.NONE, action.styledTitle)
                     }
                     show()
-                    popupMenu = this
                 }
             }
         } catch (ex: Exception) {
             removeUI()
             removeAnchor()
-            cancelAction = null
             continuation = null
             // Note: this is caught by ITMCoMessenger and tells the TypeScript caller that there was an error.
             throw Exception("Invalid input to Bentley_ITM_presentActionSheet")
@@ -96,6 +106,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
     override fun removeUI() {
         popupMenu?.dismiss()
         popupMenu = null
+        cancelAction = null
     }
 
     private fun addAnchor(sourceRect: ITMRect) {
@@ -118,12 +129,14 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
                 val (x, y) = webView.screenLocation()
                 layoutParams.leftMargin += x
                 layoutParams.topMargin += y
+                // Add the anchor to relativeLayout
                 addView(anchor, layoutParams)
                 val matchParent = RelativeLayout.LayoutParams.MATCH_PARENT
                 val screenLayoutParams = RelativeLayout.LayoutParams(matchParent, matchParent)
                 screenLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP, RelativeLayout.TRUE)
                 screenLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE)
                 viewGroup = viewGroup?.rootView as? ViewGroup
+                // Add the full-screen relativeLayout to viewGroup
                 viewGroup?.addView(this, screenLayoutParams)
             }
         } else {
@@ -137,6 +150,7 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
         }
         relativeLayout = null
         anchor = null
+        viewGroup = null
     }
 
     /**
@@ -144,23 +158,8 @@ class ITMActionSheet(nativeUI: ITMNativeUI): ITMActionable(nativeUI) {
      */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        removeUI()
-        removeAnchor()
         resume(cancelAction?.name)
-        cancelAction = null
     }
-}
-
-private fun String.toGravity() = when (this) {
-    "top" -> Gravity.TOP
-    "bottom" -> Gravity.BOTTOM
-    "left" -> Gravity.LEFT
-    "right" -> Gravity.RIGHT
-    "topLeft" -> Gravity.TOP or Gravity.LEFT
-    "topRight" -> Gravity.TOP or Gravity.RIGHT
-    "bottomLeft" -> Gravity.BOTTOM or Gravity.LEFT
-    "bottomRight" -> Gravity.BOTTOM or Gravity.RIGHT
-    else -> Gravity.NO_GRAVITY
 }
 
 private fun View.screenLocation(): IntArray {
