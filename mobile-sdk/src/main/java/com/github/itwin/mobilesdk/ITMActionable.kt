@@ -24,10 +24,14 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
          * @param tsActions A List of [Map] values containing the actions.
          */
         fun readActions(tsActions: List<*>): Pair<List<Action>, Action?> {
+            // Note: Various things here can trigger an exception if invalid input is received. We
+            // intentionally allow those to happen so that this function will throw an exception if
+            // there is invalid input, which will then be caught by the caller, which generates an
+            // error log and returns the exception to the TypeScript side.
             val actions: MutableList<Action> = mutableListOf()
             var cancelAction: Action? = null
             tsActions.forEach { actionValue ->
-                (actionValue as? Map<*, *>)?.checkEntriesAre<String, String>()?.let {
+                (actionValue as Map<*, *>).ensureEntriesAre<String, String>().let {
                     val action = Action(it)
                     if (action.style == Action.Style.Cancel) {
                         cancelAction = action
@@ -50,7 +54,12 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
             Destructive;
 
             companion object {
-                fun fromString(style: String?) = style?.takeIf { it.isNotEmpty() }?.let { Style.valueOf(style.replaceFirstChar { it.uppercase() }) } ?: Default
+                fun fromString(style: String?) =
+                    style?.takeIf {
+                        it.isNotEmpty()
+                    }?.let {
+                        Style.valueOf(style.replaceFirstChar { it.uppercase() })
+                    } ?: Default
             }
         }
 
@@ -65,12 +74,12 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
          */
         val styledTitle: CharSequence
             get() = if (style == Action.Style.Destructive) {
-                    val colorTitle = SpannableString(title)
-                    colorTitle.setSpan(ForegroundColorSpan(Color.RED), 0, title.length, 0)
-                    colorTitle
-                } else {
-                    title
+                SpannableString(title).apply {
+                    setSpan(ForegroundColorSpan(Color.RED), 0, title.length, 0)
                 }
+            } else {
+                title
+            }
     }
 
     /**

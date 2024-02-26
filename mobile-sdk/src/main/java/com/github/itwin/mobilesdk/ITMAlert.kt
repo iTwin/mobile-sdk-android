@@ -5,7 +5,6 @@
 package com.github.itwin.mobilesdk
 
 import android.app.AlertDialog
-import java.util.*
 import kotlin.coroutines.suspendCoroutine
 
 /**
@@ -22,7 +21,34 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
         handler = coMessenger.registerQueryHandler("Bentley_ITM_presentAlert", ::handleQuery)
     }
 
-    @Suppress("LongMethod")
+    private fun toAlertActionsOrItems(actions: List<Action>): Pair<Array<Action?>, MutableList<CharSequence>?> {
+        var index = 0
+        var neutralAction: Action? = null
+        var negativeAction: Action? = null
+        var positiveAction: Action? = null
+        var items: MutableList<CharSequence>? = null
+        if (actions.size > 3) {
+            items = mutableListOf()
+            actions.forEach {
+                items += it.styledTitle
+            }
+        } else {
+            // Note: The mapping of actions to buttons is documented in mobile-sdk-core.
+            if (actions.size == 3) {
+                neutralAction = actions[index]
+                ++index
+            }
+            if (actions.size >= 2) {
+                negativeAction = actions[index]
+                ++index
+            }
+            if (actions.isNotEmpty()) {
+                positiveAction = actions[index]
+            }
+        }
+        return Pair(arrayOf(neutralAction, negativeAction, positiveAction), items)
+    }
+
     private suspend fun handleQuery(params: Map<String, *>): String? {
         try {
             // Note: no input validation is intentional. If the input is malformed, it will trigger the exception handler, which will send
@@ -31,30 +57,8 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
             val title = params.getOptionalString("title")
             val message = params.getOptionalString("message")
             if (actions.isEmpty() && cancelAction == null) throw Exception("No actions")
-            var index = 0
-            var neutralAction: Action? = null
-            var negativeAction: Action? = null
-            var positiveAction: Action? = null
-            var items: MutableList<CharSequence>? = null
-            if (actions.size > 3) {
-                items = mutableListOf()
-                actions.forEach { action ->
-                    items += action.styledTitle
-                }
-            } else {
-                // Note: The mapping of actions to buttons is documented in mobile-sdk-core.
-                if (actions.size == 3) {
-                    neutralAction = actions[index]
-                    ++index
-                }
-                if (actions.size >= 2) {
-                    negativeAction = actions[index]
-                    ++index
-                }
-                if (actions.isNotEmpty()) {
-                    positiveAction = actions[index]
-                }
-            }
+            val (alertActions, items) = toAlertActionsOrItems(actions)
+            val (neutralAction, negativeAction, positiveAction) = alertActions
             // If there is already an alert active, cancel it.
             resume(null)
             return suspendCoroutine { continuation ->
