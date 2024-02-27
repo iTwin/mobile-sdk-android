@@ -26,20 +26,13 @@ typealias ITMQueryCallback<I, O> = (I, success: ITMSuccessCallback<O>?, failure:
  * Class for sending and receiving messages to and from a [WebView][android.webkit.WebView] using
  * the `Messenger` class in `@itwin/mobile-sdk-core`.
  *
- * @param itmApplication The [ITMApplication] that will be sending and receiving messages. If this
- * is `null`, you must set [logger] to an [ITMLogger] instance if you want any logging.
+ * @property logger The [ITMLogger] to use for logging. If this is `null`, no logging happens.
  */
-class ITMMessenger(private val itmApplication: ITMApplication? = null) {
+class ITMMessenger(var logger: ITMLogger? = null) {
     /**
      * Empty interface used for message handlers.
      */
     interface ITMHandler
-
-    /**
-     * The [ITMLogger] to use for logging if [itmApplication] is null.
-     */
-    @Suppress("MemberVisibilityCanBePrivate")
-    var logger: ITMLogger? = null
 
     /**
      * The [WebView][android.webkit.WebView] with which this [ITMMessenger] communicates.
@@ -366,29 +359,21 @@ class ITMMessenger(private val itmApplication: ITMApplication? = null) {
     }
 
     /**
-     * The active logger. If [itmApplication] is non-null, use the logger from that, otherwise
-     * [logger].
-     */
-    private val activeLogger: ITMLogger? = itmApplication?.logger ?: logger
-
-    /**
-     * Log an error message using [itmApplication.logger][ITMApplication.logger], or [logger] if
-     * that is `null`. If both are `null`, nothing is logged.
+     * Log an error message using [logger]. If [logger] is `null`, nothing is logged.
      *
      * @param message Error message to log.
      */
     private fun logError(message: String) {
-        activeLogger?.log(ITMLogger.Severity.Error, message)
+        logger?.log(ITMLogger.Severity.Error, message)
     }
 
     /**
-     * Log an info message using [itmApplication.logger][ITMApplication.logger], or [logger] if
-     * that is `null`. If both are `null`, nothing is logged.
+     * Log an info message using [logger]. If [logger] is `null`, nothing is logged.
      *
      * @param message Info message to log.
      */
     private fun logInfo(message: String) {
-        activeLogger?.log(ITMLogger.Severity.Info, message)
+        logger?.log(ITMLogger.Severity.Info, message)
     }
 
     /**

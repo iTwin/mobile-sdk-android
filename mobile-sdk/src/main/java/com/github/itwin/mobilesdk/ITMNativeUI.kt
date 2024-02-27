@@ -61,12 +61,16 @@ open class ITMNativeUI(
     val context: Context,
     val webView: WebView,
     val coMessenger: ITMCoMessenger) {
-    @Suppress("MemberVisibilityCanBePrivate") val components: MutableList<ITMNativeUIComponent> = mutableListOf()
+    @Suppress("MemberVisibilityCanBePrivate")
+    val components: MutableList<ITMNativeUIComponent> = mutableListOf()
 
-    init {
-        @Suppress("LeakingThis")
+    /**
+     * Register the standard [ITMNativeUIComponent] subclasses that are part of mobile-sdk-android.
+     *
+     * This is called automatically by [ITMApplication.createNativeUI].
+     */
+    fun registerStandardComponents() {
         components.add(ITMActionSheet(this))
-        @Suppress("LeakingThis")
         components.add(ITMAlert(this))
     }
 
