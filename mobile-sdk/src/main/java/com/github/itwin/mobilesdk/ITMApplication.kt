@@ -606,19 +606,11 @@ open class ITMApplication(
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                return if (this@ITMApplication.shouldOverrideUrlLoading(view, request)) {
-                    true
-                } else {
-                    super.shouldOverrideUrlLoading(view, request)
-                }
+                return this@ITMApplication.shouldOverrideUrlLoading(view, request) || super.shouldOverrideUrlLoading(view, request)
             }
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-                return if (this@ITMApplication.onRenderProcessGone(view, detail)) {
-                    true
-                } else {
-                    super.onRenderProcessGone(view, detail)
-                }
+                return this@ITMApplication.onRenderProcessGone(view, detail) || super.onRenderProcessGone(view, detail)
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
