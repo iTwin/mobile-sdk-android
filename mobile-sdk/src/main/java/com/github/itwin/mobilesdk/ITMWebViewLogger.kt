@@ -89,7 +89,6 @@ open class ITMWebViewLogger(
     /**
      * Detach from [webView].
      */
-    @Suppress("unused")
     fun detach() {
         webView.removeJavascriptInterface(JS_INTERFACE_NAME)
     }
