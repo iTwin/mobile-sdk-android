@@ -785,6 +785,10 @@ open class ITMApplication(
     /**
      * Creates the [AuthorizationClient] to be used for this iTwin Mobile web app.
      *
+     * By default, this creates an [ITMOIDCAuthorizationClient] with the required configuration
+     * coming from [configData]. If the required configuration isn't present, that will result in a
+     * `null` return.
+     *
      * Override this function in a subclass in order to add custom behavior.
      *
      * If your application handles authorization on its own, create a subclass of
@@ -795,7 +799,11 @@ open class ITMApplication(
      */
     open fun createAuthorizationClient(): AuthorizationClient? =
         configData?.let {
-            ITMOIDCAuthorizationClient(this, it)
+            try {
+                ITMOIDCAuthorizationClient(this, it)
+            } catch (_: Throwable) {
+                null
+            }
         }
 
     /**

@@ -18,10 +18,7 @@ import androidx.lifecycle.LifecycleOwner
 import com.bentley.itwin.AuthTokenCompletionAction
 import com.bentley.itwin.AuthorizationClient
 import com.github.itwin.mobilesdk.jsonvalue.optStringOrNull
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import net.openid.appauth.*
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -32,16 +29,25 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 /**
- * [AuthorizationClient] implementation that uses AppAuth-Android to present the login in a custom web browser tab.
+ * [AuthorizationClient] implementation that uses AppAuth-Android to present the login in a custom
+ * web browser tab.
  *
- * In order to use this, you must add a redirect scheme to the `defaultConfig` section of the `android` section
- * of your app's build.gradle. For example, something like this:
+ * In order to use this, you must add a redirect scheme to the `defaultConfig` section of the
+ * `android` section of your app's build.gradle. For example, something like this:
  *
  * ```
  *     manifestPlaceholders = ['appAuthRedirectScheme': 'com.bentley.sample.itwinstarter']
  * ```
  *
- * By using [ActivityResultCaller], the primary constructor is compatible with both [Fragment] and [ComponentActivity].
+ * By using [ActivityResultCaller], the primary constructor is compatible with both [Fragment] and
+ * [ComponentActivity].
+ *
+ * @param itmApplication The [ITMApplication] in which this [ITMOIDCAuthorizationClient] is being
+ * used.
+ * @param configData A [JSONObject] containing at least an `ITMAPPLICATION_CLIENT_ID` value, and
+ * optionally `ITMAPPLICATION_ISSUER_URL`, `ITMAPPLICATION_REDIRECT_URI`, `ITMAPPLICATION_SCOPE`,
+ * and/or `ITMAPPLICATION_API_PREFIX` values. If `ITMAPPLICATION_CLIENT_ID` is not present or empty,
+ * or if `ITMAPPLICATION_SCOPE` is empty, initialization will throw an exception.
  */
 open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication, configData: JSONObject) : AuthorizationClient() {
     private data class ITMAuthSettings(val issuerUri: Uri, val clientId: String, val redirectUri: Uri, val scope: String)
@@ -64,7 +70,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
 
     init {
         promptForLogin = authSettings.scope.splitToSequence(" ").contains("offline_access")
-        // Initialize cachedToken using ITMAuthStateManager, which loads the saved token from
+        // Initialize cachedToken using ITMAuthStateManager, which may load the saved token from
         // shared preferences.
         updateCachedToken()
     }
@@ -81,7 +87,8 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     /**
      * Associates with the given objects (usually an Activity or Fragment).
      *
-     * @param resultCaller The [ActivityResultCaller] to use for location permission and services requests.
+     * @param resultCaller The [ActivityResultCaller] to use for location permission and services
+     * requests.
      * @param owner The [LifecycleOwner] to observe for stopping and destroying.
      * @param context The Context.
      */
@@ -119,8 +126,14 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
             val apiPrefix = configData.optString("ITMAPPLICATION_API_PREFIX")
             val issuerUrl = configData.optString("ITMAPPLICATION_ISSUER_URL", "https://${apiPrefix}ims.bentley.com/")
             val clientId = configData.optString("ITMAPPLICATION_CLIENT_ID")
+            if (clientId.isEmpty()) {
+                throw Exception("ITMAPPLICATION_CLIENT_ID not present in configData passed to ITMOIDCAuthorizationClient")
+            }
             val redirectUrl = configData.optString("ITMAPPLICATION_REDIRECT_URI", DEFAULT_REDIRECT_URI)
             val scope = configData.optString("ITMAPPLICATION_SCOPE", DEFAULT_SCOPES)
+            if (scope.isEmpty()) {
+                throw Exception("ITMAPPLICATION_SCOPE is empty in configData passed to ITMOIDCAuthorizationClient")
+            }
             return ITMAuthSettings(Uri.parse(issuerUrl), clientId, Uri.parse(redirectUrl), scope)
         }
     }
@@ -132,8 +145,9 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         authStateManager.replace(if (config != null) AuthState(config) else AuthState())
     }
 
-    private fun getAuthorizationRequestIntent(authState: AuthState): Intent {
-        val authRequest = AuthorizationRequest.Builder(authState.authorizationServiceConfiguration!!,
+    private fun getAuthorizationRequestIntent(authState: AuthState): Intent? {
+        val serviceConfiguration = authState.authorizationServiceConfiguration ?: return null
+        val authRequest = AuthorizationRequest.Builder(serviceConfiguration,
             authSettings.clientId, ResponseTypeValues.CODE, authSettings.redirectUri
         ).apply {
             setScope(authSettings.scope).setCodeVerifier(CodeVerifierUtil.generateRandomCodeVerifier())
@@ -145,10 +159,12 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     private suspend fun launchRequestAuthorization(authState: AuthState) =
-        getAuthorizationResponse(getAuthorizationRequestIntent(authState)).takeIf { result ->
-            result.resultCode == Activity.RESULT_OK
-        }?.data?.let {
-            handleAuthorizationResponse(it)
+        getAuthorizationRequestIntent(authState)?.let { intent ->
+            getAuthorizationResponse(intent).takeIf { result ->
+                result.resultCode == Activity.RESULT_OK
+            }?.data?.let {
+                handleAuthorizationResponse(it)
+            }
         } ?: AccessToken()
 
     private suspend fun tryRefresh() = try {
@@ -174,11 +190,11 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
 
     /**
      * Coroutine to handle getting the [AccessToken]. If a cached token is present, it is refreshed
-     * if needed and returned. If that fails, a signin UI is presented to the user to fetch and return
-     * an access token.
+     * if needed and returned. If that fails, a signin UI is presented to the user to fetch and
+     * return an access token.
      *
-     * @return The [AccessToken]. Note: if the login process fails for any reason, this [AccessToken]
-     * will not be valid.
+     * @return The [AccessToken]. Note: if the login process fails for any reason, this
+     * [AccessToken] will not be valid.
      */
     private suspend fun getAccessToken() = tryRefresh() ?: signIn()
 
@@ -210,17 +226,19 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
     }
 
     /**
-     * Function that is called by the iTwin backend to get an access token, along with its expiration date.
+     * Function that is called by the iTwin backend to get an access token, along with its
+     * expiration date.
      *
-     * @param completion Action that will have resolve called with the token and expiration date, or null values if
-     * a token is not available. Note that the `expirationDate` parameter of `resolve` is expected to be an ISO
-     * 8601 date string.
+     * @param completion Action that will have `resolve` called with the token and expiration date,
+     * or have `error` called if a token is not available. Note that the `expirationDate` parameter
+     * of `resolve` is expected to be an ISO 8601 date string.
      */
     override fun getAccessToken(completion: AuthTokenCompletionAction) {
         MainScope().launch {
             // Right now the frontend asks for a token when trying to send a message to the backend.
-            // That token is totally unused by the backend, so we can simply fail all requests that happen before the frontend launch has completed.
-            // We don't want to make any actual token requests until the user does something that requires a token.
+            // That token is totally unused by the backend, so we can simply fail all requests that
+            // happen before the frontend launch has completed. We don't want to make any actual
+            // token requests until the user does something that requires a token.
             val accessToken = if (itmApplication.messenger.isFrontendLaunchComplete) getAccessToken() else AccessToken()
             if (accessToken.token == null || accessToken.expirationDate == null)
                 completion.error("Error logging in.")
@@ -229,27 +247,26 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         }
     }
 
-    private suspend fun revokeToken(token: String, revokeUrl: URL, authorization: String) {
-        withContext(Dispatchers.IO) {
-            val connection = revokeUrl.openConnection() as HttpURLConnection
-            try {
-                val bodyBytes = "token=$token".toByteArray()
-                connection.requestMethod = "POST"
-                connection.setRequestProperty("Authorization", "Basic $authorization")
-                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-                connection.setRequestProperty("Content-Length", "${bodyBytes.size}")
-                connection.useCaches = false
-                connection.doOutput = true
-                connection.setFixedLengthStreamingMode(bodyBytes.size)
-                connection.outputStream.use {
-                    it.write(bodyBytes)
-                }
-                if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-                    throw Exception("Invalid response code from server: ${connection.responseCode}")
-                }
-            } finally {
-                connection.disconnect()
+    @Suppress("InjectDispatcher")
+    private suspend fun revokeToken(token: String, revokeUrl: URL, authorization: String) = withContext(Dispatchers.IO) {
+        val connection = revokeUrl.openConnection() as HttpURLConnection
+        try {
+            val bodyBytes = "token=$token".toByteArray()
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Authorization", "Basic $authorization")
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            connection.setRequestProperty("Content-Length", "${bodyBytes.size}")
+            connection.useCaches = false
+            connection.doOutput = true
+            connection.setFixedLengthStreamingMode(bodyBytes.size)
+            connection.outputStream.use {
+                it.write(bodyBytes)
             }
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                throw Exception("Invalid response code from server: ${connection.responseCode}")
+            }
+        } finally {
+            connection.disconnect()
         }
     }
 
@@ -257,11 +274,9 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         val authState = authStateManager.current
         if (!authState.isAuthorized) return
         val tokens = setOfNotNull(authState.idToken, authState.accessToken, authState.refreshToken).takeIf { it.isNotEmpty() } ?: return
-        val revokeURLString = authState.authorizationServiceConfiguration?.discoveryDoc?.docJson?.optStringOrNull("revocation_endpoint")
+        val docJson = authState.authorizationServiceConfiguration?.discoveryDoc?.docJson
+        val revokeURLString = docJson?.optStringOrNull("revocation_endpoint")?.takeIf { it.isNotEmpty() }
             ?: throw Exception("Could not find valid revocation URL.")
-        if (revokeURLString.isEmpty()) {
-            throw Exception("Could not find valid revocation URL.")
-        }
         val revokeURL = URL(revokeURLString).takeIf { it.protocol.equals("https", true) }
             ?: throw Exception("Token revocation URL is not https.")
         val authorization = Base64.getEncoder().encodeToString("${authSettings.clientId}:".toByteArray())
@@ -278,7 +293,7 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         }
     }
 
-    @Suppress("unused")
+    @Suppress("MemberVisibilityCanBePrivate")
     suspend fun signOut() {
         try {
             revokeTokens()
@@ -308,9 +323,9 @@ suspend fun AuthState.performActionWithFreshTokens(service: AuthorizationService
  * Suspend function wrapper of AuthorizationService.performTokenRequest
  */
 suspend fun AuthorizationService.performTokenRequest(request: TokenRequest) = suspendCoroutine { continuation ->
-    performTokenRequest(request) { tokenResponse, tokenEx ->
-        if (tokenEx != null)
-            continuation.resumeWithException(tokenEx)
+    performTokenRequest(request) { tokenResponse, ex ->
+        if (ex != null)
+            continuation.resumeWithException(ex)
         else
             continuation.resume(tokenResponse)
     }
@@ -322,9 +337,9 @@ suspend fun AuthorizationService.performTokenRequest(request: TokenRequest) = su
  * Suspend function wrapper of AuthorizationServiceConfiguration.fetchFromIssuer
  */
 suspend fun fetchConfigFromIssuer(openIdConnectIssuerUri: Uri) = suspendCoroutine { continuation ->
-    AuthorizationServiceConfiguration.fetchFromIssuer(openIdConnectIssuerUri) { config, configEx ->
-        if (configEx != null)
-            continuation.resumeWithException(configEx)
+    AuthorizationServiceConfiguration.fetchFromIssuer(openIdConnectIssuerUri) { config, ex ->
+        if (ex != null)
+            continuation.resumeWithException(ex)
         else
             continuation.resume(config)
     }
