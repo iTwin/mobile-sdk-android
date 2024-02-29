@@ -80,8 +80,8 @@ class ITMAuthStateManager private constructor(private val itmApplication: ITMApp
     /**
      * Inform the receiver that its managed [AuthState] has updated.
      *
-     * This update the [AuthState] stored in shared preferences to match the current values. Call this
-     * after making changes to the value returned by [current] (for example due to a call to
+     * This updates the [AuthState] stored in shared preferences to match the current values. Call
+     * this after making changes to the value returned by [current] (for example due to a call to
      * `performActionWithFreshTokens`).
      */
     @AnyThread
@@ -90,9 +90,11 @@ class ITMAuthStateManager private constructor(private val itmApplication: ITMApp
     }
 
     /**
-     * Replace the managed [AuthState] with a new one and optionally store the data in shared preferences.
+     * Replace the managed [AuthState] with a new one and optionally store the data in shared
+     * preferences.
      *
-     * __Note__: Data will be stored in shared preferences if [disableSharedPreferences] is `false`.
+     * > __Note__: Data will be stored in shared preferences if [disableSharedPreferences] is
+     * `false`.
      *
      * @param state The new [AuthState] to manage.
      * @return [state]
@@ -108,7 +110,8 @@ class ITMAuthStateManager private constructor(private val itmApplication: ITMApp
      * Update the managed [AuthState] based on the given parameters and optionally store the updated
      * data in shared preferences.
      *
-     * __Note__: Data will be stored in shared preferences if [disableSharedPreferences] is `false`.
+     * > __Note__: Data will be stored in shared preferences if [disableSharedPreferences] is
+     * `false`.
      *
      * @param response The response to the authorization request.
      * @param ex The exception returned by the authorization request.
@@ -128,7 +131,8 @@ class ITMAuthStateManager private constructor(private val itmApplication: ITMApp
      * Update the managed [AuthState] based on the given parameters and optionally store the updated
      * data in shared preferences.
      *
-     * __Note__: Data will be stored in shared preferences if [disableSharedPreferences] is `false`.
+     * > __Note__: Data will be stored in shared preferences if [disableSharedPreferences] is
+     * `false`.
      *
      * @param response The response to the token request.
      * @param ex The exception returned by the token request.
@@ -180,9 +184,9 @@ class ITMAuthStateManager private constructor(private val itmApplication: ITMApp
 
     companion object {
         /**
-         * Flag to disable reading and writing the managed [AuthState] to shared preferences. Set this
-         * to `true` to disable storing the [AuthState] in shared preferences and remove any existing
-         * stored value.
+         * Flag to disable reading and writing the managed [AuthState] to shared preferences. Set
+         * this to `true` to disable storing the [AuthState] in shared preferences and remove any
+         * existing stored value.
          */
         var disableSharedPreferences = false
             set(value) {
@@ -200,9 +204,9 @@ class ITMAuthStateManager private constructor(private val itmApplication: ITMApp
         /**
          * Return the shared [ITMAuthStateManager], creating it if necessary.
          *
-         * __Note__: [itmApplication] is only used during the creation of the shared [ITMAuthStateManager]
-         * the first time this is called. All subsequent calls ignore [itmApplication] and return the
-         * previously created [ITMAuthStateManager].
+         * > __Note__: [itmApplication] is only used during the creation of the shared
+         * [ITMAuthStateManager] the first time this is called. All subsequent calls ignore
+         * [itmApplication] and return the previously created [ITMAuthStateManager].
          *
          * @param itmApplication The [ITMApplication] containing the application context and logger
          * that is used by the [ITMAuthStateManager].
