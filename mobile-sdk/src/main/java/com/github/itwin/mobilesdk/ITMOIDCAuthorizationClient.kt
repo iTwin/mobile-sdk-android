@@ -158,14 +158,14 @@ open class ITMOIDCAuthorizationClient(private val itmApplication: ITMApplication
         return requireAuthService().getAuthorizationRequestIntent(authRequest)
     }
 
-    private suspend fun launchRequestAuthorization(authState: AuthState): AccessToken {
-        val intent = getAuthorizationRequestIntent(authState) ?: return AccessToken()
-        return getAuthorizationResponse(intent).takeIf { result ->
-            result.resultCode == Activity.RESULT_OK
-        }?.data?.let {
-            handleAuthorizationResponse(it)
+    private suspend fun launchRequestAuthorization(authState: AuthState) =
+        getAuthorizationRequestIntent(authState)?.let { intent ->
+            getAuthorizationResponse(intent).takeIf { result ->
+                result.resultCode == Activity.RESULT_OK
+            }?.data?.let {
+                handleAuthorizationResponse(it)
+            }
         } ?: AccessToken()
-    }
 
     private suspend fun tryRefresh() = try {
         authStateManager.current.performActionWithFreshTokens(requireAuthService())
