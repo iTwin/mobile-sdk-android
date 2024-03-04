@@ -3,6 +3,7 @@
 * See LICENSE.md in the project root for license terms and full copyright notice.
 *--------------------------------------------------------------------------------------------*/
 @file:Suppress("unused", "MemberVisibilityCanBePrivate")
+
 package com.github.itwin.mobilesdk
 
 import kotlinx.coroutines.MainScope
