@@ -2,6 +2,7 @@
 * Copyright (c) Bentley Systems, Incorporated. All rights reserved.
 * See LICENSE.md in the project root for license terms and full copyright notice.
 *--------------------------------------------------------------------------------------------*/
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
 package com.github.itwin.mobilesdk
 
 import kotlinx.coroutines.MainScope
@@ -18,16 +19,19 @@ import kotlin.coroutines.suspendCoroutine
 class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Convenience wrapper around [ITMMessenger.send].
+     *
+     * @param type Query type.
+     * @param data Optional request data to send.
      */
-    @Suppress("unused")
     fun <I> send(type: String, data: I) {
         messenger.send(type, data)
     }
 
     /**
      * Convenience wrapper around [ITMMessenger.send]
+     *
+     * @param type Query type.
      */
-    @Suppress("unused")
     fun send(type: String) {
         messenger.send(type)
     }
@@ -47,7 +51,6 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      *
      * @return The result from the web app.
      */
-    @Suppress("unused")
     suspend fun <I, O> query(type: String, data: I): O {
         return suspendCoroutine { continuation ->
             try {
@@ -75,25 +78,22 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      *
      * @return The result from the web app.
      */
-    @Suppress("unused")
     suspend fun <O> query(type: String): O {
         return query(type, Unit)
     }
 
     /**
-     * Add a coroutine-based handler for queries from the web view that do not include a response
-     * and do not include input data.
+     * Add a coroutine-based handler for queries from the web view that do not expect a response and
+     * do not include input data.
      *
      * @param type Query type.
      * @param callback Coroutine Function called when a message is received.
      *
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
-    @Suppress("unused")
-    fun registerMessageHandler(type: String, callback: suspend() -> Unit) =
-        registerQueryHandler<Unit, Unit>(type) {
-            callback.invoke()
-        }
+    fun registerMessageHandler(type: String, callback: suspend () -> Unit) = registerQueryHandler<Unit, Unit>(type) {
+        callback.invoke()
+    }
 
     /**
      * Add a coroutine-based handler for queries from the web view that do not include a response.
@@ -109,8 +109,7 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      *
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
-    @Suppress("unused")
-    fun <I> registerMessageHandler(type: String, callback: suspend(I) -> Unit) =
+    fun <I> registerMessageHandler(type: String, callback: suspend (I) -> Unit) =
         registerQueryHandler<I, Unit>(type) { value ->
             callback.invoke(value)
         }
@@ -130,7 +129,6 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      *
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
-    @Suppress("unused")
     fun <I, O> registerQueryHandler(type: String, callback: suspend (I) -> O) =
         messenger.registerQueryHandler<I, O>(type) { value, success, failure ->
             MainScope().launch {
@@ -145,6 +143,8 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
 
     /**
      * Convenience wrapper around [ITMMessenger.removeHandler].
+     *
+     * @param handler The handler to remove.
      */
     fun removeHandler(handler: ITMMessenger.ITMHandler?) {
         messenger.removeHandler(handler)
@@ -153,7 +153,6 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Convenience wrapper around [ITMMessenger.frontendLaunchSucceeded].
      */
-    @Suppress("unused")
     fun frontendLaunchSucceeded() {
         messenger.frontendLaunchSucceeded()
     }
@@ -161,12 +160,13 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Convenience wrapper around [ITMMessenger.isFrontendLaunchComplete].
      */
-    @Suppress("unused")
     val isFrontendLaunchComplete: Boolean
         get() = messenger.isFrontendLaunchComplete
 
     /**
      * Convenience wrapper around [ITMMessenger.frontendLaunchFailed].
+     *
+     * @param error The reason for the failure.
      */
     fun frontendLaunchFailed(error: Throwable) {
         messenger.frontendLaunchFailed(error)
@@ -175,7 +175,6 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
     /**
      * Call to join the frontend launch job (wait for the frontend to launch).
      */
-    @Suppress("unused")
     suspend fun frontendLaunchJoin() {
         messenger.frontendLaunchJob.join()
     }

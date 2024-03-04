@@ -18,7 +18,8 @@ import kotlin.coroutines.resume
  *
  * @param resultCaller The [ActivityResultCaller] to register for activity results.
  * @param owner The lifecycle owner to associate with for onDestroy cleanup.
- * @param contract The contract passed to [ActivityResultCaller.registerForActivityResult].
+ * @param contract The [ActivityResultContract] passed to
+ * [ActivityResultCaller.registerForActivityResult].
  */
 open class ITMCoActivityResult<I, O>(resultCaller: ActivityResultCaller, contract: ActivityResultContract<I, O>, owner: LifecycleOwner) {
     private var cancellableContinuation: CancellableContinuation<O>? = null
@@ -31,7 +32,8 @@ open class ITMCoActivityResult<I, O>(resultCaller: ActivityResultCaller, contrac
      * Constructor that uses a [ComponentActivity].
      *
      * @param activity The [ComponentActivity] to register for results and cleanup.
-     * @param contract The contract passed to [ActivityResultCaller.registerForActivityResult].
+     * @param contract The [ActivityResultContract] passed to
+     * [ActivityResultCaller.registerForActivityResult].
      */
     @Suppress("unused")
     constructor(activity: ComponentActivity, contract: ActivityResultContract<I, O>): this(activity, contract, activity)
