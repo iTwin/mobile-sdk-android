@@ -36,12 +36,15 @@ fun Context.checkFineLocationPermission() =
     ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
 /**
- * Encapsulates the requesting of location permission and services. Used automatically by
+ * Encapsulate the requesting of location permission and services. Used automatically by
  * [ITMGeolocationManager], and only needed when the lifetime of [ITMGeolocationRequester] is longer
  * than a single Activity or Fragment.
  *
  * Since this class calls [ActivityResultCaller.registerForActivityResult], it *must* be constructed
- * unconditionally, as part of initialization path, typically as a field initializer of an Activity or Fragment.
+ * unconditionally, as part of initialization path, typically as a field initializer of an Activity
+ * or Fragment.
+ *
+ * @param resultCaller The [ActivityResultCaller] to associate with.
  */
 internal class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller) {
     private lateinit var context: Context
@@ -54,8 +57,8 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
         }
     }
 
-    private val requestLocationService = resultCaller.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { activityResult ->
-        requestLocationServiceTask?.complete(activityResult.resultCode == Activity.RESULT_OK)
+    private val requestLocationService = resultCaller.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        requestLocationServiceTask?.complete(it.resultCode == Activity.RESULT_OK)
         requestLocationServiceTask = null
     }
 
@@ -104,7 +107,7 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
         })
     }
 
-    companion object Companion {
+    companion object {
         private fun createCheckLocationSettingsTask(context: Context): Task<LocationSettingsResponse> {
             // Call Activity overload if context is an Activity
             val settingsClient = (context as? Activity)?.let { LocationServices.getSettingsClient(it) } ?: LocationServices.getSettingsClient(context)
@@ -113,6 +116,10 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
             return settingsClient.checkLocationSettings(settingsRequest)
         }
 
+        /**
+         * Check via [context] if location service is available and ask [resolver] to resolve
+         * problems if the check throws an exception and [resolver] is non-null.
+         */
         suspend fun isLocationServiceAvailable(context: Context, resolver: (suspend (intent: PendingIntent) -> Boolean)? = null) =
             try {
                 createCheckLocationSettingsTask(context).await().locationSettingsStates?.isLocationUsable == true
@@ -122,6 +129,9 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
                 false
             }
 
+        /**
+         * Ensure that location is available and throw an exception if it is not.
+         */
         suspend fun ensureLocationAvailability(context: Context) {
             if (!context.checkFineLocationPermission())
                 throwPermissionDeniedError()
@@ -131,14 +141,24 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
         }
 
         private fun throwServiceUnavailableError() {
-            throw ITMGeolocationManager.GeolocationError(ITMGeolocationManager.GeolocationError.Code.POSITION_UNAVAILABLE, "Location service is not available")
+            throw ITMGeolocationManager.GeolocationError(
+                ITMGeolocationManager.GeolocationError.Code.POSITION_UNAVAILABLE,
+                "Location service is not available"
+            )
         }
 
         private fun throwPermissionDeniedError() {
-            throw ITMGeolocationManager.GeolocationError(ITMGeolocationManager.GeolocationError.Code.PERMISSION_DENIED, "Location permission denied")
+            throw ITMGeolocationManager.GeolocationError(
+                ITMGeolocationManager.GeolocationError.Code.PERMISSION_DENIED,
+                "Location permission denied"
+            )
         }
     }
 
+    /**
+     * Ensure that location is available and throw an exception if it is not. This may prompt the
+     * user to allow location lookup.
+     */
     suspend fun ensureLocationAvailability() {
         if (!requestLocationPermissionIfNeeded())
             throwPermissionDeniedError()
