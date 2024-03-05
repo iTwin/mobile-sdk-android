@@ -110,10 +110,9 @@ class ITMCoMessenger(private val messenger: ITMMessenger) {
      *
      * @return The [ITMMessenger.ITMHandler] value to subsequently pass into [removeHandler].
      */
-    fun <I> registerMessageHandler(type: String, callback: suspend (I) -> Unit) =
-        registerQueryHandler<I, Unit>(type) { value ->
-            callback.invoke(value)
-        }
+    fun <I> registerMessageHandler(type: String, callback: suspend (I) -> Unit) = registerQueryHandler<I, Unit>(type) { value ->
+        callback.invoke(value)
+    }
 
     /**
      * Add a coroutine-based handler for queries from the [web view][ITMApplication.webView].
