@@ -13,10 +13,12 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.Location
+import android.os.Build
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Base64
 import android.view.Surface
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
@@ -106,7 +108,7 @@ class ITMGeolocationManager(private var context: Context) {
         fun toJSON() =
             jsonOf(
                 "code" to code.value,
-                "message" to (message ?: ""),
+                "message" to message.orEmpty(),
                 "PERMISSION_DENIED" to Code.PERMISSION_DENIED.value,
                 "POSITION_UNAVAILABLE" to Code.POSITION_UNAVAILABLE.value,
                 "TIMEOUT" to Code.TIMEOUT.value,
@@ -125,7 +127,7 @@ class ITMGeolocationManager(private var context: Context) {
             field?.addJavascriptInterface(geolocationJsInterface, "Bentley_ITMGeolocation")
         }
 
-    private var mainScope = MainScope()
+    private val mainScope = MainScope()
     private var requester: ITMGeolocationRequester? = null
     private var lastLocationTimeThresholdMillis = 0L
 
@@ -199,7 +201,7 @@ class ITMGeolocationManager(private var context: Context) {
 
     private val fusedLocationClient by lazy { getFusedLocationProviderClient() }
 
-    private var cancellationTokenSource = CancellationTokenSource()
+    private val cancellationTokenSource = CancellationTokenSource()
 
     private lateinit var sensorManager: SensorManager
     private var accelerometerSensor: Sensor? = null
@@ -384,7 +386,12 @@ class ITMGeolocationManager(private var context: Context) {
         // Note that devices have a default orientation, and for tablets this is often landscape
         // while for phones it is portrait. This code works based off of the default orientation,
         // not the portrait or landscape status.
-        val display = context.display
+        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.display
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(WindowManager::class.java)?.defaultDisplay
+        }
         return if (display != null) {
             when (display.rotation) {
                 Surface.ROTATION_0   -> Pair(SensorManager.AXIS_X, SensorManager.AXIS_Y)
