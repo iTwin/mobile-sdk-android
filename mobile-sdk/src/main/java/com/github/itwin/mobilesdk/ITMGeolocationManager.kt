@@ -16,6 +16,7 @@ import android.location.Location
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Base64
+import android.view.Surface
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
@@ -225,9 +226,6 @@ class ITMGeolocationManager(private var context: Context) {
         }
 
         override fun onSensorChanged(event: SensorEvent?) {
-            if (event?.accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE) {
-                return
-            }
             if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
                 System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.size)
                 haveAccelerometerReading = true
@@ -381,6 +379,25 @@ class ITMGeolocationManager(private var context: Context) {
         }
     }
 
+    private fun getHeadingAxes(): Pair<Int, Int>? {
+        // The following takes the device's current orientation into account.
+        // Note that devices have a default orientation, and for tablets this is often landscape
+        // while for phones it is portrait. This code works based off of the default orientation,
+        // not the portrait or landscape status.
+        val display = context.display
+        return if (display != null) {
+            when (display.rotation) {
+                Surface.ROTATION_0   -> Pair(SensorManager.AXIS_X, SensorManager.AXIS_Y)
+                Surface.ROTATION_90  -> Pair(SensorManager.AXIS_Y, SensorManager.AXIS_MINUS_X)
+                Surface.ROTATION_180 -> Pair(SensorManager.AXIS_MINUS_X, SensorManager.AXIS_MINUS_Y)
+                Surface.ROTATION_270 -> Pair(SensorManager.AXIS_MINUS_Y, SensorManager.AXIS_X)
+                else                 -> null
+            }
+        } else {
+            Pair(SensorManager.AXIS_X, SensorManager.AXIS_Y)
+        }
+    }
+
     private fun getHeading(): Double? {
         if (!haveAccelerometerReading || !haveMagneticReading) {
             return null
@@ -390,8 +407,8 @@ class ITMGeolocationManager(private var context: Context) {
             return null
         }
         val rotationMatrixB = FloatArray(9)
-        // The following takes the device's current orientation (portrait, landscape) into account.
-        if (!SensorManager.remapCoordinateSystem(rotationMatrixA, SensorManager.AXIS_X, SensorManager.AXIS_Z, rotationMatrixB)) {
+        val (axisX, axisY) = getHeadingAxes() ?: return null
+        if (!SensorManager.remapCoordinateSystem(rotationMatrixA, axisX, axisY, rotationMatrixB)) {
             return null
         }
         val orientationAngles = FloatArray(3)
