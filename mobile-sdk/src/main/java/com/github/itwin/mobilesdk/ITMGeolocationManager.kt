@@ -196,11 +196,7 @@ class ITMGeolocationManager(private var context: Context) {
             LocationServices.getFusedLocationProviderClient(context)
         }
 
-    private var _fusedLocationClient: FusedLocationProviderClient? = null
-    private val fusedLocationClient
-        get() = _fusedLocationClient ?: getFusedLocationProviderClient().also {
-            _fusedLocationClient = it
-        }
+    private val fusedLocationClient by lazy { getFusedLocationProviderClient() }
 
     private var cancellationTokenSource = CancellationTokenSource()
 
@@ -214,7 +210,7 @@ class ITMGeolocationManager(private var context: Context) {
     private var listening = false
 
     private val watchIds: MutableSet<Int> = mutableSetOf()
-    private var watchLocationRequest: LocationRequest? = null
+    private val watchLocationRequest by lazy { LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build() }
     private var lastLocation: Location? = null
     private val watchTimer = Timer("GeolocationWatch")
     private var watchTimerTask: TimerTask? = null
@@ -419,10 +415,7 @@ class ITMGeolocationManager(private var context: Context) {
             return
 
         setupSensors()
-        val locationRequest = watchLocationRequest ?: LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build().also {
-            watchLocationRequest = it
-        }
-        fusedLocationClient.requestLocationUpdates(locationRequest, watchCallback, Looper.getMainLooper())
+        fusedLocationClient.requestLocationUpdates(watchLocationRequest, watchCallback, Looper.getMainLooper())
     }
     //endregion
 
