@@ -2,6 +2,8 @@
 * Copyright (c) Bentley Systems, Incorporated. All rights reserved.
 * See LICENSE.md in the project root for license terms and full copyright notice.
 *--------------------------------------------------------------------------------------------*/
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
+
 package com.github.itwin.mobilesdk
 
 import android.app.Activity
@@ -11,9 +13,12 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.Location
+import android.os.Build
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Base64
+import android.view.Surface
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
@@ -32,38 +37,39 @@ import kotlin.concurrent.schedule
 
 /**
  * Class for the native-side implementation of a `navigator.geolocation` polyfill.
+ *
+ * @param context: The [Context] that is used for interacting with Android.
  */
 class ITMGeolocationManager(private var context: Context) {
     private val geolocationJsInterface = object {
-        @Suppress("unused")
         @JavascriptInterface
         fun getCurrentPosition(positionId: Int) {
-            scope.launch {
+            mainScope.launch {
                 try {
                     sendPosition(getGeolocationPosition(), positionId, "getCurrentPosition")
                 } catch (error: GeolocationError) {
                     sendError(error, positionId, "getCurrentPosition")
                 } catch (throwable: Throwable) {
-                    sendError(GeolocationError(GeolocationError.Code.POSITION_UNAVAILABLE, throwable.message), positionId, "getCurrentPosition")
+                    val error = GeolocationError(GeolocationError.Code.POSITION_UNAVAILABLE, throwable.message)
+                    sendError(error, positionId, "getCurrentPosition")
                 }
             }
         }
 
-        @Suppress("unused")
         @JavascriptInterface
         fun watchPosition(positionId: Int) {
-            scope.launch {
+            mainScope.launch {
                 try {
                     trackPosition(positionId)
                 } catch (error: GeolocationError) {
                     sendError(error, positionId, "watchPosition")
                 } catch (throwable: Throwable) {
-                    sendError(GeolocationError(GeolocationError.Code.POSITION_UNAVAILABLE, throwable.message), positionId, "watchPosition")
+                    val error = GeolocationError(GeolocationError.Code.POSITION_UNAVAILABLE, throwable.message)
+                    sendError(error, positionId, "watchPosition")
                 }
             }
         }
 
-        @Suppress("unused")
         @JavascriptInterface
         fun clearWatch(positionId: Int) {
             watchIds.remove(positionId)
@@ -74,23 +80,35 @@ class ITMGeolocationManager(private var context: Context) {
     }
 
     private data class GeolocationCoordinates(val latitude: Double, val longitude: Double, val accuracy: Double?, val heading: Double?)
-    private data class GeolocationPosition(val coords: GeolocationCoordinates)
-    private data class GeolocationRequestData(val positionId: String, val position: GeolocationPosition) {
-        fun toJsonString(): String =
-            Gson().toJson(this)
+    private data class GeolocationPosition(val coords: GeolocationCoordinates, val timestamp: Long)
+    private data class GeolocationRequestData(val positionId: Int, val position: GeolocationPosition) {
+        fun toJsonString(): String = Gson().toJson(this)
     }
 
-    class GeolocationError(private val code: Code, message: String?) : Throwable(message) {
+    /**
+     * [Exception] class to use for all exceptions that are sent back to JavaScript.
+     *
+     * @param code: The [Code] to use for this error.
+     * @param message: The optional message to show to the user.
+     */
+    class GeolocationError(private val code: Code, message: String?) : Exception(message) {
+        /**
+         * The error code for a [GeolocationError].
+         */
         enum class Code(val value: Int) {
             PERMISSION_DENIED(1),
             POSITION_UNAVAILABLE(2),
             TIMEOUT(3),
         }
 
+        /**
+         * Convert this [GeolocationError] to JSON compatible with the `GeolocationPositionError`
+         * JavaScript type.
+         */
         fun toJSON() =
             jsonOf(
                 "code" to code.value,
-                "message" to (message ?: ""),
+                "message" to message.orEmpty(),
                 "PERMISSION_DENIED" to Code.PERMISSION_DENIED.value,
                 "POSITION_UNAVAILABLE" to Code.POSITION_UNAVAILABLE.value,
                 "TIMEOUT" to Code.TIMEOUT.value,
@@ -99,7 +117,7 @@ class ITMGeolocationManager(private var context: Context) {
 
     private fun Location.toGeolocationPosition(heading: Double? = null): GeolocationPosition {
         val coordinates = GeolocationCoordinates(latitude, longitude, if (hasAccuracy()) accuracy.toDouble() else null, heading)
-        return GeolocationPosition(coordinates)
+        return GeolocationPosition(coordinates, time)
     }
 
     /** The [WebView] to receive location updates via javascript. */
@@ -109,7 +127,7 @@ class ITMGeolocationManager(private var context: Context) {
             field?.addJavascriptInterface(geolocationJsInterface, "Bentley_ITMGeolocation")
         }
 
-    private var scope = MainScope()
+    private val mainScope = MainScope()
     private var requester: ITMGeolocationRequester? = null
     private var lastLocationTimeThresholdMillis = 0L
 
@@ -117,28 +135,27 @@ class ITMGeolocationManager(private var context: Context) {
      * Sets the threshold when "last location" is used in location requests instead of requesting a
      * new location. The default of 0 means that all location requests ask for the location (which
      * can take time).
+     *
      * @param value The threshold value (in milliseconds)
      */
-    @Suppress("unused")
     fun setLastLocationTimeThreshold(value: Long) {
         lastLocationTimeThresholdMillis = value
     }
 
     /**
      * Adds a lifecycle observer that does the following:
-     * - onStart: resumes location updates
      * - onStop: stops location updates
+     * - onStart: resumes location updates
      * - onDestroy: clears [requester]
      *
      * @param owner The [LifecycleOwner] to observe.
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     fun addLifecycleObserver(owner: LifecycleOwner) {
         owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 resumeLocationUpdates()
-                (owner as? Fragment)?.let {fragment ->
-                    context = fragment.activity ?: fragment.requireContext()
+                (owner as? Fragment)?.let {
+                    context = it.activity ?: it.requireContext()
                 }
             }
             override fun onStop(owner: LifecycleOwner) {
@@ -146,8 +163,8 @@ class ITMGeolocationManager(private var context: Context) {
             }
             override fun onDestroy(owner: LifecycleOwner) {
                 requester = null
-                (owner as? Fragment)?.let {fragment ->
-                    context = fragment.activity?.applicationContext ?: fragment.requireContext()
+                (owner as? Fragment)?.let {
+                    context = it.activity?.applicationContext ?: it.requireContext()
                 }
             }
         })
@@ -169,7 +186,6 @@ class ITMGeolocationManager(private var context: Context) {
      *
      * @param fragment The [Fragment] to associate with.
      */
-    @Suppress("MemberVisibilityCanBePrivate")
     fun associateWithFragment(fragment: Fragment) {
         requester = ITMGeolocationRequester(fragment)
         addLifecycleObserver(fragment)
@@ -183,15 +199,9 @@ class ITMGeolocationManager(private var context: Context) {
             LocationServices.getFusedLocationProviderClient(context)
         }
 
-    private var _fusedLocationClient: FusedLocationProviderClient? = null
-    private val fusedLocationClient: FusedLocationProviderClient
-        get() {
-            val client = _fusedLocationClient ?: getFusedLocationProviderClient()
-            _fusedLocationClient = client
-            return client
-        }
+    private val fusedLocationClient by lazy { getFusedLocationProviderClient() }
 
-    private var cancellationTokenSource = CancellationTokenSource()
+    private val cancellationTokenSource = CancellationTokenSource()
 
     private lateinit var sensorManager: SensorManager
     private var accelerometerSensor: Sensor? = null
@@ -203,7 +213,7 @@ class ITMGeolocationManager(private var context: Context) {
     private var listening = false
 
     private val watchIds: MutableSet<Int> = mutableSetOf()
-    private var watchLocationRequest: LocationRequest? = null
+    private val watchLocationRequest by lazy { LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build() }
     private var lastLocation: Location? = null
     private val watchTimer = Timer("GeolocationWatch")
     private var watchTimerTask: TimerTask? = null
@@ -218,9 +228,6 @@ class ITMGeolocationManager(private var context: Context) {
         }
 
         override fun onSensorChanged(event: SensorEvent?) {
-            if (event?.accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE) {
-                return
-            }
             if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
                 System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.size)
                 haveAccelerometerReading = true
@@ -233,8 +240,8 @@ class ITMGeolocationManager(private var context: Context) {
             }
             // Only update heading a maximum of 4 times per second.
             watchTimerTask = watchTimer.schedule(0, 250) {
-                lastLocation?.let { lastLocation ->
-                    updateWatchers(lastLocation)
+                lastLocation?.let {
+                    updateWatchers(it)
                 }
             }
         }
@@ -245,9 +252,8 @@ class ITMGeolocationManager(private var context: Context) {
     /**
      * Constructor using a [ComponentActivity].
      *
-     * @param activity The [Activity] to associate with this instance.
+     * @param activity The [ComponentActivity] to associate with this instance.
      */
-    @Suppress("unused")
     constructor(activity: ComponentActivity): this(activity as Context) {
         associateWithActivity(activity)
     }
@@ -258,7 +264,6 @@ class ITMGeolocationManager(private var context: Context) {
      * @param fragment The [Fragment] to associate with this instance.
      * @param context The application [Context] to use when the fragment has not started.
      */
-    @Suppress("unused")
     constructor(fragment: Fragment, context: Context): this(context) {
         associateWithFragment(fragment)
     }
@@ -270,9 +275,8 @@ class ITMGeolocationManager(private var context: Context) {
     /**
      * Cancel all outstanding tasks, including any active watches.
      */
-    @Suppress("unused")
     fun cancelTasks() {
-        scope.cancel()
+        mainScope.cancel()
         cancellationTokenSource.cancel()
         watchTimer.cancel()
         if (watchIds.isNotEmpty()) {
@@ -307,11 +311,10 @@ class ITMGeolocationManager(private var context: Context) {
     }
 
     /**
-     * Ensures location permission and services are available and returns the current location.
+     * Ensure location permission and services are available and return the current location.
      *
      * @return The current [Location].
      */
-    @Suppress("unused")
     suspend fun getGeolocation(): Location {
         ensureLocationAvailability()
         return getCurrentLocation()
@@ -360,14 +363,12 @@ class ITMGeolocationManager(private var context: Context) {
         if (listening) {
             return
         }
-        accelerometerSensor?.let { accelerometerSensor ->
-            magneticSensor?.let { magneticSensor ->
-                // Note: even though we ask for updates only every 250,000 microseconds (4 times per second), we get updates a LOT more
-                // frequently than that. So a timer gets used in the callbacks to prevent a deluge of updates from being sent to JS.
-                sensorManager.registerListener(sensorListener, accelerometerSensor, 250000, 250000)
-                sensorManager.registerListener(sensorListener, magneticSensor, 250000, 250000)
-                listening = true
-            }
+        letAll(accelerometerSensor, magneticSensor) { accelerometerSensor, magneticSensor ->
+            // Note: even though we ask for updates only every 250,000 microseconds (4 times per second), we get updates a LOT more
+            // frequently than that. So a timer gets used in the callbacks to prevent a deluge of updates from being sent to JS.
+            sensorManager.registerListener(sensorListener, accelerometerSensor, 250000, 250000)
+            sensorManager.registerListener(sensorListener, magneticSensor, 250000, 250000)
+            listening = true
         }
     }
 
@@ -380,6 +381,30 @@ class ITMGeolocationManager(private var context: Context) {
         }
     }
 
+    private fun getHeadingAxes(): Pair<Int, Int>? {
+        // The following takes the device's current orientation into account.
+        // Note that devices have a default orientation, and for tablets this is often landscape
+        // while for phones it is portrait. This code works based off of the default orientation,
+        // not the portrait or landscape status.
+        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.display
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(WindowManager::class.java)?.defaultDisplay
+        }
+        return if (display != null) {
+            when (display.rotation) {
+                Surface.ROTATION_0   -> Pair(SensorManager.AXIS_X, SensorManager.AXIS_Y)
+                Surface.ROTATION_90  -> Pair(SensorManager.AXIS_Y, SensorManager.AXIS_MINUS_X)
+                Surface.ROTATION_180 -> Pair(SensorManager.AXIS_MINUS_X, SensorManager.AXIS_MINUS_Y)
+                Surface.ROTATION_270 -> Pair(SensorManager.AXIS_MINUS_Y, SensorManager.AXIS_X)
+                else                 -> null
+            }
+        } else {
+            Pair(SensorManager.AXIS_X, SensorManager.AXIS_Y)
+        }
+    }
+
     private fun getHeading(): Double? {
         if (!haveAccelerometerReading || !haveMagneticReading) {
             return null
@@ -389,8 +414,8 @@ class ITMGeolocationManager(private var context: Context) {
             return null
         }
         val rotationMatrixB = FloatArray(9)
-        // The following takes the device's current orientation (portrait, landscape) into account.
-        if (!SensorManager.remapCoordinateSystem(rotationMatrixA, SensorManager.AXIS_X, SensorManager.AXIS_Z, rotationMatrixB)) {
+        val (axisX, axisY) = getHeadingAxes() ?: return null
+        if (!SensorManager.remapCoordinateSystem(rotationMatrixA, axisX, axisY, rotationMatrixB)) {
             return null
         }
         val orientationAngles = FloatArray(3)
@@ -402,7 +427,7 @@ class ITMGeolocationManager(private var context: Context) {
         // Subsequent sensor updates need to send a heading update, and that requires a location to go with the heading.
         lastLocation = location
         val heading = getHeading()
-        scope.launch {
+        mainScope.launch {
             for (watchId in watchIds) {
                 sendPosition(location.toGeolocationPosition(heading), watchId, "watchPosition")
             }
@@ -414,17 +439,14 @@ class ITMGeolocationManager(private var context: Context) {
             return
 
         setupSensors()
-        val locationRequest = watchLocationRequest ?: LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build().also {
-            watchLocationRequest = it
-        }
-        fusedLocationClient.requestLocationUpdates(locationRequest, watchCallback, Looper.getMainLooper())
+        fusedLocationClient.requestLocationUpdates(watchLocationRequest, watchCallback, Looper.getMainLooper())
     }
     //endregion
 
     //region Response sending
-    private fun sendPosition(position: GeolocationPosition, positionId: Int?, messageName: String) {
+    private fun sendPosition(position: GeolocationPosition, positionId: Int, messageName: String) {
         val webView = this.webView ?: return
-        val locationData = GeolocationRequestData(positionId.toString(), position).toJsonString()
+        val locationData = GeolocationRequestData(positionId, position).toJsonString()
         val encodedLocationData = Base64.encodeToString(locationData.toByteArray(), Base64.NO_WRAP)
         val js = "window.Bentley_ITMGeolocationResponse('$messageName', '$encodedLocationData')"
         webView.evaluateJavascript(js, null)

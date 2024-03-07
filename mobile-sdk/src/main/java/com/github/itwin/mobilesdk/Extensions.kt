@@ -113,3 +113,29 @@ inline fun <reified T> List<*>.checkItemsAre(): List<T>? =
         @Suppress("UNCHECKED_CAST")
         it as List<T>
     }
+
+/**
+ * Execute a block of code if all other parameters are non-null.
+ *
+ * This is intended to replace nested [let] calls.
+ *
+ * > __Note:__ This function is named `letAll` so that in the future new functions can be created
+ * with the same name and more parameters.
+ *
+ * **Example:**
+ * ```kt
+ * val a: Int? = 42
+ * val b: Int? = 13
+ * letAll(a, b) { a, b -> a + b }?.let {
+ *   // Prints 55
+ *   print(it)
+ * }
+ * ```
+ */
+inline fun <T1, T2, R> letAll(p1: T1?, p2: T2?, block: (T1, T2) -> R?): R? {
+    return if (p1 != null && p2 != null) {
+        block(p1, p2)
+    } else {
+        null
+    }
+}
