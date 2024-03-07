@@ -2,6 +2,8 @@
 * Copyright (c) Bentley Systems, Incorporated. All rights reserved.
 * See LICENSE.md in the project root for license terms and full copyright notice.
 *--------------------------------------------------------------------------------------------*/
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
+
 package com.github.itwin.mobilesdk
 
 import android.util.Log
@@ -10,12 +12,16 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 
 /**
- * Class used by iTwin Mobile SDK to log information during runtime. Replace the [logger][ITMApplication.logger]
- * property on [ITMApplication] with a subclass of this class for custom logging. This default logger uses
- * [Log] functions for logging.
+ * Class used by the iTwin Mobile SDK to log information during runtime. Replace the
+ * [logger][ITMApplication.logger] property on [ITMApplication] with a subclass of this class for
+ * custom logging. This default logger uses [Log] functions for logging.
  */
-@Suppress("unused")
 open class ITMLogger {
+    /**
+     * Set this to `false` to completely disable logging.
+     */
+    var enabled = true
+
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
 
     /**
@@ -37,10 +43,10 @@ open class ITMLogger {
             fun fromString(value: String): Severity? {
                 var lowercaseValue = value.lowercase(Locale.ROOT)
                 lowercaseValue = when (lowercaseValue) {
-                    "log" -> "debug"
+                    "log"    -> "debug"
                     "assert" -> "fatal"
-                    "warn" -> "warning"
-                    else -> lowercaseValue
+                    "warn"   -> "warning"
+                    else     -> lowercaseValue
                 }
 
                 return values().firstOrNull { lowercaseValue == it.name.lowercase(Locale.ROOT) }
@@ -54,19 +60,26 @@ open class ITMLogger {
     }
 
     /**
-     * Logs the given message using a function from the [Log] class that is appropriate to the given
-     * [severity], with a tag of `"ITMLogger"`.
+     * If [enabled] is `true`, Logs the given message using a function from the [Log] class that is
+     * appropriate to the given [severity], with a tag of `"ITMLogger"`.
+     *
+     * @param severity The [Severity] of the log message.
+     * @param message The message to log.
      */
     open fun log(severity: Severity?, message: String) {
-        val logger: (String?, String) -> Int = when (severity) {
-            Severity.Fatal -> Log::e
-            Severity.Error -> Log::e
-            Severity.Warning -> Log::w
-            Severity.Info -> Log::i
-            Severity.Debug -> Log::d
-            Severity.Trace -> Log::v
-            else -> Log::e
+        if (!enabled) {
+            return
         }
-        logger("ITMLogger", "%s: %s".format(LocalDateTime.now().format(dateFormatter), message))
+        val logger: (String?, String) -> Int = when (severity) {
+            Severity.Fatal   -> Log::e
+            Severity.Error   -> Log::e
+            Severity.Warning -> Log::w
+            Severity.Info    -> Log::i
+            Severity.Debug   -> Log::d
+            Severity.Trace   -> Log::v
+            else             -> Log::e
+        }
+        val timestamp = LocalDateTime.now().format(dateFormatter)
+        logger("ITMLogger", "$timestamp: $message")
     }
 }
