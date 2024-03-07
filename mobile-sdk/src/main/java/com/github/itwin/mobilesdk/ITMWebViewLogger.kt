@@ -2,6 +2,8 @@
 * Copyright (c) Bentley Systems, Incorporated. All rights reserved.
 * See LICENSE.md in the project root for license terms and full copyright notice.
 *--------------------------------------------------------------------------------------------*/
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
+
 package com.github.itwin.mobilesdk
 
 import android.webkit.JavascriptInterface
@@ -9,13 +11,14 @@ import android.webkit.WebView
 import java.util.*
 
 /**
- * Logger that, when attached to a [WebView], redirects console messages from that web view to the given [callback].
+ * Logger that, when attached to a [WebView], redirects console messages from that web view to the
+ * given [callback].
  *
  * @param webView The [WebView] from which console output should be redirected.
  * @param callback The callback function that is called when console output is received.
  */
 open class ITMWebViewLogger(
-    @Suppress("MemberVisibilityCanBePrivate") protected val webView: WebView,
+    protected val webView: WebView,
     protected val callback: (type: LogType, message: String) -> Unit) {
     enum class LogType {
         Assert,
@@ -62,7 +65,6 @@ open class ITMWebViewLogger(
 
     init {
         webView.addJavascriptInterface(object {
-            @Suppress("unused")
             @JavascriptInterface
             fun log(typeString: String, message: String) {
                 val type = try {
