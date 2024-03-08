@@ -346,7 +346,7 @@ fun jsonOf(vararg pairs: Pair<String, *>) =
  *
  * This returns the result of [toJSON], or if that fails (throws an exception), `null`.
  */
-fun tryToJSON(value: Any?): JSONValue? = try {
+fun toJSONOrNull(value: Any?): JSONValue? = try {
     toJSON(value)
 } catch (_: Throwable) {
     null
