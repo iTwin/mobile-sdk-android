@@ -499,8 +499,11 @@ open class ITMApplication(
     /**
      * Function that creates an [ITMNativeUI] object for this [ITMApplication]. Override to return a
      * custom [ITMNativeUI] subclass.
+     *
+     * > __Note:__ If you override this function and do not call super, you must call
+     * [registerStandardComponents][ITMNativeUI.registerStandardComponents] on your newly created
+     * native UI object before returning.
      */
-    @CallSuper
     open fun createNativeUI(context: Context) =
         webView?.let {
             ITMNativeUI(context, it, coMessenger).apply { registerStandardComponents() }
