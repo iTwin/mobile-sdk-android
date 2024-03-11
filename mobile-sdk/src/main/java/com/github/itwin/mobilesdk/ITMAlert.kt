@@ -21,17 +21,14 @@ class ITMAlert(nativeUI: ITMNativeUI): ITMActionable(nativeUI)  {
         handler = coMessenger.registerQueryHandler("Bentley_ITM_presentAlert", ::handleQuery)
     }
 
-    private fun toAlertActionsOrItems(actions: List<Action>): Pair<Array<Action?>, MutableList<CharSequence>?> {
+    private fun toAlertActionsOrItems(actions: List<Action>): Pair<Array<Action?>, List<CharSequence>?> {
         var index = 0
         var neutralAction: Action? = null
         var negativeAction: Action? = null
         var positiveAction: Action? = null
-        var items: MutableList<CharSequence>? = null
+        var items: List<CharSequence>? = null
         if (actions.size > 3) {
-            items = mutableListOf()
-            actions.forEach {
-                items += it.styledTitle
-            }
+            items = actions.map { it.styledTitle }
         } else {
             // Note: The mapping of actions to buttons is documented in mobile-sdk-core.
             if (actions.size == 3) {
