@@ -86,7 +86,7 @@ fun <K, V> Map<K, V>.getOptionalDouble(key: K) =
  * `null`.
  */
 inline fun <reified K: Any, reified V: Any> Map<*,*>.checkEntriesAre(): Map<K, V>? =
-    this.takeIf {
+    this.takeIf { _ ->
         all { it.key is K && it.value is V }
     }?.let {
         @Suppress("UNCHECKED_CAST")
@@ -107,7 +107,7 @@ inline fun <reified K: Any, reified V: Any> Map<*,*>.ensureEntriesAre(): Map<K, 
  * @return The receiver specialized with `T` if the item types match, otherwise `null`.
  */
 inline fun <reified T> List<*>.checkItemsAre(): List<T>? =
-    this.takeIf {
+    this.takeIf { _ ->
         all { it is T }
     }?.let {
         @Suppress("UNCHECKED_CAST")

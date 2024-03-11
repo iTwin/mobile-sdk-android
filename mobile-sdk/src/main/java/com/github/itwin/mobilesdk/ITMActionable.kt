@@ -58,7 +58,7 @@ abstract class ITMActionable(nativeUI: ITMNativeUI): ITMNativeUIComponent(native
                     style?.takeIf {
                         it.isNotEmpty()
                     }?.let {
-                        Style.valueOf(style.replaceFirstChar { it.uppercase() })
+                        Style.valueOf(it.replaceFirstChar { char -> char.uppercase() })
                     } ?: Default
             }
         }

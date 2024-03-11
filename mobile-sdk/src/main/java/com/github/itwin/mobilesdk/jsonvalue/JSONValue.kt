@@ -150,8 +150,8 @@ class JSONValue private constructor(value: Any?) {
      */
     val anyValue: Any?
         get() = when (value) {
-            is JSONObject -> objectValue!!.toMap()
-            is JSONArray  -> arrayValue!!.toList()
+            is JSONObject -> objectValue?.toMap()
+            is JSONArray  -> arrayValue?.toList()
             else          -> value
         }
 
@@ -220,26 +220,26 @@ class JSONValue private constructor(value: Any?) {
      * receiver is not an object, or the key does not exist, throws an exception. This allows the
      * subscript operator to be directly used on [JSONValue].
      */
-    operator fun get(key: String): Any = objectValue!!.get(key)
+    operator fun get(key: String): Any = (objectValue as JSONObject).get(key)
 
     /**
      * If the receiver is an object, maps `name` to `value`, clobbering any name/value mapping with
-     * the same name.
+     * the same name. If the receiver is not an object, throws an exception.
      */
-    fun put(key: String, value: Any?): JSONObject = objectValue!!.put(key, value)
+    fun put(key: String, value: Any?): JSONObject = (objectValue as JSONObject).put(key, value)
 
     /**
      * If the receiver is an array, returns the value at the specified index in the array. If the
      * receiver is not an array, throws an exception. This allows the subscript operator to be used
      * directly on [JSONValue].
      */
-    operator fun get(index: Int): Any = arrayValue!!.get(index)
+    operator fun get(index: Int): Any = (arrayValue as JSONArray).get(index)
 
     /**
      * If the receiver is an array, sets the value at `index` to `value`, null-padding the array to
-     * the required length if necessary..
+     * the required length if necessary. If the receiver is not an array, throws an exception.
      */
-    fun put(index: Int, value: Any?): JSONArray = arrayValue!!.put(index, value)
+    fun put(index: Int, value: Any?): JSONArray = (arrayValue as JSONArray).put(index, value)
 
     /**
      * If the receiver is an object, returns the optional value of the specified key in the object
