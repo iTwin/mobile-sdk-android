@@ -14,7 +14,7 @@ import java.net.URLConnection
  * Class that implements [shouldInterceptRequest] to load app assets any time a URL with the
  * prefix `https://appassets.itwinjs.org/assets/` is used.
  *
- * @property context: The `Context` used to load assets.
+ * @param context: The `Context` used to load assets.
  */
 class ITMWebAssetLoader(private val context: Context) {
     companion object {
@@ -34,13 +34,14 @@ class ITMWebAssetLoader(private val context: Context) {
         URLConnection.guessContentTypeFromName(path) ?: DEFAULT_MIME_TYPE
 
     /**
-     * Checks the given [Uri], and if it has a prefix of [URL_PREFIX] (`https://appassets.itwinjs.org/assets/`),
-     * loads the associated data from the given app asset.
+     * Checks the given [Uri], and if it has a prefix of [URL_PREFIX]
+     * (`https://appassets.itwinjs.org/assets/`), loads the associated data from the given app
+     * asset.
      *
      * @param url: The [Uri] of the request to load.
      *
      * @return: A WebResourceResponse configured to load the given app asset if the URL has a prefix
-     * of [URL_PREFIX], or null otherwise. Note that even if the file is not present in app assets
+     * of [URL_PREFIX], or `null` otherwise. Note that even if the file is not present in app assets
      * for a URL with the appropriate prefix, this will still return a [WebResourceResponse]. It's
      * just that the response won't load any data. This is intentional, since any URL using the
      * prefix is expected to be loaded from app assets.
@@ -55,9 +56,8 @@ class ITMWebAssetLoader(private val context: Context) {
         if (hashIndex != -1) {
             path = path.substring(0, hashIndex)
         }
-        val manager = context.assets
         return try {
-            val asset = manager.open(path, AssetManager.ACCESS_STREAMING)
+            val asset = context.assets.open(path, AssetManager.ACCESS_STREAMING)
             WebResourceResponse(guessMimeType(path), "utf-8", asset)
         } catch (ex: Exception) {
             WebResourceResponse(null, null, null)
