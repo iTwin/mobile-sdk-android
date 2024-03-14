@@ -119,8 +119,7 @@ inline fun <reified T> List<*>.checkItemsAre(): List<T>? =
  *
  * This is intended to replace nested [let] calls.
  *
- * > __Note:__ This function is named `letAll` so that in the future new functions can be created
- * with the same name and more parameters.
+ * There is another overload with three parameters plus [block].
  *
  * **Example:**
  * ```kt
@@ -135,6 +134,21 @@ inline fun <reified T> List<*>.checkItemsAre(): List<T>? =
 inline fun <T1, T2, R> letAll(p1: T1?, p2: T2?, block: (T1, T2) -> R?): R? {
     return if (p1 != null && p2 != null) {
         block(p1, p2)
+    } else {
+        null
+    }
+}
+
+/**
+ * Execute a block of code if all other parameters are non-null.
+ *
+ * This is intended to replace nested [let] calls.
+ *
+ * See the overload with two parameters plus [block] for example usage.
+ */
+inline fun <T1, T2, T3, R> letAll(p1: T1?, p2: T2?, p3: T3?, block: (T1, T2, T3) -> R?): R? {
+    return if (p1 != null && p2 != null && p3 != null) {
+        block(p1, p2, p3)
     } else {
         null
     }
