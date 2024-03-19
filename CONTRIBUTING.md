@@ -63,4 +63,4 @@ echo sdk.dir=/Users/$USER/Libarary/Android/sdk > local.properties
 To use the locally published Mobile SDK in your App do the following:
 - Add `mavenLocal()` to the list of repositories in the `settings.gradle` file. Make sure it is before any other repositories. Look at `mobile-sdk-android/settings.gradle` to see an example.
 - In your app's `build.gradle` file, add a dependency to `mobile-sdk-android`. Something like this should work:
-`implementation 'com.github.itwin:mobile-sdk-android:0.9.12'`
+`implementation 'com.github.itwin.mobilesdk:mobile-sdk-android:0.22.3'`
