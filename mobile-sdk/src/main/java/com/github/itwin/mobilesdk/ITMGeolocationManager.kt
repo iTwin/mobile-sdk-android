@@ -21,7 +21,10 @@ import android.os.Build
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Base64
-import android.view.Surface
+import android.view.Surface.ROTATION_0
+import android.view.Surface.ROTATION_90
+import android.view.Surface.ROTATION_180
+import android.view.Surface.ROTATION_270
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -459,11 +462,11 @@ class ITMGeolocationManager(private var context: Context) {
         val display = getDisplay()
         return if (display != null) {
             when (display.rotation) {
-                Surface.ROTATION_0   -> if (isUpsideDown) Pair(AXIS_MINUS_X, AXIS_MINUS_Y) else Pair(AXIS_X, AXIS_Y)
-                Surface.ROTATION_90  -> if (isUpsideDown) Pair(AXIS_MINUS_Y, AXIS_X) else Pair(AXIS_Y, AXIS_MINUS_X)
-                Surface.ROTATION_180 -> if (isUpsideDown) Pair(AXIS_X, AXIS_Y) else Pair(AXIS_MINUS_X, AXIS_MINUS_Y)
-                Surface.ROTATION_270 -> if (isUpsideDown) Pair(AXIS_Y, AXIS_MINUS_X) else Pair(AXIS_MINUS_Y, AXIS_X)
-                else                 -> null
+                ROTATION_0   -> if (isUpsideDown) Pair(AXIS_MINUS_X, AXIS_MINUS_Y) else Pair(AXIS_X, AXIS_Y)
+                ROTATION_90  -> if (isUpsideDown) Pair(AXIS_MINUS_Y, AXIS_X) else Pair(AXIS_Y, AXIS_MINUS_X)
+                ROTATION_180 -> if (isUpsideDown) Pair(AXIS_X, AXIS_Y) else Pair(AXIS_MINUS_X, AXIS_MINUS_Y)
+                ROTATION_270 -> if (isUpsideDown) Pair(AXIS_Y, AXIS_MINUS_X) else Pair(AXIS_MINUS_Y, AXIS_X)
+                else         -> null
             }
         } else {
             Pair(AXIS_X, AXIS_Y)
@@ -474,10 +477,10 @@ class ITMGeolocationManager(private var context: Context) {
     private fun adjustHeadingForDisplayOrientation(angle: Double, isUpsideDown: Boolean): Double {
         val twoPi = 2.0 * Math.PI
         return (when (getDisplay()?.rotation ?: 0) {
-            Surface.ROTATION_90  -> Math.PI / 2.0
-            Surface.ROTATION_180 -> if (isUpsideDown) 0.0 else Math.PI
-            Surface.ROTATION_270 -> 3.0 * Math.PI / 2.0
-            else                 -> if (isUpsideDown) Math.PI else 0.0
+            ROTATION_90  -> Math.PI / 2.0
+            ROTATION_180 -> if (isUpsideDown) 0.0 else Math.PI
+            ROTATION_270 -> 3.0 * Math.PI / 2.0
+            else         -> if (isUpsideDown) Math.PI else 0.0
         } + angle + twoPi) % twoPi
     }
 
