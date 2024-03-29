@@ -2,6 +2,7 @@
   <dictionary name="itwin_mobile">
     <words>
       <w>WVID</w>
+      <w>coord</w>
       <w>coords</w>
       <w>imodel</w>
       <w>imodelaccess</w>

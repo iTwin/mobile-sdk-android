@@ -12,6 +12,10 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.hardware.SensorManager.AXIS_MINUS_X
+import android.hardware.SensorManager.AXIS_MINUS_Y
+import android.hardware.SensorManager.AXIS_X
+import android.hardware.SensorManager.AXIS_Y
 import android.location.Location
 import android.os.Build
 import android.os.Looper
@@ -34,6 +38,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 import java.util.*
 import kotlin.concurrent.schedule
+import kotlin.math.*
+
 
 /**
  * Class for the native-side implementation of a `navigator.geolocation` polyfill.
@@ -206,10 +212,17 @@ class ITMGeolocationManager(private var context: Context) {
     private lateinit var sensorManager: SensorManager
     private var accelerometerSensor: Sensor? = null
     private var magneticSensor: Sensor? = null
-    private val accelerometerReading = FloatArray(3)
-    private val magneticReading = FloatArray(3)
+    private var rotationSensor: Sensor? = null
+    private var headingSensor: Sensor? = null
+    private var headingReading = FloatArray(0)
+    private var rotationReading = FloatArray(0)
+    private var accelerometerReading = FloatArray(0)
+    private var magneticReading = FloatArray(0)
+    private val magneticHeadings = mutableListOf<Double>()
     private var haveAccelerometerReading = false
     private var haveMagneticReading = false
+    private var haveHeadingReading = false
+    private var haveRotationReading = false
     private var listening = false
 
     private val watchIds: MutableSet<Int> = mutableSetOf()
@@ -228,18 +241,37 @@ class ITMGeolocationManager(private var context: Context) {
         }
 
         override fun onSensorChanged(event: SensorEvent?) {
-            if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
-                System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.size)
-                haveAccelerometerReading = true
-            } else if (event?.sensor?.type == Sensor.TYPE_MAGNETIC_FIELD) {
-                System.arraycopy(event.values, 0, magneticReading, 0, magneticReading.size)
-                haveMagneticReading = true
+            when (event?.sensor?.type) {
+                Sensor.TYPE_ACCELEROMETER -> {
+                    accelerometerReading = event.values.copyOf()
+                    haveAccelerometerReading = true
+                }
+                Sensor.TYPE_MAGNETIC_FIELD -> {
+                    magneticReading = event.values.copyOf()
+                    haveMagneticReading = true
+                    getHeading()?.let {
+                        // Store all headings so that we can average them together each time we send
+                        // an update to the web app.
+                        mainScope.launch {
+                            magneticHeadings += it
+                        }
+                    }
+                }
+                Sensor.TYPE_HEADING -> {
+                    headingReading = event.values.copyOf()
+                    haveHeadingReading = true
+                }
+                Sensor.TYPE_ROTATION_VECTOR, Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR -> {
+                    rotationReading = event.values.copyOf()
+                    haveRotationReading = true
+                }
             }
-            if (!haveAccelerometerReading || !haveMagneticReading || watchIds.isEmpty() || watchTimerTask != null) {
+            val haveReading = haveAccelerometerReading && (haveMagneticReading || haveRotationReading || haveHeadingReading)
+            if (!haveReading || watchIds.isEmpty() || watchTimerTask != null) {
                 return
             }
-            // Only update heading a maximum of 4 times per second.
-            watchTimerTask = watchTimer.schedule(0, 250) {
+            // Only update heading a maximum of 10 times per second.
+            watchTimerTask = watchTimer.schedule(0, 100) {
                 lastLocation?.let {
                     updateWatchers(it)
                 }
@@ -358,17 +390,47 @@ class ITMGeolocationManager(private var context: Context) {
         if (accelerometerSensor == null) {
             sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-            magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         }
-        if (listening) {
+        if (accelerometerSensor == null) {
+            // All options require the accelerometer
             return
         }
-        letAll(accelerometerSensor, magneticSensor) { accelerometerSensor, magneticSensor ->
-            // Note: even though we ask for updates only every 250,000 microseconds (4 times per second), we get updates a LOT more
-            // frequently than that. So a timer gets used in the callbacks to prevent a deluge of updates from being sent to JS.
-            sensorManager.registerListener(sensorListener, accelerometerSensor, 250000, 250000)
-            sensorManager.registerListener(sensorListener, magneticSensor, 250000, 250000)
-            listening = true
+        // NOTE: We only use one sensor (along with the accelerometer) to determine heading. We try
+        // to create them in their preferred order: Sensor.TYPE_HEADING,
+        // Sensor.TYPE_ROTATION_VECTOR, Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR, and
+        // Sensor.TYPE_MAGNETIC_FIELD. When we successfully create a sensor, we don't try to create
+        // any more.
+        if (headingSensor == null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                headingSensor = sensorManager.getDefaultSensor(Sensor.TYPE_HEADING)
+            }
+        }
+        if (headingSensor == null && rotationSensor == null) {
+            // Both types of rotation sensor produce the same data, so use the same variables for
+            // both.
+            rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+            if (rotationSensor == null) {
+                rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR)
+            }
+        }
+        if (headingSensor == null && rotationSensor == null && magneticSensor == null) {
+            magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+        }
+        if (listening || (headingSensor == null && rotationSensor == null && magneticSensor == null)) {
+            return
+        }
+        // Note: we don't really have any control over how often sensor data is reported. Even if we
+        // request a specific time (instead of SENSOR_DELAY_UI), reports often happen much more
+        // frequently than that. So a timer gets used in the callbacks to prevent a deluge of
+        // updates from being sent to JS. The timer sends updates a maximum of 10 times per second.
+        sensorManager.registerListener(sensorListener, accelerometerSensor, SensorManager.SENSOR_DELAY_UI)
+        listening = true
+        if (headingSensor != null) {
+            sensorManager.registerListener(sensorListener, headingSensor, SensorManager.SENSOR_DELAY_UI)
+        } else if (rotationSensor != null) {
+            sensorManager.registerListener(sensorListener, rotationSensor, SensorManager.SENSOR_DELAY_UI)
+        } else if (magneticSensor != null) {
+            sensorManager.registerListener(sensorListener, magneticSensor, SensorManager.SENSOR_DELAY_UI)
         }
     }
 
@@ -381,53 +443,137 @@ class ITMGeolocationManager(private var context: Context) {
         }
     }
 
-    private fun getHeadingAxes(): Pair<Int, Int>? {
-        // The following takes the device's current orientation into account.
-        // Note that devices have a default orientation, and for tablets this is often landscape
-        // while for phones it is portrait. This code works based off of the default orientation,
-        // not the portrait or landscape status.
-        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    private fun getDisplay() =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             context.display
         } else {
             @Suppress("DEPRECATION")
             context.getSystemService(WindowManager::class.java)?.defaultDisplay
         }
+
+    private fun getHeadingAxes(isUpsideDown: Boolean): Pair<Int, Int>? {
+        // The following takes the device's current orientation into account.
+        // Note that devices have a default orientation, and for tablets this is often landscape
+        // while for phones it is portrait. This code works based off of the default orientation,
+        // not the portrait or landscape status.
+        val display = getDisplay()
         return if (display != null) {
             when (display.rotation) {
-                Surface.ROTATION_0   -> Pair(SensorManager.AXIS_X, SensorManager.AXIS_Y)
-                Surface.ROTATION_90  -> Pair(SensorManager.AXIS_Y, SensorManager.AXIS_MINUS_X)
-                Surface.ROTATION_180 -> Pair(SensorManager.AXIS_MINUS_X, SensorManager.AXIS_MINUS_Y)
-                Surface.ROTATION_270 -> Pair(SensorManager.AXIS_MINUS_Y, SensorManager.AXIS_X)
+                Surface.ROTATION_0   -> if (isUpsideDown) Pair(AXIS_MINUS_X, AXIS_MINUS_Y) else Pair(AXIS_X, AXIS_Y)
+                Surface.ROTATION_90  -> if (isUpsideDown) Pair(AXIS_MINUS_Y, AXIS_X) else Pair(AXIS_Y, AXIS_MINUS_X)
+                Surface.ROTATION_180 -> if (isUpsideDown) Pair(AXIS_X, AXIS_Y) else Pair(AXIS_MINUS_X, AXIS_MINUS_Y)
+                Surface.ROTATION_270 -> if (isUpsideDown) Pair(AXIS_Y, AXIS_MINUS_X) else Pair(AXIS_MINUS_Y, AXIS_X)
                 else                 -> null
             }
         } else {
-            Pair(SensorManager.AXIS_X, SensorManager.AXIS_Y)
+            Pair(AXIS_X, AXIS_Y)
         }
     }
 
-    private fun getHeading(): Double? {
-        if (!haveAccelerometerReading || !haveMagneticReading) {
-            return null
-        }
-        val rotationMatrixA = FloatArray(9)
-        if (!SensorManager.getRotationMatrix(rotationMatrixA, null, accelerometerReading, magneticReading)) {
-            return null
-        }
+    // @TODO: Test with heading sensor
+    private fun adjustHeadingForDisplayOrientation(angle: Double, isUpsideDown: Boolean): Double {
+        val twoPi = 2.0 * Math.PI
+        return (when (getDisplay()?.rotation ?: 0) {
+            Surface.ROTATION_90  -> Math.PI / 2.0
+            Surface.ROTATION_180 -> if (isUpsideDown) 0.0 else Math.PI
+            Surface.ROTATION_270 -> 3.0 * Math.PI / 2.0
+            else                 -> if (isUpsideDown) Math.PI else 0.0
+        } + angle + twoPi) % twoPi
+    }
+
+    // @TODO: Test on phone with heading sensor
+    private fun getHeadingFromHeadingSensor(isUpsideDown: Boolean) =
+        Math.toDegrees(adjustHeadingForDisplayOrientation(Math.toRadians(headingReading[0].toDouble()), isUpsideDown))
+
+    private fun getHeadingFromRotationSensor(isUpsideDown: Boolean): Double? {
+        val rotationMatrix = FloatArray(9)
+        SensorManager.getRotationMatrixFromVector(rotationMatrix, rotationReading)
+        return getHeadingFromRotationMatrix(rotationMatrix, isUpsideDown)
+    }
+
+    private fun getHeadingFromRotationMatrix(rotationMatrix: FloatArray, isUpsideDown: Boolean): Double? {
         val rotationMatrixB = FloatArray(9)
-        val (axisX, axisY) = getHeadingAxes() ?: return null
-        if (!SensorManager.remapCoordinateSystem(rotationMatrixA, axisX, axisY, rotationMatrixB)) {
+        val (axisX, axisY) = getHeadingAxes(isUpsideDown) ?: return null
+        if (!SensorManager.remapCoordinateSystem(rotationMatrix, axisX, axisY, rotationMatrixB)) {
             return null
         }
         val orientationAngles = FloatArray(3)
         val orientation = SensorManager.getOrientation(rotationMatrixB, orientationAngles)
-        return (Math.toDegrees(orientation[0].toDouble()) + 360.0) % 360.0
+        return Math.toDegrees(orientation[0].toDouble())
+    }
+
+    private fun getHeadingFromMagneticSensor(isUpsideDown: Boolean): Double? {
+        val rotationMatrixA = FloatArray(9)
+        if (!SensorManager.getRotationMatrix(rotationMatrixA, null, accelerometerReading, magneticReading)) {
+            return null
+        }
+        return getHeadingFromRotationMatrix(rotationMatrixA, isUpsideDown)
+    }
+
+    private fun clampHeading(heading: Double?): Double? = if (heading != null) {
+        (heading + 360.0) % 360.0
+    } else {
+        null
+    }
+
+    private fun getHeading(): Double? {
+        if (!haveAccelerometerReading) {
+            return null
+        }
+        val isUpsideDown: Boolean = accelerometerReading[2] < 0
+        return clampHeading(if (haveHeadingReading) {
+            getHeadingFromHeadingSensor(isUpsideDown)
+        } else if (haveRotationReading) {
+            getHeadingFromRotationSensor(isUpsideDown)
+        } else if (haveMagneticReading) {
+            getHeadingFromMagneticSensor(isUpsideDown)
+        } else {
+            null
+        })
+    }
+
+    data class Coord2D(var x: Double, var y: Double) {
+        companion object {
+            fun fromDegrees(degrees: Double): Coord2D {
+                val radians = Math.toRadians(degrees)
+                return Coord2D(cos(radians), sin(radians))
+            }
+        }
+
+        operator fun plus(other: Coord2D) = Coord2D(x + other.x, y + other.y)
+
+        operator fun minus(other: Coord2D) = Coord2D(x - other.x, y - other.y)
+
+        operator fun div(scale: Double) = Coord2D(x / scale, y / scale)
+
+        operator fun div(scale: Int) = Coord2D(x / scale, y / scale)
+
+        fun magnitude() = sqrt(x * x + y * y)
     }
 
     private fun updateWatchers(location: Location) {
         // Subsequent sensor updates need to send a heading update, and that requires a location to go with the heading.
         lastLocation = location
-        val heading = getHeading()
         mainScope.launch {
+            val heading: Double?
+            if (magneticHeadings.isEmpty()) {
+                heading = getHeading()
+            } else {
+                // Average all our stored headings together to decrease the compass jitter.
+                var coord = Coord2D(0.0, 0.0)
+                // Convert all the headings from unit values in polar coordinates to rectangular
+                // coordinates and add them together.
+                magneticHeadings.forEach {
+                    coord += Coord2D.fromDegrees(it)
+                }
+                // Divide by magnitude to get a unit vector pointing in the right direction
+                coord /= coord.magnitude()
+                // Make sure our average coordinate is on the unit circle
+                assert(abs(coord.magnitude() - 1.0) < 0.0001)
+                // Convert back to polar coordinates
+                heading = (Math.toDegrees(atan2(coord.y, coord.x)) + 360.0) % 360.0
+                magneticHeadings.clear()
+            }
             for (watchId in watchIds) {
                 sendPosition(location.toGeolocationPosition(heading), watchId, "watchPosition")
             }
