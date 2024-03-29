@@ -514,7 +514,12 @@ class ITMGeolocationManager(private var context: Context) {
     }
 
     private fun clampHeading(heading: Double?): Double? = if (heading != null) {
-        (heading + 360.0) % 360.0
+        val clamp = heading % 360.0
+        if (clamp < 0.0) {
+            clamp + 360.0
+        } else {
+            clamp
+        }
     } else {
         null
     }
