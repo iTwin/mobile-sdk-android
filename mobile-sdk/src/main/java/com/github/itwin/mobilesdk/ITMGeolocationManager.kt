@@ -406,6 +406,13 @@ class ITMGeolocationManager(private var context: Context) {
         if (headingSensor == null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 headingSensor = sensorManager.getDefaultSensor(Sensor.TYPE_HEADING)
+                if (headingSensor != null) {
+                    // We don't have any test phones that return non-null for Sensor.TYPE_HEADING.
+                    // Until we do, we have no idea if our processing of the data is correct. So,
+                    // while the code to interpret the data from Sensor.TYPE_HEADING is being left
+                    // in the library, the following line makes sure that that data is never used.
+                    headingSensor = null
+                }
             }
         }
         if (headingSensor == null && rotationSensor == null) {
@@ -506,11 +513,11 @@ class ITMGeolocationManager(private var context: Context) {
     }
 
     private fun getHeadingFromMagneticSensor(isUpsideDown: Boolean): Double? {
-        val rotationMatrixA = FloatArray(9)
-        if (!SensorManager.getRotationMatrix(rotationMatrixA, null, accelerometerReading, magneticReading)) {
+        val rotationMatrix = FloatArray(9)
+        if (!SensorManager.getRotationMatrix(rotationMatrix, null, accelerometerReading, magneticReading)) {
             return null
         }
-        return getHeadingFromRotationMatrix(rotationMatrixA, isUpsideDown)
+        return getHeadingFromRotationMatrix(rotationMatrix, isUpsideDown)
     }
 
     private fun clampHeading(heading: Double?): Double? = if (heading != null) {
