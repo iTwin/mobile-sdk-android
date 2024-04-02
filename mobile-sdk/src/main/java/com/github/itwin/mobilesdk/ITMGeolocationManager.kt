@@ -418,10 +418,8 @@ class ITMGeolocationManager(private var context: Context) {
         if (headingSensor == null && rotationSensor == null) {
             // Both types of rotation sensor produce the same data, so use the same variables for
             // both.
-            rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-            if (rotationSensor == null) {
-                rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR)
-            }
+            rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) ?:
+                sensorManager.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR)
         }
         if (headingSensor == null && rotationSensor == null && magneticSensor == null) {
             magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
