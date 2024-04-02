@@ -400,6 +400,9 @@ class ITMGeolocationManager(private var context: Context) {
     }
 
     private fun setupSensors() {
+        if (listening) {
+            return
+        }
         if (accelerometerSensor == null) {
             sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
@@ -419,7 +422,8 @@ class ITMGeolocationManager(private var context: Context) {
                 sensorManager.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR) ?:
                 sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         }
-        if (listening || otherSensor == null) {
+        if (otherSensor == null) {
+            // None of the sensors we support for heading is present.
             return
         }
         listening = true
