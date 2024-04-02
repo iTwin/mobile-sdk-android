@@ -553,28 +553,31 @@ class ITMGeolocationManager(private var context: Context) {
         fun magnitude() = sqrt(x * x + y * y)
     }
 
+    private fun getAveragedHeading(): Double? {
+        // Average all our stored headings together to decrease the compass jitter.
+        var coord = Coord2D(0.0, 0.0)
+        // Convert all the headings from unit values in polar coordinates to rectangular
+        // coordinates and add them together.
+        magneticHeadings.forEach {
+            coord += Coord2D.fromDegrees(it)
+        }
+        // Divide by magnitude to get a unit vector pointing in the right direction
+        coord /= coord.magnitude()
+        // Make sure our average coordinate is on the unit circle
+        assert(abs(coord.magnitude() - 1.0) < 0.0001)
+        // Convert back to polar coordinates
+        magneticHeadings.clear()
+        return clampHeading(Math.toDegrees(atan2(coord.y, coord.x)))
+    }
+
     private fun updateWatchers(location: Location) {
         // Subsequent sensor updates need to send a heading update, and that requires a location to go with the heading.
         lastLocation = location
         mainScope.launch {
-            val heading: Double?
-            if (magneticHeadings.isEmpty()) {
-                heading = getHeading()
+            val heading = if (magneticHeadings.isEmpty()) {
+                getHeading()
             } else {
-                // Average all our stored headings together to decrease the compass jitter.
-                var coord = Coord2D(0.0, 0.0)
-                // Convert all the headings from unit values in polar coordinates to rectangular
-                // coordinates and add them together.
-                magneticHeadings.forEach {
-                    coord += Coord2D.fromDegrees(it)
-                }
-                // Divide by magnitude to get a unit vector pointing in the right direction
-                coord /= coord.magnitude()
-                // Make sure our average coordinate is on the unit circle
-                assert(abs(coord.magnitude() - 1.0) < 0.0001)
-                // Convert back to polar coordinates
-                heading = (Math.toDegrees(atan2(coord.y, coord.x)) + 360.0) % 360.0
-                magneticHeadings.clear()
+                getAveragedHeading()
             }
             for (watchId in watchIds) {
                 sendPosition(location.toGeolocationPosition(heading), watchId, "watchPosition")
