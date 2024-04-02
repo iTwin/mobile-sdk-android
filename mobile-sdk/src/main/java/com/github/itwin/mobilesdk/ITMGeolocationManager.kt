@@ -392,7 +392,7 @@ class ITMGeolocationManager(private var context: Context) {
             // We don't have any test phones that return non-null for Sensor.TYPE_HEADING.
             // Until we do, we have no idea if our processing of the data is correct. So,
             // while the code to interpret the data from Sensor.TYPE_HEADING is being left
-            // in the library, the following line makes sure that that data is never used.
+            // in the library, not returning the value makes sure that that data is never used.
             // Add return before the line below to activate usage of the heading sensor.
             sensorManager.getDefaultSensor(Sensor.TYPE_HEADING)
         }
