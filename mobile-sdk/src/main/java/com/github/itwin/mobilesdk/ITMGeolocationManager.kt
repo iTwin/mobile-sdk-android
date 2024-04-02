@@ -214,9 +214,7 @@ class ITMGeolocationManager(private var context: Context) {
 
     private lateinit var sensorManager: SensorManager
     private var accelerometerSensor: Sensor? = null
-    private var magneticSensor: Sensor? = null
-    private var rotationSensor: Sensor? = null
-    private var headingSensor: Sensor? = null
+    private var otherSensor: Sensor? = null
     private var headingReading = FloatArray(0)
     private var rotationReading = FloatArray(0)
     private var accelerometerReading = FloatArray(0)
@@ -389,6 +387,18 @@ class ITMGeolocationManager(private var context: Context) {
         }
     }
 
+    private fun getHeadingSensor(): Sensor? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // We don't have any test phones that return non-null for Sensor.TYPE_HEADING.
+            // Until we do, we have no idea if our processing of the data is correct. So,
+            // while the code to interpret the data from Sensor.TYPE_HEADING is being left
+            // in the library, the following line makes sure that that data is never used.
+            // Add return before the line below to activate usage of the heading sensor.
+            sensorManager.getDefaultSensor(Sensor.TYPE_HEADING)
+        }
+        return null
+    }
+
     private fun setupSensors() {
         if (accelerometerSensor == null) {
             sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -403,43 +413,22 @@ class ITMGeolocationManager(private var context: Context) {
         // Sensor.TYPE_ROTATION_VECTOR, Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR, and
         // Sensor.TYPE_MAGNETIC_FIELD. When we successfully create a sensor, we don't try to create
         // any more.
-        if (headingSensor == null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                headingSensor = sensorManager.getDefaultSensor(Sensor.TYPE_HEADING)
-                if (headingSensor != null) {
-                    // We don't have any test phones that return non-null for Sensor.TYPE_HEADING.
-                    // Until we do, we have no idea if our processing of the data is correct. So,
-                    // while the code to interpret the data from Sensor.TYPE_HEADING is being left
-                    // in the library, the following line makes sure that that data is never used.
-                    headingSensor = null
-                }
-            }
+        if (otherSensor == null) {
+            otherSensor = getHeadingSensor() ?:
+                sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) ?:
+                sensorManager.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR) ?:
+                sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         }
-        if (headingSensor == null && rotationSensor == null) {
-            // Both types of rotation sensor produce the same data, so use the same variables for
-            // both.
-            rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) ?:
-                sensorManager.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR)
-        }
-        if (headingSensor == null && rotationSensor == null && magneticSensor == null) {
-            magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
-        }
-        if (listening || (headingSensor == null && rotationSensor == null && magneticSensor == null)) {
+        if (listening || otherSensor == null) {
             return
         }
+        listening = true
         // Note: we don't really have any control over how often sensor data is reported. Even if we
         // request a specific time (instead of SENSOR_DELAY_UI), reports often happen much more
         // frequently than that. So a timer gets used in the callbacks to prevent a deluge of
         // updates from being sent to JS. The timer sends updates a maximum of 10 times per second.
         sensorManager.registerListener(sensorListener, accelerometerSensor, SensorManager.SENSOR_DELAY_UI)
-        listening = true
-        if (headingSensor != null) {
-            sensorManager.registerListener(sensorListener, headingSensor, SensorManager.SENSOR_DELAY_UI)
-        } else if (rotationSensor != null) {
-            sensorManager.registerListener(sensorListener, rotationSensor, SensorManager.SENSOR_DELAY_UI)
-        } else if (magneticSensor != null) {
-            sensorManager.registerListener(sensorListener, magneticSensor, SensorManager.SENSOR_DELAY_UI)
-        }
+        sensorManager.registerListener(sensorListener, otherSensor, SensorManager.SENSOR_DELAY_UI)
     }
 
     private fun stopSensors() {
