@@ -12,10 +12,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.hardware.SensorManager.AXIS_MINUS_X
-import android.hardware.SensorManager.AXIS_MINUS_Y
-import android.hardware.SensorManager.AXIS_X
-import android.hardware.SensorManager.AXIS_Y
+import android.hardware.SensorManager.*
 import android.location.Location
 import android.os.Build
 import android.os.Looper
@@ -242,6 +239,9 @@ class ITMGeolocationManager(private var context: Context) {
         }
 
         override fun onSensorChanged(event: SensorEvent?) {
+            if (event?.accuracy == SENSOR_STATUS_UNRELIABLE || event?.accuracy == SENSOR_STATUS_ACCURACY_LOW) {
+                return
+            }
             when (event?.sensor?.type) {
                 Sensor.TYPE_ACCELEROMETER -> {
                     accelerometerReading = event.values.copyOf()
