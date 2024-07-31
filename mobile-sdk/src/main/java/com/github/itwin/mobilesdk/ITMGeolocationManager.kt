@@ -46,7 +46,7 @@ import kotlin.math.*
  *
  * @param context: The [Context] that is used for interacting with Android.
  */
-class ITMGeolocationManager(private var context: Context, private val customErrorHandler: ((String) -> Unit)? = null) {
+class ITMGeolocationManager(private var context: Context, private val customErrorHandler: ((Context, String) -> Unit)? = null) {
     private val geolocationJsInterface = object {
         @JavascriptInterface
         fun getCurrentPosition(positionId: Int) {

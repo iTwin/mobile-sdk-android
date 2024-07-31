@@ -48,14 +48,14 @@ fun Context.checkFineLocationPermission() =
  */
 internal class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller) {
     private lateinit var context: Context
-    private var customErrorHandler: ((String) -> Unit)? = null
+    private var customErrorHandler: ((Context, String) -> Unit)? = null
 
     private val requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         requestPermissionsTask?.complete(isGranted)
         requestPermissionsTask = null
         if (!isGranted) {
             if (customErrorHandler != null) {
-                customErrorHandler?.invoke(context.getString(R.string.itm_location_permissions_error_toast_text))
+                customErrorHandler?.invoke(context, context.getString(R.string.itm_location_permissions_error_toast_text))
             } else {
                 Toast.makeText(context, context.getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
             }
@@ -78,7 +78,7 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
     /**
      * Constructor using a [ComponentActivity] as the [ActivityResultCaller] and [Context].
      */
-    constructor(activity: ComponentActivity, customErrorHandler: ((String) -> Unit)? = null) : this(activity as ActivityResultCaller) {
+    constructor(activity: ComponentActivity, customErrorHandler: ((Context, String) -> Unit)? = null) : this(activity as ActivityResultCaller) {
         this.context = activity
         this.customErrorHandler = customErrorHandler
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
@@ -101,7 +101,7 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
      * Constructor using a [Fragment] as the as the [ActivityResultCaller], and the fragment's
      * activity or context will be used as the [Context].
      */
-    constructor(fragment: Fragment, customErrorHandler: ((String) -> Unit)? = null) : this(fragment as ActivityResultCaller) {
+    constructor(fragment: Fragment, customErrorHandler: ((Context, String) -> Unit)? = null) : this(fragment as ActivityResultCaller) {
         this.customErrorHandler = customErrorHandler
         fragment.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
