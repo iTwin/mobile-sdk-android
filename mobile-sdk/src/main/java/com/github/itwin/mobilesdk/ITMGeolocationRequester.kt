@@ -48,12 +48,17 @@ fun Context.checkFineLocationPermission() =
  */
 internal class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller) {
     private lateinit var context: Context
+    private var customGeolocationPermissionErrorHandler: ((String) -> Unit)? = null
 
     private val requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         requestPermissionsTask?.complete(isGranted)
         requestPermissionsTask = null
         if (!isGranted) {
-            Toast.makeText(context, context.getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
+            if (customGeolocationPermissionErrorHandler == null) {
+                Toast.makeText(context, context.getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
+            } else {
+                customGeolocationPermissionErrorHandler?.invoke(context.getString(R.string.itm_location_permissions_error_toast_text))
+            }
         }
     }
 
@@ -73,8 +78,9 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
     /**
      * Constructor using a [ComponentActivity] as the [ActivityResultCaller] and [Context].
      */
-    constructor(activity: ComponentActivity): this(activity as ActivityResultCaller) {
+    constructor(activity: ComponentActivity, customGeolocationPermissionErrorHandler: ((String) -> Unit)? = null) : this(activity as ActivityResultCaller) {
         this.context = activity
+        this.customGeolocationPermissionErrorHandler = customGeolocationPermissionErrorHandler
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {
                 unregister()
@@ -95,7 +101,8 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
      * Constructor using a [Fragment] as the as the [ActivityResultCaller], and the fragment's
      * activity or context will be used as the [Context].
      */
-    constructor(fragment: Fragment): this(fragment as ActivityResultCaller) {
+    constructor(fragment: Fragment, customGeolocationPermissionErrorHandler: ((String) -> Unit)? = null) : this(fragment as ActivityResultCaller) {
+        this.customGeolocationPermissionErrorHandler = customGeolocationPermissionErrorHandler
         fragment.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 context = fragment.activity ?: fragment.requireContext()
