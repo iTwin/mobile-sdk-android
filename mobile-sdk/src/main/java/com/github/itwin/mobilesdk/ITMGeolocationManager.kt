@@ -46,7 +46,7 @@ import kotlin.math.*
  *
  * @param context: The [Context] that is used for interacting with Android.
  */
-class ITMGeolocationManager(private var context: Context, private val customErrorHandler: ((Context, String) -> Unit)? = null) {
+class ITMGeolocationManager(private var context: Context, private val errorHandler: ErrorHandler? = null) {
     private val geolocationJsInterface = object {
         @JavascriptInterface
         fun getCurrentPosition(positionId: Int) {
@@ -183,7 +183,7 @@ class ITMGeolocationManager(private var context: Context, private val customErro
      */
     fun associateWithActivity(activity: ComponentActivity) {
         context = activity
-        requester = ITMGeolocationRequester(activity, customErrorHandler)
+        requester = ITMGeolocationRequester(activity, errorHandler)
         addLifecycleObserver(activity)
     }
 
@@ -193,7 +193,7 @@ class ITMGeolocationManager(private var context: Context, private val customErro
      * @param fragment The [Fragment] to associate with.
      */
     fun associateWithFragment(fragment: Fragment) {
-        requester = ITMGeolocationRequester(fragment, customErrorHandler)
+        requester = ITMGeolocationRequester(fragment, errorHandler)
         addLifecycleObserver(fragment)
     }
 
