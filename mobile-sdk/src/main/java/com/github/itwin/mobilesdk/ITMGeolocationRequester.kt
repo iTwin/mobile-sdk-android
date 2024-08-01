@@ -25,6 +25,8 @@ import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.tasks.await
 
+typealias ErrorHandler = (Context, String) -> Unit
+
 /**
  * [Context] extension function that checks that ACCESS_FINE_LOCATION has been granted.
  *
@@ -45,15 +47,16 @@ fun Context.checkFineLocationPermission() =
  * or Fragment.
  *
  * @param resultCaller The [ActivityResultCaller] to associate with.
+ * @param errorHandler The error handler to use when displaying errors. Defaults to a Toast.
  */
-internal class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller) {
+internal class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller, private val errorHandler: ErrorHandler) {
     private lateinit var context: Context
 
     private val requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         requestPermissionsTask?.complete(isGranted)
         requestPermissionsTask = null
         if (!isGranted) {
-            Toast.makeText(context, context.getString(R.string.itm_location_permissions_error_toast_text), Toast.LENGTH_LONG).show()
+            errorHandler(context, context.getString(R.string.itm_location_permissions_error_toast_text))
         }
     }
 
@@ -73,7 +76,7 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
     /**
      * Constructor using a [ComponentActivity] as the [ActivityResultCaller] and [Context].
      */
-    constructor(activity: ComponentActivity): this(activity as ActivityResultCaller) {
+    constructor(activity: ComponentActivity, errorHandler: ErrorHandler?) : this(activity as ActivityResultCaller, errorHandler ?: ::defaultErrorHandler) {
         this.context = activity
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {
@@ -95,7 +98,7 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
      * Constructor using a [Fragment] as the as the [ActivityResultCaller], and the fragment's
      * activity or context will be used as the [Context].
      */
-    constructor(fragment: Fragment): this(fragment as ActivityResultCaller) {
+    constructor(fragment: Fragment, errorHandler: ErrorHandler?) : this(fragment as ActivityResultCaller, errorHandler ?: ::defaultErrorHandler) {
         fragment.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 context = fragment.activity ?: fragment.requireContext()
@@ -152,6 +155,13 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
                 ITMGeolocationManager.GeolocationError.Code.PERMISSION_DENIED,
                 "Location permission denied"
             )
+        }
+        
+        /**
+         * The default error handler for the [ITMGeolocationRequester].
+         */
+        private fun defaultErrorHandler(context: Context, message: String) {
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
 
