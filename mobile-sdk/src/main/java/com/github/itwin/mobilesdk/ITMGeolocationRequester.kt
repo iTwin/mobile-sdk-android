@@ -49,14 +49,14 @@ fun Context.checkFineLocationPermission() =
  * @param resultCaller The [ActivityResultCaller] to associate with.
  * @param errorHandler The error handler to use when displaying errors. Defaults to a Toast.
  */
-internal class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller, private var errorHandler: ErrorHandler = ::defaultErrorHandler) {
+internal class ITMGeolocationRequester private constructor(resultCaller: ActivityResultCaller, private val errorHandler: ErrorHandler) {
     private lateinit var context: Context
 
     private val requestPermission = resultCaller.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         requestPermissionsTask?.complete(isGranted)
         requestPermissionsTask = null
         if (!isGranted) {
-            errorHandler.invoke(context, context.getString(R.string.itm_location_permissions_error_toast_text))
+            errorHandler(context, context.getString(R.string.itm_location_permissions_error_toast_text))
         }
     }
 
@@ -76,9 +76,8 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
     /**
      * Constructor using a [ComponentActivity] as the [ActivityResultCaller] and [Context].
      */
-    constructor(activity: ComponentActivity, errorHandler: ErrorHandler? = null) : this(activity as ActivityResultCaller) {
+    constructor(activity: ComponentActivity, errorHandler: ErrorHandler?) : this(activity as ActivityResultCaller, errorHandler ?: ::defaultErrorHandler) {
         this.context = activity
-        errorHandler?.let { this.errorHandler = it }
         activity.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {
                 unregister()
@@ -99,8 +98,7 @@ internal class ITMGeolocationRequester private constructor(resultCaller: Activit
      * Constructor using a [Fragment] as the as the [ActivityResultCaller], and the fragment's
      * activity or context will be used as the [Context].
      */
-    constructor(fragment: Fragment, errorHandler: ErrorHandler? = null) : this(fragment as ActivityResultCaller) {
-        errorHandler?.let { this.errorHandler = it }
+    constructor(fragment: Fragment, errorHandler: ErrorHandler?) : this(fragment as ActivityResultCaller, errorHandler ?: ::defaultErrorHandler) {
         fragment.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 context = fragment.activity ?: fragment.requireContext()
