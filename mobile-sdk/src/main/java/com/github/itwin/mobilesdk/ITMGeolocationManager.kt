@@ -78,9 +78,11 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
 
         @JavascriptInterface
         fun clearWatch(positionId: Int) {
-            watchIds.remove(positionId)
-            if (watchIds.isEmpty()) {
-                stopLocationUpdates()
+            mainScope.launch {
+                watchIds.remove(positionId)
+                if (watchIds.isEmpty()) {
+                    stopLocationUpdates()
+                }
             }
         }
     }
