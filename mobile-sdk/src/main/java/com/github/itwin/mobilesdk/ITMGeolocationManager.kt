@@ -37,6 +37,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 import java.util.*
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.schedule
 import kotlin.math.*
 
@@ -78,9 +79,9 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
 
         @JavascriptInterface
         fun clearWatch(positionId: Int) {
-            mainScope.launch {
-                watchIds.remove(positionId)
-                if (watchIds.isEmpty()) {
+            getWatchIds {
+                it.remove(positionId)
+                if (it.isEmpty()) {
                     stopLocationUpdates()
                 }
             }
@@ -225,7 +226,16 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
     private var haveRotationReading = false
     private var listening = false
 
-    private val watchIds: MutableSet<Int> = mutableSetOf()
+    private val watchIdsUnsafe: MutableSet<Int> = mutableSetOf()
+    private val getWatchIdsLock = ReentrantLock()
+    private fun <T>getWatchIds(callback: (MutableSet<Int>) -> T): T {
+        getWatchIdsLock.lock()
+        try {
+            return callback(watchIdsUnsafe)
+        } finally {
+            getWatchIdsLock.unlock()
+        }
+    }
     private val watchLocationRequest by lazy { LocationRequest.Builder(1000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build() }
     private var lastLocation: Location? = null
     private val watchTimer = Timer("GeolocationWatch")
@@ -270,7 +280,7 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
                 }
             }
             val haveReading = haveAccelerometerReading && (haveMagneticReading || haveRotationReading || haveHeadingReading)
-            if (!haveReading || watchIds.isEmpty() || watchTimerTask != null) {
+            if (!haveReading || getWatchIds { it.isEmpty() } || watchTimerTask != null) {
                 return
             }
             // Only update heading a maximum of 10 times per second.
@@ -314,7 +324,7 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
         mainScope.cancel()
         cancellationTokenSource.cancel()
         watchTimer.cancel()
-        if (watchIds.isNotEmpty()) {
+        if (getWatchIds { it.isNotEmpty() }) {
             stopLocationUpdates()
         }
     }
@@ -331,7 +341,7 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
      * Resume watches stopped by [stopLocationUpdates].
      */
     fun resumeLocationUpdates() {
-        if (watchIds.isNotEmpty())
+        if (getWatchIds { it.isNotEmpty() })
             requestLocationUpdates()
     }
     //endregion
@@ -383,8 +393,11 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
     //region Position tracking
     private suspend fun trackPosition(positionId: Int) {
         ensureLocationAvailability()
-        watchIds.add(positionId)
-        if (watchIds.size == 1) {
+        val watchIdsSize = getWatchIds {
+            it.add(positionId)
+            it.size
+        }
+        if (watchIdsSize == 1) {
             requestLocationUpdates()
         }
     }
@@ -585,8 +598,10 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
             } else {
                 getAveragedHeading()
             }
-            for (watchId in watchIds) {
-                sendPosition(location.toGeolocationPosition(heading), watchId, "watchPosition")
+            getWatchIds {
+                for (watchId in it) {
+                    sendPosition(location.toGeolocationPosition(heading), watchId, "watchPosition")
+                }
             }
         }
     }
