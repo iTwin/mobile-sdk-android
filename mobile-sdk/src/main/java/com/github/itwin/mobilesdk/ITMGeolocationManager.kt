@@ -432,9 +432,9 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
         // any more.
         if (otherSensor == null) {
             otherSensor = getHeadingSensor() ?:
-                    sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) ?:
-                    sensorManager.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR) ?:
-                    sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+                sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) ?:
+                sensorManager.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR) ?:
+                sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         }
         if (otherSensor == null) {
             // None of the sensors we support for heading is present.
