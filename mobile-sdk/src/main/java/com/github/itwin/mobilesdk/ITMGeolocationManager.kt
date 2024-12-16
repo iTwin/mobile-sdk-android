@@ -395,7 +395,7 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
         ensureLocationAvailability()
         getWatchIds {
             it.add(positionId)
-            if (it.size == 0) {
+            if (it.size == 1) {
                 requestLocationUpdates()
             }
         }
