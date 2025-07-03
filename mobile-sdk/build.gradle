@@ -14,7 +14,7 @@ android {
     compileSdk 33
 
     defaultConfig {
-        minSdk 28
+        minSdk 31
         targetSdk 33
         versionCode 1
         versionName '0.30.2'
