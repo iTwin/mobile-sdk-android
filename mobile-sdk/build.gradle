@@ -17,7 +17,7 @@ android {
         minSdk 31
         targetSdk 33
         versionCode 1
-        versionName '0.30.2'
+        versionName '0.30.3'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         consumerProguardFiles 'consumer-rules.pro'
@@ -90,7 +90,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.itwin.mobilesdk'
                 artifactId = 'mobile-sdk-android'
-                version = '0.30.2'
+                version = '0.30.3'
             }
             // Creates a Maven publication called 'debug'.
             debug(MavenPublication) {
@@ -98,7 +98,7 @@ afterEvaluate {
                 artifact(sourceJar)
                 groupId = 'com.github.itwin.mobilesdk'
                 artifactId = 'mobile-sdk-android'
-                version = '0.30.2-debug'
+                version = '0.30.3-debug'
             }
         }
     }
