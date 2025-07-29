@@ -162,3 +162,19 @@ inline fun <T1, T2, T3, R> letAll(p1: T1?, p2: T2?, p3: T3?, block: (T1, T2, T3)
         null
     }
 }
+
+/**
+ * Execute a block of code and return its return value if it doesn't throw an exception, or null if
+ * it does throw an exception.
+ */
+inline fun <T, R> T.catchToNull(block: T.() -> R): R? {
+    return runCatching(block).getOrNull()
+}
+
+/**
+ * Execute a block of code and return its return value if it doesn't throw an exception, or null if
+ * it does throw an exception.
+ */
+inline fun <R> catchToNull(block: () -> R): R? {
+    return runCatching(block).getOrNull()
+}
