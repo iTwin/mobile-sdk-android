@@ -28,6 +28,13 @@ class ITMWebAssetLoader(private val context: Context) {
          * The default MIME type to use for unrecognized file extensions.
          */
         const val DEFAULT_MIME_TYPE = "text/plain"
+
+        /**
+         * The path prefix to the frontend's index.html file under assets. Since the vite-based
+         * frontend considers index.html to be in /, this will be used as a prefix when asset
+         * lookups fail.
+         */
+        const val FRONTEND_PREFIX = "ITMApplication/frontend/"
     }
 
     private fun guessMimeType(path: String) =
@@ -56,10 +63,18 @@ class ITMWebAssetLoader(private val context: Context) {
         if (hashIndex != -1) {
             path = path.substring(0, hashIndex)
         }
-        return try {
-            val asset = context.assets.open(path, AssetManager.ACCESS_STREAMING)
+        val questionIndex = path.lastIndexOf("?")
+        if (questionIndex != -1) {
+            path = path.substring(0, questionIndex)
+        }
+        var asset = catchToNull { context.assets.open(path, AssetManager.ACCESS_STREAMING) }
+        if (asset == null) {
+            path = "${FRONTEND_PREFIX}assets/${path}"
+            asset = catchToNull { context.assets.open(path, AssetManager.ACCESS_STREAMING) }
+        }
+        return if (asset != null) {
             WebResourceResponse(guessMimeType(path), "utf-8", asset)
-        } catch (ex: Exception) {
+        } else {
             WebResourceResponse(null, null, null)
         }
     }
