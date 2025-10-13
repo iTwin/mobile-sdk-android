@@ -3,8 +3,7 @@
 Copyright (c) Bentley Systems, Incorporated. All rights reserved.
 See LICENSE.md in the project root for license terms and full copyright notice.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.github.itwin.mobilesdk">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
