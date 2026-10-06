@@ -30,12 +30,15 @@ import com.bentley.itwin.IModelJsHost
 import com.github.itwin.mobilesdk.jsonvalue.isYes
 import com.github.itwin.mobilesdk.jsonvalue.optStringOrNull
 import com.github.itwin.mobilesdk.jsonvalue.toMap
-import kotlinx.coroutines.*
-import org.json.JSONObject
+import com.github.itwin.mobilesdk.messaging.ITMBackendCoMessenger
+import com.github.itwin.mobilesdk.messaging.ITMBackendMessenger
+import com.github.itwin.mobilesdk.messaging.ITMMessengerLoggingOptions
 import java.lang.Float.max
 import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.properties.Delegates
+import kotlinx.coroutines.*
+import org.json.JSONObject
 
 private enum class ReachabilityStatus {
     NotReachable,
@@ -195,10 +198,11 @@ open class ITMApplication(
      * code). The default logger uses [Log][android.util.Log] for the messages. Replace this object
      * with an [ITMLogger] subclass to change the logging behavior.
      *
-     * > __Note:__ Updating this value also updates the logger being used by [messenger].
+     * > __Note:__ Updating this value also updates the logger being used by [messenger] and [backendMessenger].
      */
     var logger: ITMLogger by Delegates.observable(ITMLogger()) { _, _, new ->
         messenger.logger = new
+        backendMessenger.logger = new
     }
 
     /**
@@ -211,6 +215,17 @@ open class ITMApplication(
      * The [ITMCoMessenger] associated with [messenger].
      */
     var coMessenger = ITMCoMessenger(messenger)
+
+    /**
+     * The messenger for communication between native code and backend JavaScript code (and vice
+     * versa).
+     */
+    var backendMessenger = ITMBackendMessenger(logger)
+
+    /**
+     * The [com.github.itwin.mobilesdk.messaging.ITMBackendCoMessenger] associated with [backendMessenger].
+     */
+    var backendCoMessenger = ITMBackendCoMessenger(backendMessenger)
 
     /**
      * The [ITMGeolocationManager] that handles Geolocation messages from the
@@ -257,11 +272,11 @@ open class ITMApplication(
         configData = loadITMAppConfig()
         configData?.let { configData ->
             if (configData.isYes("ITMAPPLICATION_MESSAGE_LOGGING")) {
-                ITMMessenger.isLoggingEnabled = true
+                ITMMessengerLoggingOptions.isLoggingEnabled = true
             }
             if (configData.isYes("ITMAPPLICATION_FULL_MESSAGE_LOGGING")) {
-                ITMMessenger.isLoggingEnabled = true
-                ITMMessenger.isFullLoggingEnabled = true
+                ITMMessengerLoggingOptions.isLoggingEnabled = true
+                ITMMessengerLoggingOptions.isFullLoggingEnabled = true
             }
 
             // Add the configuration vars with an "ITMAPPLICATION_" prefix to the environment so
@@ -325,10 +340,15 @@ open class ITMApplication(
                 setEntryPointScript(getBackendEntryPointScript())
                 startup()
             }
+
+            backendMessenger.host = host
+            backendMessenger.backendLaunchSucceeded()
+
             backendInitTask.complete()
             logger.log(ITMLogger.Severity.Debug, "iTwinJS backend loaded.")
         } catch (e: Exception) {
             reset()
+            backendMessenger.backendLaunchFailed(e)
             logger.log(ITMLogger.Severity.Error, "Error loading iTwinJS backend: $e")
         }
     }
@@ -550,6 +570,8 @@ open class ITMApplication(
         webView = null
         messenger = ITMMessenger(logger)
         coMessenger = ITMCoMessenger(messenger)
+        backendMessenger = ITMBackendMessenger(logger)
+        backendCoMessenger = ITMBackendCoMessenger(backendMessenger)
         connectivityManager.unregisterNetworkCallback(connectivityCallback)
     }
 
