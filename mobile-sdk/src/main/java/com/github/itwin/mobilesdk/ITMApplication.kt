@@ -347,8 +347,8 @@ open class ITMApplication(
             backendInitTask.complete()
             logger.log(ITMLogger.Severity.Debug, "iTwinJS backend loaded.")
         } catch (e: Exception) {
-            reset()
             backendMessenger.backendLaunchFailed(e)
+            reset()
             logger.log(ITMLogger.Severity.Error, "Error loading iTwinJS backend: $e")
         }
     }

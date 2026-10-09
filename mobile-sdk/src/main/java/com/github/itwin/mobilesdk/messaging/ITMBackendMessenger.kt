@@ -16,7 +16,7 @@ import com.github.itwin.mobilesdk.error
 import com.github.itwin.mobilesdk.jsonvalue.JSONValue
 import com.github.itwin.mobilesdk.messaging.ITMMessengerImpl.Companion.ERROR_KEY
 import com.github.itwin.mobilesdk.messaging.ITMMessengerImpl.Companion.RESPONSE_KEY
-import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -47,8 +47,8 @@ class ITMBackendMessenger(logger: ITMLogger? = null) : ITMMessengerProtocol {
      * [Job] indicating that the backend is running and ready to receive messages. All
      * calls to [send] and [query] will wait for this to complete before sending the message.
      */
-    internal val backendLaunchJob: CompletableJob
-        get() = implementation.launchJob
+    internal val backendLaunchJob: Job
+        get() = implementation.launchDeferred
 
     init {
         implementation.transport = ITMBackendQueryTransport(implementation)

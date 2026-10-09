@@ -16,8 +16,7 @@ import com.github.itwin.mobilesdk.jsonvalue.toJSON
 import com.github.itwin.mobilesdk.jsonvalue.toJSONOrNull
 import com.github.itwin.mobilesdk.messaging.ITMMessengerImpl.Companion.ERROR_KEY
 import com.github.itwin.mobilesdk.messaging.ITMMessengerImpl.Companion.RESPONSE_KEY
-import kotlinx.coroutines.CompletableJob
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -92,10 +91,11 @@ internal class ITMMessengerImpl(
     lateinit var transport: ITMQueryTransport
 
     /**
-     * [Job] indicating that the other end of this messenger is ready to receive messages. All
-     * calls to [query] will wait for this to complete before sending the message.
+     * [CompletableDeferred] indicating that the other end of this messenger is ready to receive messages. All
+     * calls to [query] will wait for this to complete before sending the message. If launch fails, pending
+     * queries will fail with the launch exception.
      */
-    val launchJob: CompletableJob = Job()
+    val launchDeferred = CompletableDeferred<Unit>()
 
     /**
      * Convenience property with a value of [MainScope()][MainScope]
@@ -282,14 +282,14 @@ internal class ITMMessengerImpl(
      * that it is ready to receive queries.
      */
     fun launchSucceeded() {
-        launchJob.complete()
+        launchDeferred.complete(Unit)
     }
 
     /**
      * Indicates if the launch of the other end of this messenger has completed.
      */
     val isLaunchComplete: Boolean
-        get() = launchJob.isCompleted
+        get() = launchDeferred.isCompleted
 
     /**
      * Must be called if the other end of this messenger fails to launch. This prevents any queries
@@ -298,14 +298,14 @@ internal class ITMMessengerImpl(
      * @param error The reason for the failure.
      */
     fun launchFailed(error: Throwable) {
-        launchJob.completeExceptionally(error)
+        launchDeferred.completeExceptionally(error)
     }
 
     /**
      * Suspends until the launch of the other end of this messenger has completed.
      */
     suspend fun awaitLaunch() {
-        launchJob.join()
+        launchDeferred.await()
     }
 
     override fun <I, O> query(type: String, data: I, success: ITMSuccessCallback<O>?, failure: ITMFailureCallback?) {

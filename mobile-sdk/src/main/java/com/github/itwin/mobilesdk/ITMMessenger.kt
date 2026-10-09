@@ -20,7 +20,7 @@ import com.github.itwin.mobilesdk.messaging.ITMQueryHandler
 import com.github.itwin.mobilesdk.messaging.ITMQueryResponse
 import com.github.itwin.mobilesdk.messaging.ITMQueryTransport
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
@@ -79,8 +79,8 @@ class ITMMessenger(logger: ITMLogger? = null): ITMMessengerProtocol {
      * [Job] indicating that the frontend running in [webView] is ready to receive messages. All
      * calls to [send] and [query] will wait for this to complete before sending the message.
      */
-    internal val frontendLaunchJob: CompletableJob
-        get() = implementation.launchJob
+    internal val frontendLaunchJob: Job
+        get() = implementation.launchDeferred
 
     //region Companion Object
 
