@@ -6,9 +6,16 @@
 
 package com.github.itwin.mobilesdk
 
-import android.webkit.JavascriptInterface
+import android.os.SystemClock
+import android.util.Log
 import android.webkit.WebView
-import java.util.*
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
+import java.net.URI
+import java.util.UUID
 
 /**
  * Logger that, when attached to a [WebView], redirects console messages from that web view to the
@@ -16,10 +23,24 @@ import java.util.*
  *
  * @param webView The [WebView] from which console output should be redirected.
  * @param callback The callback function that is called when console output is received.
+ * @param allowedOrigins Exact HTTP(S) origins authorized to forward main-frame console output.
  */
 open class ITMWebViewLogger(
     protected val webView: WebView,
-    protected val callback: (type: LogType, message: String) -> Unit) {
+    protected val callback: (type: LogType, message: String) -> Unit,
+    allowedOrigins: Set<String>) {
+    constructor(webView: WebView, callback: (type: LogType, message: String) -> Unit) :
+        this(webView, callback, DEFAULT_ALLOWED_ORIGINS)
+
+    private val trustedOrigins = allowedOrigins.map { origin ->
+        require(origin == canonicalOrigin(origin)) { "Expected an exact HTTP(S) origin: $origin" }
+        origin
+    }.toSet()
+    private var attached = false
+    private var sessionId: String? = null
+    private var rateWindowStart = 0L
+    private var rateWindowCount = 0
+
     enum class LogType {
         Assert,
         Error,
@@ -30,15 +51,37 @@ open class ITMWebViewLogger(
     }
 
     companion object {
+        val DEFAULT_ALLOWED_ORIGINS: Set<String> = setOf("https://appassets.itwinjs.org")
+
         private const val INJECTED_JS =
-"""(function() {
+"""(function(sessionId, allowedOrigins) {
+    if (window !== window.top || allowedOrigins.indexOf(window.location.origin) === -1) return;
+    var bridge = window.Bentley_ITMConsoleLogger;
+    if (!bridge || typeof bridge.postMessage !== "function") return;
+    var stateName = "Bentley_ITMConsoleLoggerState";
+    var previous = window[stateName];
+    if (previous) {
+        previous.sessionId = sessionId;
+        return;
+    }
+    var state = { sessionId: sessionId, active: true, originals: {}, wrappers: {} };
+    var forward = function(type, msg) {
+        if (!state.active) return;
+        try {
+            var message = msg == null ? "" : String(msg);
+            if (message.length > 16384) return;
+            bridge.postMessage(JSON.stringify({ sessionId: state.sessionId, type: type, message: message }));
+        } catch (error) {}
+    };
     var injectLogger = function(type) {
         var originalLogger = console[type];
-        console[type] = function(msg) {
+        var wrapper = function(msg) {
             originalLogger.apply(console, arguments);
-            if (msg == null) msg = "";
-            window.Bentley_ITMConsoleLogger.log(type, msg);
+            forward(type, msg);
         };
+        state.originals[type] = originalLogger;
+        state.wrappers[type] = wrapper;
+        console[type] = wrapper;
     };
 
     injectLogger("error");
@@ -48,50 +91,109 @@ open class ITMWebViewLogger(
     injectLogger("trace");
 
     var originalAssert = console.assert;
-    console.assert = function(expr, msg) {
+    state.originals.assert = originalAssert;
+    state.wrappers.assert = function(expr, msg) {
         originalAssert.apply(console, arguments);
         if (expr) return;
-        if (msg == null) msg = "";
-        window.Bentley_ITMConsoleLogger.log("assert", "Assertion Failed: ");
-    }
+        forward("assert", "Assertion Failed: ");
+    };
+    console.assert = state.wrappers.assert;
 
-    window.addEventListener("error", function (e) {
-        window.Bentley_ITMConsoleLogger.log("error", e.message);
-        return false;
-    });
-})();"""
+    var onError = function(event) { forward("error", event.message); };
+    window.addEventListener("error", onError);
+    state.detach = function() {
+        state.active = false;
+        Object.keys(state.originals).forEach(function(type) {
+            if (console[type] === state.wrappers[type]) console[type] = state.originals[type];
+        });
+        window.removeEventListener("error", onError);
+        delete window[stateName];
+    };
+    window[stateName] = state;
+})"""
         private const val JS_INTERFACE_NAME = "Bentley_ITMConsoleLogger"
+        private const val MAX_PAYLOAD_LENGTH = 32768
+        private const val MAX_MESSAGE_LENGTH = 16384
+        private const val MAX_MESSAGES_PER_SECOND = 100
+
+        private fun canonicalOrigin(value: String): String? {
+            val uri = runCatching { URI(value) }.getOrNull() ?: return null
+            val scheme = uri.scheme?.lowercase() ?: return null
+            if (scheme != "https" && scheme != "http") return null
+            val host = uri.host?.lowercase() ?: return null
+            if (uri.rawUserInfo != null || uri.port !in -1..65535) return null
+            val defaultPort = if (scheme == "https") 443 else 80
+            val port = if (uri.port == defaultPort) -1 else uri.port
+            return URI(scheme, null, host, port, null, null, null).toString()
+        }
     }
 
     init {
-        webView.addJavascriptInterface(object {
-            @JavascriptInterface
-            fun log(typeString: String, message: String) {
-                val type = try {
-                    LogType.valueOf(typeString.replaceFirstChar {
-                        if (it.isLowerCase()) it.titlecase(
-                            Locale.ROOT
-                        ) else it.toString()
-                    })
-                } catch (ex: Exception) {
-                    LogType.Error
+        if (trustedOrigins.isNotEmpty() && WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(webView, JS_INTERFACE_NAME, trustedOrigins) { _, message, sourceOrigin, isMainFrame, _ ->
+                if (attached && isMainFrame && canonicalOrigin(sourceOrigin.toString()) in trustedOrigins) {
+                    receive(message.data)
                 }
-                callback(type, message)
             }
-        }, JS_INTERFACE_NAME)
+            attached = true
+        } else if (trustedOrigins.isNotEmpty()) {
+            Log.w("ITMWebViewLogger", "Native console forwarding disabled: WebView messaging is unavailable.")
+        }
+    }
+
+    private fun receive(payload: String?) {
+        if (sessionId == null || payload == null || payload.length > MAX_PAYLOAD_LENGTH) return
+        val now = SystemClock.uptimeMillis()
+        if (now - rateWindowStart >= 1000) {
+            rateWindowStart = now
+            rateWindowCount = 0
+        }
+        if (rateWindowCount >= MAX_MESSAGES_PER_SECOND) return
+        rateWindowCount++
+        val data = try {
+            JSONObject(payload)
+        } catch (_: JSONException) {
+            return
+        }
+        if (data.opt("sessionId") != sessionId) return
+        val typeName = data.opt("type") as? String ?: return
+        val type = LogType.values().firstOrNull { it.name.equals(typeName, ignoreCase = true) } ?: return
+        val message = data.opt("message") as? String ?: return
+        if (message.length <= MAX_MESSAGE_LENGTH) callback(type, message)
+    }
+
+    /** Invalidate queued output when the main frame starts navigating. Call on the WebView thread. */
+    fun onPageStarted() {
+        sessionId = null
+        rateWindowStart = 0
+        rateWindowCount = 0
     }
 
     /**
-     * Inject the appropriate JavaScript code into [webView] to handle the console redirection.
+     * Inject console redirection into an authorized main frame. Call on the WebView thread.
      */
     open fun inject() {
-        webView.evaluateJavascript(INJECTED_JS, null)
+        if (!attached || canonicalOrigin(webView.url.orEmpty()) !in trustedOrigins) return
+        val newSessionId = UUID.randomUUID().toString()
+        sessionId = newSessionId
+        webView.evaluateJavascript("$INJECTED_JS(${JSONObject.quote(newSessionId)}, ${JSONArray(trustedOrigins.toList())});", null)
     }
 
     /**
-     * Detach from [webView].
+     * Detach from [webView] and restore console methods. Call on the WebView thread.
      */
     fun detach() {
-        webView.removeJavascriptInterface(JS_INTERFACE_NAME)
+        if (!attached) return
+        val oldSessionId = sessionId
+        onPageStarted()
+        attached = false
+        WebViewCompat.removeWebMessageListener(webView, JS_INTERFACE_NAME)
+        if (oldSessionId != null) {
+            webView.evaluateJavascript(
+                "(function() { var state = window.Bentley_ITMConsoleLoggerState; " +
+                    "if (state && state.sessionId === ${JSONObject.quote(oldSessionId)}) state.detach(); })();",
+                null
+            )
+        }
     }
 }

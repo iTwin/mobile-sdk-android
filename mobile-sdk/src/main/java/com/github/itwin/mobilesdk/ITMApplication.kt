@@ -491,6 +491,8 @@ open class ITMApplication(
      */
     open fun onActivityDestroy() {
         webView?.setOnApplyWindowInsetsListener(null)
+        webViewLogger?.detach()
+        webViewLogger = null
         authorizationClient = null
         nativeUI?.detach()
         nativeUI = null
@@ -576,7 +578,8 @@ open class ITMApplication(
         val webView = this.webView ?: return
         messenger.webView = webView
         if (attachWebViewLogger) {
-            webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
+            webViewLogger?.detach()
+            webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog, getWebViewLoggerAllowedOrigins())
         }
         coMessenger.registerQueryHandler<Map<String, Number>, Unit>("Bentley_ITM_updatePreferredColorScheme") { params ->
             params.getOptionalLong("preferredColorScheme")?.let {
@@ -590,6 +593,7 @@ open class ITMApplication(
                 url.startsWith("file:///android_asset/frontend")
 
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                webViewLogger?.onPageStarted()
                 if (shouldIgnoreUrl(url)) {
                     return
                 }
@@ -624,6 +628,13 @@ open class ITMApplication(
         }
         geolocationManager?.webView = webView
     }
+
+    /**
+     * Exact HTTP(S) origins allowed to forward main-frame console output. Override to explicitly
+     * authorize custom frontends or development servers. URLs must not contain paths or wildcards;
+     * omit default ports. An empty set disables native console forwarding.
+     */
+    open fun getWebViewLoggerAllowedOrigins(): Set<String> = ITMWebViewLogger.DEFAULT_ALLOWED_ORIGINS
 
     /**
      * Attach [webView] to the given [ViewGroup].
