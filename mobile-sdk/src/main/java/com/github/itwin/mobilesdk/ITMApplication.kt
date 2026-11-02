@@ -492,8 +492,6 @@ open class ITMApplication(
      */
     open fun onActivityDestroy() {
         webView?.setOnApplyWindowInsetsListener(null)
-        webViewLogger?.detach()
-        webViewLogger = null
         authorizationClient = null
         nativeUI?.detach()
         nativeUI = null
