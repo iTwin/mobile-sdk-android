@@ -33,6 +33,7 @@ import com.github.itwin.mobilesdk.jsonvalue.toMap
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.lang.Float.max
+import java.net.URI
 import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.properties.Delegates
@@ -630,11 +631,24 @@ open class ITMApplication(
     }
 
     /**
-     * Exact HTTP(S) origins allowed to forward main-frame console output. Override to explicitly
-     * authorize custom frontends or development servers. URLs must not contain paths or wildcards;
-     * omit default ports. An empty set disables native console forwarding.
+     * Exact HTTP(S) origins allowed to forward main-frame console output. Includes the packaged
+     * frontend origin and the origin of [getBaseUrl]. Override to customize this policy. URLs must
+     * not contain paths or wildcards; omit default ports. An empty set disables native forwarding.
      */
-    open fun getWebViewLoggerAllowedOrigins(): Set<String> = ITMWebViewLogger.DEFAULT_ALLOWED_ORIGINS
+    open fun getWebViewLoggerAllowedOrigins(): Set<String> {
+        val defaultOrigins = ITMWebViewLogger.DEFAULT_ALLOWED_ORIGINS
+        val frontendUrl = runCatching { URI(getBaseUrl()) }.getOrNull() ?: return defaultOrigins
+        val scheme = frontendUrl.scheme?.lowercase() ?: return defaultOrigins
+        val host = frontendUrl.host?.lowercase() ?: return defaultOrigins
+        if (scheme != "http" && scheme != "https") return defaultOrigins
+        if (frontendUrl.rawUserInfo != null || frontendUrl.port !in -1..65535 || frontendUrl.port == 0) {
+            return defaultOrigins
+        }
+        val defaultPort = if (scheme == "https") 443 else 80
+        val port = if (frontendUrl.port == defaultPort) -1 else frontendUrl.port
+        val origin = URI(scheme, null, host, port, null, null, null).toString()
+        return defaultOrigins + origin
+    }
 
     /**
      * Attach [webView] to the given [ViewGroup].
