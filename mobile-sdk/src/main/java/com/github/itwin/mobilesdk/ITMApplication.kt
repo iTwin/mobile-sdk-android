@@ -33,7 +33,6 @@ import com.github.itwin.mobilesdk.jsonvalue.toMap
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.lang.Float.max
-import java.net.URI
 import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.properties.Delegates
@@ -578,7 +577,7 @@ open class ITMApplication(
         messenger.webView = webView
         if (attachWebViewLogger) {
             webViewLogger?.detach()
-            webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog, getWebViewLoggerAllowedOrigins())
+            webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog, getBridgeAllowedOrigins())
         }
         coMessenger.registerQueryHandler<Map<String, Number>, Unit>("Bentley_ITM_updatePreferredColorScheme") { params ->
             params.getOptionalLong("preferredColorScheme")?.let {
@@ -629,22 +628,13 @@ open class ITMApplication(
     }
 
     /**
-     * Exact HTTP(S) origins allowed to forward main-frame console output. Includes the packaged
-     * frontend origin and the origin of [getBaseUrl]. Override to customize this policy. URLs must
-     * not contain paths or wildcards; omit default ports. An empty set disables native forwarding.
+     * Exact HTTP(S) origins trusted by native WebView bridges. Includes the packaged frontend
+     * origin and the origin of [getBaseUrl]. Override to customize this policy. Origins must not
+     * contain paths, credentials, or wildcards; omit default ports. An empty set authorizes no origins.
      */
-    open fun getWebViewLoggerAllowedOrigins(): Set<String> {
-        val defaultOrigins = ITMWebViewLogger.DEFAULT_ALLOWED_ORIGINS
-        val frontendUrl = runCatching { URI(getBaseUrl()) }.getOrNull() ?: return defaultOrigins
-        val scheme = frontendUrl.scheme?.lowercase() ?: return defaultOrigins
-        val host = frontendUrl.host?.lowercase() ?: return defaultOrigins
-        if (scheme != "http" && scheme != "https") return defaultOrigins
-        if (frontendUrl.rawUserInfo != null || frontendUrl.port !in -1..65535 || frontendUrl.port == 0) {
-            return defaultOrigins
-        }
-        val defaultPort = if (scheme == "https") 443 else 80
-        val port = if (frontendUrl.port == defaultPort) -1 else frontendUrl.port
-        val origin = URI(scheme, null, host, port, null, null, null).toString()
+    open fun getBridgeAllowedOrigins(): Set<String> {
+        val defaultOrigins = ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS
+        val origin = ITMBridgeOriginPolicy.canonicalOrigin(getBaseUrl()) ?: return defaultOrigins
         return defaultOrigins + origin
     }
 

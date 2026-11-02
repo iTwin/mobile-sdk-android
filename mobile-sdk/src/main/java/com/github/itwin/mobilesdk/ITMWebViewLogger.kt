@@ -14,7 +14,6 @@ import androidx.webkit.WebViewFeature
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
-import java.net.URI
 import java.util.UUID
 
 /**
@@ -30,12 +29,9 @@ open class ITMWebViewLogger(
     protected val callback: (type: LogType, message: String) -> Unit,
     allowedOrigins: Set<String>) {
     constructor(webView: WebView, callback: (type: LogType, message: String) -> Unit) :
-        this(webView, callback, DEFAULT_ALLOWED_ORIGINS)
+        this(webView, callback, ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS)
 
-    private val trustedOrigins = allowedOrigins.map { origin ->
-        require(origin == canonicalOrigin(origin)) { "Expected an exact HTTP(S) origin: $origin" }
-        origin
-    }.toSet()
+    private val trustedOrigins = ITMBridgeOriginPolicy.validatedOrigins(allowedOrigins)
     private var attached = false
     private var sessionId: String? = null
     private var rateWindowStart = 0L
@@ -51,8 +47,6 @@ open class ITMWebViewLogger(
     }
 
     companion object {
-        val DEFAULT_ALLOWED_ORIGINS: Set<String> = setOf("https://appassets.itwinjs.org")
-
         private const val INJECTED_JS =
 """(function(sessionId, allowedOrigins) {
     if (window !== window.top || allowedOrigins.indexOf(window.location.origin) === -1) return;
@@ -115,23 +109,12 @@ open class ITMWebViewLogger(
         private const val MAX_PAYLOAD_LENGTH = 32768
         private const val MAX_MESSAGE_LENGTH = 16384
         private const val MAX_MESSAGES_PER_SECOND = 100
-
-        private fun canonicalOrigin(value: String): String? {
-            val uri = runCatching { URI(value) }.getOrNull() ?: return null
-            val scheme = uri.scheme?.lowercase() ?: return null
-            if (scheme != "https" && scheme != "http") return null
-            val host = uri.host?.lowercase() ?: return null
-            if (uri.rawUserInfo != null || uri.port !in -1..65535) return null
-            val defaultPort = if (scheme == "https") 443 else 80
-            val port = if (uri.port == defaultPort) -1 else uri.port
-            return URI(scheme, null, host, port, null, null, null).toString()
-        }
     }
 
     init {
         if (trustedOrigins.isNotEmpty() && WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             WebViewCompat.addWebMessageListener(webView, JS_INTERFACE_NAME, trustedOrigins) { _, message, sourceOrigin, isMainFrame, _ ->
-                if (attached && isMainFrame && canonicalOrigin(sourceOrigin.toString()) in trustedOrigins) {
+                if (attached && isMainFrame && ITMBridgeOriginPolicy.canonicalOrigin(sourceOrigin.toString()) in trustedOrigins) {
                     receive(message.data)
                 }
             }
@@ -173,7 +156,7 @@ open class ITMWebViewLogger(
      * Inject console redirection into an authorized main frame. Call on the WebView thread.
      */
     open fun inject() {
-        if (!attached || canonicalOrigin(webView.url.orEmpty()) !in trustedOrigins) return
+        if (!attached || ITMBridgeOriginPolicy.canonicalOrigin(webView.url.orEmpty()) !in trustedOrigins) return
         val newSessionId = UUID.randomUUID().toString()
         sessionId = newSessionId
         webView.evaluateJavascript("$INJECTED_JS(${JSONObject.quote(newSessionId)}, ${JSONArray(trustedOrigins.toList())});", null)
