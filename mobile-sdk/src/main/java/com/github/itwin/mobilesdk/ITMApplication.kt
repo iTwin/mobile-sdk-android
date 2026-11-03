@@ -576,7 +576,8 @@ open class ITMApplication(
         val webView = this.webView ?: return
         messenger.webView = webView
         if (attachWebViewLogger) {
-            webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
+            webViewLogger?.detach()
+            webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog, getBridgeAllowedOrigins())
         }
         coMessenger.registerQueryHandler<Map<String, Number>, Unit>("Bentley_ITM_updatePreferredColorScheme") { params ->
             params.getOptionalLong("preferredColorScheme")?.let {
@@ -590,6 +591,7 @@ open class ITMApplication(
                 url.startsWith("file:///android_asset/frontend")
 
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                webViewLogger?.onPageStarted()
                 if (shouldIgnoreUrl(url)) {
                     return
                 }
@@ -623,6 +625,17 @@ open class ITMApplication(
             }
         }
         geolocationManager?.webView = webView
+    }
+
+    /**
+     * Exact HTTP(S) origins trusted by native WebView bridges. Includes the packaged frontend
+     * origin and the origin of [getBaseUrl]. Override to customize this policy. Origins must not
+     * contain paths, credentials, or wildcards; omit default ports. An empty set authorizes no origins.
+     */
+    open fun getBridgeAllowedOrigins(): Set<String> {
+        val defaultOrigins = ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS
+        val origin = ITMBridgeOriginPolicy.canonicalOrigin(getBaseUrl()) ?: return defaultOrigins
+        return defaultOrigins + origin
     }
 
     /**
