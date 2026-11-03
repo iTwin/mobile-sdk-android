@@ -18,24 +18,28 @@ import android.os.Build
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Base64
+import android.util.Log
 import android.view.Surface.ROTATION_0
 import android.view.Surface.ROTATION_90
 import android.view.Surface.ROTATION_180
 import android.view.Surface.ROTATION_270
 import android.view.WindowManager
-import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresPermission
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.webkit.JavaScriptReplyProxy
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.github.itwin.mobilesdk.jsonvalue.jsonOf
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.gson.Gson
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.schedule
@@ -48,44 +52,29 @@ import kotlin.math.*
  * @param context: The [Context] that is used for interacting with Android.
  */
 class ITMGeolocationManager(private var context: Context, private val errorHandler: ErrorHandler? = null) {
-    private val geolocationJsInterface = object {
-        @JavascriptInterface
-        fun getCurrentPosition(positionId: Int) {
-            mainScope.launch {
-                try {
-                    sendPosition(getGeolocationPosition(), positionId, "getCurrentPosition")
-                } catch (error: GeolocationError) {
-                    sendError(error, positionId, "getCurrentPosition")
-                } catch (throwable: Throwable) {
-                    val error = GeolocationError(GeolocationError.Code.POSITION_UNAVAILABLE, throwable.message)
-                    sendError(error, positionId, "getCurrentPosition")
-                }
-            }
-        }
+    private class DocumentSession(val origin: String) {
+        val id: String = UUID.randomUUID().toString()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val cancellationTokenSource = CancellationTokenSource()
+        val positionJobs = mutableMapOf<Int, Job>()
+        val watchJobs = mutableMapOf<Int, Job>()
+        var documentId: String? = null
+        var replyProxy: JavaScriptReplyProxy? = null
+        var rateWindowStart = 0L
+        var rateWindowCount = 0
+    }
 
-        @JavascriptInterface
-        fun watchPosition(positionId: Int) {
-            mainScope.launch {
-                try {
-                    trackPosition(positionId)
-                } catch (error: GeolocationError) {
-                    sendError(error, positionId, "watchPosition")
-                } catch (throwable: Throwable) {
-                    val error = GeolocationError(GeolocationError.Code.POSITION_UNAVAILABLE, throwable.message)
-                    sendError(error, positionId, "watchPosition")
-                }
-            }
-        }
+    private var documentSession: DocumentSession? = null
+    private var attachedWebView: WebView? = null
+    private var trustedOrigins = ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS
+    private var loading = false
 
-        @JavascriptInterface
-        fun clearWatch(positionId: Int) {
-            getWatchIds {
-                it.remove(positionId)
-                if (it.isEmpty()) {
-                    stopLocationUpdates()
-                }
-            }
-        }
+    private companion object {
+        const val BRIDGE_NAME = "Bentley_ITMGeolocation"
+        const val MAX_PAYLOAD_LENGTH = 8192
+        const val MAX_REQUESTS = 128
+        const val MAX_MESSAGES_PER_SECOND = 100
+        val DOCUMENT_ID_PATTERN = Regex("[A-Za-z0-9_-]{1,128}")
     }
 
     private data class GeolocationCoordinates(val latitude: Double, val longitude: Double, val accuracy: Double?, val heading: Double?)
@@ -129,12 +118,150 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
         return GeolocationPosition(coordinates, time)
     }
 
-    /** The [WebView] to receive location updates via javascript. */
-    var webView: WebView? = null
+    /** The bridged [WebView]. Assigning a value uses the packaged frontend origin policy. */
+    var webView: WebView?
+        get() = attachedWebView
         set(value) {
-            field = value
-            field?.addJavascriptInterface(geolocationJsInterface, "Bentley_ITMGeolocation")
+            if (value == null) detach() else attach(value)
         }
+
+    /** Attach before loading the frontend. Navigation callbacks must invalidate and initialize sessions. */
+    fun attach(webView: WebView, allowedOrigins: Set<String> = ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS) {
+        val origins = ITMBridgeOriginPolicy.validatedOrigins(allowedOrigins)
+        check(origins.isEmpty() || WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            "Geolocation requires WebView WEB_MESSAGE_LISTENER support."
+        }
+        if (attachedWebView === webView && trustedOrigins == origins) return
+        detach()
+        trustedOrigins = origins
+        if (origins.isEmpty()) return
+        attachedWebView = webView
+        loading = webView.progress < 100
+        WebViewCompat.addWebMessageListener(webView, BRIDGE_NAME, origins) { view, message, sourceOrigin, isMainFrame, replyProxy ->
+            val session = documentSession
+            if (view === attachedWebView && isMainFrame && !loading && session != null &&
+                ITMBridgeOriginPolicy.canonicalOrigin(sourceOrigin.toString()) == session.origin &&
+                ITMBridgeOriginPolicy.canonicalOrigin(view.url.orEmpty()) == session.origin) {
+                receive(message.data, session, replyProxy)
+            }
+        }
+        if (!loading) onPageFinished(webView)
+    }
+
+    /** Remove the listener and cancel work belonging to the attached document. */
+    fun detach() {
+        invalidateSession()
+        attachedWebView?.let { WebViewCompat.removeWebMessageListener(it, BRIDGE_NAME) }
+        attachedWebView = null
+    }
+
+    /** Call at navigation start, before any application-specific navigation hooks. */
+    fun onPageStarted(webView: WebView) {
+        if (webView !== attachedWebView) return
+        loading = true
+        invalidateSession()
+    }
+
+    /** Initialize the authorized document after loading, including a surviving document after a failed navigation. */
+    fun onPageFinished(webView: WebView) {
+        if (webView !== attachedWebView) return
+        loading = false
+        if (documentSession != null) return
+        val origin = ITMBridgeOriginPolicy.canonicalOrigin(webView.url.orEmpty()) ?: return
+        if (origin !in trustedOrigins) return
+        val session = DocumentSession(origin)
+        documentSession = session
+        webView.evaluateJavascript(
+            "(function() { if (window !== window.top) return false; " +
+                "window.Bentley_ITMGeolocationNativeSession = ${JSONObject.quote(session.id)}; " +
+                "if (typeof window.Bentley_ITMGeolocationInitialize !== 'function') return false; " +
+                "window.Bentley_ITMGeolocationInitialize(${JSONObject.quote(session.id)}); return true; })();"
+        ) { result ->
+            if (documentSession === session && result != "true") {
+                Log.e("ITMGeolocationManager", "Geolocation requires a session-aware mobile-sdk-core frontend.")
+            }
+        }
+    }
+
+    private fun invalidateSession() {
+        val session = documentSession ?: return
+        documentSession = null
+        session.scope.cancel()
+        session.cancellationTokenSource.cancel()
+        getWatchIds { it.clear() }
+        stopLocationUpdates()
+        lastLocation = null
+        magneticHeadings.clear()
+    }
+
+    private fun receive(payload: String?, session: DocumentSession, replyProxy: JavaScriptReplyProxy) {
+        if (payload == null || payload.length > MAX_PAYLOAD_LENGTH) return
+        val message = runCatching { JSONObject(payload) }.getOrNull() ?: return
+        if (message.opt("sessionId") != session.id) return
+        val documentId = message.opt("documentId") as? String ?: return
+        if (!DOCUMENT_ID_PATTERN.matches(documentId)) return
+        val operation = message.opt("messageName") as? String ?: return
+        if (operation == "ready") {
+            if (message.length() != 3 || session.documentId != null) return
+            session.documentId = documentId
+            session.replyProxy = replyProxy
+            sendResponse(session, "ready", "")
+            return
+        }
+        if (session.documentId != documentId || session.replyProxy == null || message.length() != 4) return
+        val positionId = message.opt("positionId") as? Number ?: return
+        val numericId = positionId.toDouble()
+        if (!numericId.isFinite() || numericId < 1 || numericId > Int.MAX_VALUE || numericId != positionId.toInt().toDouble()) return
+        val requestId = positionId.toInt()
+        when (operation) {
+            "clearWatch" -> {
+                session.watchJobs.remove(requestId)?.cancel()
+                getWatchIds {
+                    if (it.remove(requestId) && it.isEmpty()) stopLocationUpdates()
+                }
+            }
+            "watchPosition", "getCurrentPosition" -> startRequest(session, requestId, operation)
+        }
+    }
+
+    private fun startRequest(session: DocumentSession, positionId: Int, operation: String) {
+        val jobs = if (operation == "watchPosition") session.watchJobs else session.positionJobs
+        if (positionId in jobs || (operation == "watchPosition" && getWatchIds { positionId in it })) return
+        val now = SystemClock.uptimeMillis()
+        if (now - session.rateWindowStart >= 1000) {
+            session.rateWindowStart = now
+            session.rateWindowCount = 0
+        }
+        if (session.rateWindowCount >= MAX_MESSAGES_PER_SECOND ||
+            session.positionJobs.size + session.watchJobs.size + getWatchIds { it.size } >= MAX_REQUESTS) {
+            sendError(GeolocationError(GeolocationError.Code.POSITION_UNAVAILABLE, "Geolocation request limit reached."), positionId, operation, session)
+            return
+        }
+        session.rateWindowCount++
+        val job = session.scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                if (operation == "watchPosition") {
+                    trackPosition(positionId, session)
+                } else {
+                    ensureLocationAvailability()
+                    currentCoroutineContext().ensureActive()
+                    sendPosition(getCurrentLocation(session.cancellationTokenSource).toGeolocationPosition(), positionId, operation, session)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (throwable: Throwable) {
+                if (operation == "watchPosition") {
+                    getWatchIds { if (it.remove(positionId) && it.isEmpty()) stopLocationUpdates() }
+                }
+                val error = throwable as? GeolocationError ?: GeolocationError(GeolocationError.Code.POSITION_UNAVAILABLE, throwable.message)
+                sendError(error, positionId, operation, session)
+            } finally {
+                jobs.remove(positionId, currentCoroutineContext()[Job])
+            }
+        }
+        jobs[positionId] = job
+        job.start()
+    }
 
     private val mainScope = MainScope()
     private var requester: ITMGeolocationRequester? = null
@@ -163,6 +290,7 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
         owner.lifecycle.addObserver(object: DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 resumeLocationUpdates()
+                attachedWebView?.let { if (!loading) onPageFinished(it) }
                 (owner as? Fragment)?.let {
                     context = it.activity ?: it.requireContext()
                 }
@@ -171,6 +299,7 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
                 stopLocationUpdates()
             }
             override fun onDestroy(owner: LifecycleOwner) {
+                invalidateSession()
                 requester = null
                 (owner as? Fragment)?.let {
                     context = it.activity?.applicationContext ?: it.requireContext()
@@ -321,6 +450,7 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
      * Cancel all outstanding tasks, including any active watches.
      */
     fun cancelTasks() {
+        detach()
         mainScope.cancel()
         cancellationTokenSource.cancel()
         watchTimer.cancel()
@@ -365,8 +495,6 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
         return getCurrentLocation()
     }
 
-    private suspend fun getGeolocationPosition() = getGeolocation().toGeolocationPosition()
-
     @RequiresPermission(anyOf = ["android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION"])
     private suspend fun getRecentLastLocation() =
         lastLocationTimeThresholdMillis.takeIf { it > 0 }?.let {
@@ -376,7 +504,7 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
             lastLocation.takeIf { elapsed in (0 until elapsedMax) }
         }
 
-    private suspend fun getCurrentLocation() =
+    private suspend fun getCurrentLocation(tokenSource: CancellationTokenSource = cancellationTokenSource) =
         if (!context.checkFineLocationPermission()) {
             throw GeolocationError(
                 GeolocationError.Code.PERMISSION_DENIED,
@@ -385,14 +513,16 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
         } else {
             getRecentLastLocation() ?: fusedLocationClient.getCurrentLocation(
                 Priority.PRIORITY_HIGH_ACCURACY,
-                cancellationTokenSource.token
+                tokenSource.token
             ).await()
         }
     //endregion
 
     //region Position tracking
-    private suspend fun trackPosition(positionId: Int) {
+    private suspend fun trackPosition(positionId: Int, session: DocumentSession) {
         ensureLocationAvailability()
+        currentCoroutineContext().ensureActive()
+        if (documentSession !== session) return
         getWatchIds {
             it.add(positionId)
             if (it.size == 1) {
@@ -589,9 +719,11 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
     }
 
     private fun updateWatchers(location: Location) {
+        val session = documentSession ?: return
         // Subsequent sensor updates need to send a heading update, and that requires a location to go with the heading.
         lastLocation = location
         mainScope.launch {
+            if (documentSession !== session) return@launch
             val heading = if (magneticHeadings.isEmpty()) {
                 getHeading()
             } else {
@@ -599,7 +731,7 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
             }
             getWatchIds {
                 for (watchId in it) {
-                    sendPosition(location.toGeolocationPosition(heading), watchId, "watchPosition")
+                    sendPosition(location.toGeolocationPosition(heading), watchId, "watchPosition", session)
                 }
             }
         }
@@ -615,23 +747,32 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
     //endregion
 
     //region Response sending
-    private fun sendPosition(position: GeolocationPosition, positionId: Int, messageName: String) {
-        val webView = this.webView ?: return
+    private fun sendPosition(position: GeolocationPosition, positionId: Int, messageName: String, session: DocumentSession) {
         val locationData = GeolocationRequestData(positionId, position).toJsonString()
         val encodedLocationData = Base64.encodeToString(locationData.toByteArray(), Base64.NO_WRAP)
-        val js = "window.Bentley_ITMGeolocationResponse('$messageName', '$encodedLocationData')"
-        webView.evaluateJavascript(js, null)
+        sendResponse(session, messageName, encodedLocationData)
     }
 
-    private fun sendError(error: GeolocationError, positionId: Int, messageName: String) {
-        val webView = this.webView ?: return
+    private fun sendError(error: GeolocationError, positionId: Int, messageName: String, session: DocumentSession) {
         val errorJson = jsonOf(
             "positionId" to positionId,
             "error" to error.toJSON()
         )
         val errorResponse = Base64.encodeToString(errorJson.toString().toByteArray(), Base64.NO_WRAP)
-        val js = "window.Bentley_ITMGeolocationResponse('$messageName', '$errorResponse')"
-        webView.evaluateJavascript(js, null)
+        sendResponse(session, messageName, errorResponse)
+    }
+
+    private fun sendResponse(session: DocumentSession, messageName: String, messageData: String) {
+        if (documentSession !== session || loading) return
+        val replyProxy = session.replyProxy ?: return
+        val response = JSONObject()
+            .put("sessionId", session.id)
+            .put("documentId", session.documentId)
+            .put("messageName", messageName)
+            .put("messageData", messageData)
+        runCatching { replyProxy.postMessage(response.toString()) }.onFailure {
+            Log.e("ITMGeolocationManager", "Unable to deliver a geolocation response to its document.")
+        }
     }
     //endregion
 }
