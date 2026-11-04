@@ -299,7 +299,6 @@ class ITMGeolocationManager(private var context: Context, private val errorHandl
                 stopLocationUpdates()
             }
             override fun onDestroy(owner: LifecycleOwner) {
-                invalidateSession()
                 requester = null
                 (owner as? Fragment)?.let {
                     context = it.activity?.applicationContext ?: it.requireContext()
