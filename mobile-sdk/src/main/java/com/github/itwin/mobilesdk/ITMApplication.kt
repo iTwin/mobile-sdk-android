@@ -517,6 +517,7 @@ open class ITMApplication(
      * @param context The [Context].
      */
     open fun reinitializeFrontend(context: Context) {
+        geolocationManager?.detach()
         webViewLogger?.detach()
         webViewLogger = null
         webView = null
@@ -545,6 +546,7 @@ open class ITMApplication(
         frontendInitTask.cancel()
         frontendInitTask = Job()
         _isBackendInitialized.set(false)
+        geolocationManager?.detach()
         webViewLogger?.detach()
         webViewLogger = null
         webView = null
@@ -591,6 +593,7 @@ open class ITMApplication(
                 url.startsWith("file:///android_asset/frontend")
 
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                geolocationManager?.onPageStarted(view)
                 webViewLogger?.onPageStarted()
                 if (shouldIgnoreUrl(url)) {
                     return
@@ -602,6 +605,7 @@ open class ITMApplication(
                 if (shouldIgnoreUrl(url)) {
                     return
                 }
+                geolocationManager?.onPageFinished(view)
                 isLoaded.value = true
                 this@ITMApplication.onPageFinished(view, url)
             }
@@ -615,6 +619,7 @@ open class ITMApplication(
             }
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                geolocationManager?.detach()
                 return this@ITMApplication.onRenderProcessGone(view, detail) || super.onRenderProcessGone(view, detail)
             }
 
@@ -624,7 +629,7 @@ open class ITMApplication(
                 }
             }
         }
-        geolocationManager?.webView = webView
+        geolocationManager?.attach(webView, getBridgeAllowedOrigins())
     }
 
     /**
