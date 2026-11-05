@@ -537,6 +537,7 @@ open class ITMApplication(
      * @param context The [Context].
      */
     open fun reinitializeFrontend(context: Context) {
+        geolocationManager?.detach()
         webViewLogger?.detach()
         webViewLogger = null
         webView = null
@@ -565,6 +566,7 @@ open class ITMApplication(
         frontendInitTask.cancel()
         frontendInitTask = Job()
         _isBackendInitialized.set(false)
+        geolocationManager?.detach()
         webViewLogger?.detach()
         webViewLogger = null
         webView = null
@@ -598,7 +600,8 @@ open class ITMApplication(
         val webView = this.webView ?: return
         messenger.webView = webView
         if (attachWebViewLogger) {
-            webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog)
+            webViewLogger?.detach()
+            webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog, getBridgeAllowedOrigins())
         }
         coMessenger.registerQueryHandler<Map<String, Number>, Unit>("Bentley_ITM_updatePreferredColorScheme") { params ->
             params.getOptionalLong("preferredColorScheme")?.let {
@@ -612,6 +615,8 @@ open class ITMApplication(
                 url.startsWith("file:///android_asset/frontend")
 
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                geolocationManager?.onPageStarted(view)
+                webViewLogger?.onPageStarted()
                 if (shouldIgnoreUrl(url)) {
                     return
                 }
@@ -622,6 +627,7 @@ open class ITMApplication(
                 if (shouldIgnoreUrl(url)) {
                     return
                 }
+                geolocationManager?.onPageFinished(view)
                 isLoaded.value = true
                 this@ITMApplication.onPageFinished(view, url)
             }
@@ -635,6 +641,7 @@ open class ITMApplication(
             }
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                geolocationManager?.detach()
                 return this@ITMApplication.onRenderProcessGone(view, detail) || super.onRenderProcessGone(view, detail)
             }
 
@@ -644,7 +651,18 @@ open class ITMApplication(
                 }
             }
         }
-        geolocationManager?.webView = webView
+        geolocationManager?.attach(webView, getBridgeAllowedOrigins())
+    }
+
+    /**
+     * Exact HTTP(S) origins trusted by native WebView bridges. Includes the packaged frontend
+     * origin and the origin of [getBaseUrl]. Override to customize this policy. Origins must not
+     * contain paths, credentials, or wildcards; omit default ports. An empty set authorizes no origins.
+     */
+    open fun getBridgeAllowedOrigins(): Set<String> {
+        val defaultOrigins = ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS
+        val origin = ITMBridgeOriginPolicy.canonicalOrigin(getBaseUrl()) ?: return defaultOrigins
+        return defaultOrigins + origin
     }
 
     /**
