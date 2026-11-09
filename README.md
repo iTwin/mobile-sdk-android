@@ -45,4 +45,4 @@ forward navigation start and completion to `onPageStarted(webView)` and `onPageF
 Call `detach()` when replacing or destroying the WebView. `ITMApplication` provides these hooks.
 
 ## Note
-This package is designed to be used with the [@itwin/mobile-sdk-core](https://github.com/iTwin/mobile-sdk-core) and [@itwin/mobile-ui-react](https://github.com/iTwin/mobile-ui-react) packages. Those two packages are intended to be installed via npm, and their version number must match the version number of this package. Furthermore, they use __iTwin.js 5.14.3__, and your app must use that same version of iTwin.js.
+This package is designed to be used with the [@itwin/mobile-sdk-core](https://github.com/iTwin/mobile-sdk-core) and [@itwin/mobile-ui-react](https://github.com/iTwin/mobile-ui-react) packages. Those two packages are intended to be installed via npm, and their version number must match the version number of this package. Furthermore, they use __iTwin.js 5.15.0__, and your app must use that same version of iTwin.js.
