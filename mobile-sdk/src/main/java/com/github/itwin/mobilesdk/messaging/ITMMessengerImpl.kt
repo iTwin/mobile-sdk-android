@@ -310,13 +310,13 @@ internal class ITMMessengerImpl(
 
     override fun <I, O> query(type: String, data: I, success: ITMSuccessCallback<O>?, failure: ITMFailureCallback?) {
         mainScope.launch {
-            // Wait until the other side is ready to receive messages.
-            awaitLaunch()
-            val queryId = queryIdCounter.incrementAndGet()
-            val dataValue = toJSONOrNull(data)
-            logQuery("Request Kotlin -> $targetName", queryId, type, dataValue)
-
             try {
+                // Wait until the other side is ready to receive messages.
+                awaitLaunch()
+                val queryId = queryIdCounter.incrementAndGet()
+                val dataValue = toJSONOrNull(data)
+                logQuery("Request Kotlin -> $targetName", queryId, type, dataValue)
+
                 val response = transport.sendQuery(queryId, type, dataValue?.toString())
                 @Suppress("UNCHECKED_CAST")
                 handleQueryResponse(queryId, type, response, success as? ITMSuccessCallback<Any?>, failure)
