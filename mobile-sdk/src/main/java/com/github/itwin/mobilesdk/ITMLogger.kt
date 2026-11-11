@@ -83,3 +83,17 @@ open class ITMLogger {
         logger("ITMLogger", "$timestamp: $message")
     }
 }
+
+/**
+ * Convenience method for logging errors.
+ */
+internal fun ITMLogger.error(message: String) {
+    log(ITMLogger.Severity.Error, message)
+}
+
+/**
+ * Convenience method for logging info messages.
+ */
+internal fun ITMLogger.info(message: String) {
+    log(ITMLogger.Severity.Info, message)
+}

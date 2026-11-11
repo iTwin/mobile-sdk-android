@@ -9,6 +9,7 @@ package com.github.itwin.mobilesdk
 import android.content.Context
 import android.content.res.Configuration
 import android.webkit.WebView
+import com.github.itwin.mobilesdk.messaging.ITMQueryHandler
 
 /**
  * Parent class for native UI components.
@@ -34,7 +35,7 @@ open class ITMNativeUIComponent(protected val nativeUI: ITMNativeUI) {
     /**
      * The handler for this component's messages from [webView].
      */
-    var handler: ITMMessenger.ITMHandler? = null
+    var handler: ITMQueryHandler? = null
 
     /**
      * Detach this UI component from the native UI (stop listening for messages).
