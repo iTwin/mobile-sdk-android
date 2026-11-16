@@ -26,19 +26,35 @@ override fun getBridgeAllowedOrigins(): Set<String> =
 Use exact origins without paths, credentials, wildcards, or default ports. Development origins
 should only be added in development builds. Standalone loggers accept an explicit origin set;
 `ITMBridgeOriginPolicy` provides shared defaults and origin validation. This policy controls
-console forwarding and geolocation; messaging will adopt it in its security migration.
+console forwarding, geolocation, and frontend messaging.
+
+### Frontend messaging
+
+`ITMMessenger` requires `WEB_MESSAGE_LISTENER` and a session-aware `@itwin/mobile-sdk-core`
+frontend.
+
+Only the configured main-frame origin may establish a document session or send queries and responses.
+Navigation, detach, replacement, and renderer loss fail pending native work and reset readiness;
+frontend page teardown rejects its pending Promises. Late responses cannot enter a new session.
+There are at most 128 pending queries per direction and 100 incoming native-handler queries per second.
+
+For standalone messengers, call `attach(webView, allowedOrigins)` before loading the frontend,
+forward navigation to `onPageStarted(webView)` and `onPageFinished(webView)`, and call `detach()`
+before destroying or replacing the WebView, including after renderer loss. Attaching to an
+already loaded WebView requires a new load/reload so WebView can inject the scoped listener object.
+`ITMApplication` integrates these callbacks. Missing session-aware frontend support produces a
+native diagnostic; requests without a current document session are rejected.
 
 ### Geolocation
 
 Geolocation requires a WebView provider supporting `WEB_MESSAGE_LISTENER` and a session-aware
-`@itwin/mobile-sdk-core` frontend. The native bridge rejects the old direct-call protocol; it does
-not fall back to an unrestricted JavaScript interface. Updated core retains compatibility with
-older native SDKs through transport detection.
+`@itwin/mobile-sdk-core` frontend. The native bridge accepts requests only within the authorized
+document session.
 
-The `navigator.geolocation` callback API and existing options behavior are unchanged.
-`watchPosition()` still returns its ID synchronously. `clearWatch()` removes its callbacks
+Use the `navigator.geolocation` callback API to request locations and manage watches.
+`watchPosition()` returns its ID synchronously. `clearWatch()` removes its callbacks
 immediately and enqueues native cancellation, returning `undefined`; native cancellation errors
-no longer throw synchronously. Navigation and detach cancel the document's watches and lookups.
+are asynchronous. Navigation and detach cancel the document's watches and lookups.
 
 For standalone managers, call `attach(webView, allowedOrigins)` before loading the frontend and
 forward navigation start and completion to `onPageStarted(webView)` and `onPageFinished(webView)`.

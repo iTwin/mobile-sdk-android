@@ -6,24 +6,12 @@
 
 package com.github.itwin.mobilesdk
 
-import android.util.Base64
-import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import com.github.itwin.mobilesdk.jsonvalue.JSONValue
-import com.github.itwin.mobilesdk.jsonvalue.toJSON
 import com.github.itwin.mobilesdk.messaging.ITMMessengerImpl
-import com.github.itwin.mobilesdk.messaging.ITMMessengerImpl.Companion.ERROR_KEY
-import com.github.itwin.mobilesdk.messaging.ITMMessengerImpl.Companion.RESPONSE_KEY
 import com.github.itwin.mobilesdk.messaging.ITMMessengerLoggingOptions
 import com.github.itwin.mobilesdk.messaging.ITMMessengerProtocol
 import com.github.itwin.mobilesdk.messaging.ITMQueryHandler
-import com.github.itwin.mobilesdk.messaging.ITMQueryResponse
-import com.github.itwin.mobilesdk.messaging.ITMQueryTransport
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
 
 typealias ITMSuccessCallback<T> = (T) -> Unit
 typealias ITMFailureCallback = (Throwable) -> Unit
@@ -53,7 +41,9 @@ class ITMMessenger(logger: ITMLogger? = null): ITMMessengerProtocol {
     private val implementation = ITMMessengerImpl("JS", "WVID", logger)
 
     init {
-        val transport = ITMFrontendQueryTransport(implementation)
+        val transport = ITMFrontendQueryTransport(implementation) { error, awaitingLaunch ->
+            implementation.resetLaunch(error, awaitingLaunch)
+        }
         implementation.transport = transport
     }
 
@@ -74,6 +64,20 @@ class ITMMessenger(logger: ITMLogger? = null): ITMMessengerProtocol {
         set(value) {
             frontendTransport.webView = value
         }
+
+    /** Attach before loading the frontend, using exact native-configured origins. */
+    fun attach(webView: WebView, allowedOrigins: Set<String> = ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS) {
+        frontendTransport.attach(webView, allowedOrigins)
+    }
+
+    /** Remove the listener and fail work belonging to the attached document. */
+    fun detach() = frontendTransport.detach()
+
+    /** Call before application navigation hooks. */
+    fun onPageStarted(webView: WebView) = frontendTransport.onPageStarted(webView)
+
+    /** Bootstrap the authorized document's response channel after loading. */
+    fun onPageFinished(webView: WebView) = frontendTransport.onPageFinished(webView)
 
     /**
      * [Job] indicating that the frontend running in [webView] is ready to receive messages. All
@@ -173,149 +177,4 @@ class ITMMessenger(logger: ITMLogger? = null): ITMMessengerProtocol {
     }
 
     //endregion
-}
-
-/**
- * [com.github.itwin.mobilesdk.messaging.ITMQueryTransport] that communicates with a [WebView] using the `Messenger` class in
- * `@itwin/mobile-sdk-core`.
- */
-internal class ITMFrontendQueryTransport(override val delegate: ITMQueryTransport.Delegate) : ITMQueryTransport {
-    /**
-     * Active queries that are waiting for a response. The key is the query ID that was sent (which
-     * will be present in the response). The value is a deferred that will be completed upon receiving a response.
-     */
-    private val pendingQueries: MutableMap<Int, CompletableDeferred<JSONValue>> = ConcurrentHashMap()
-
-    /**
-     * Convenience property with a value of [MainScope()][MainScope]
-     */
-    private val mainScope = MainScope()
-
-    /**
-     * The [WebView] with which this transport communicates.
-     */
-    var webView: WebView? = null
-        set(value) {
-            field = value
-            value?.addJavascriptInterface(object {
-                @JavascriptInterface
-                fun query(messageString: String) {
-                    handleQuery(messageString)
-                }
-
-                @JavascriptInterface
-                fun queryResponse(responseString: String) {
-                    handleQueryResponse(responseString)
-                }
-            }, JS_INTERFACE_NAME)
-        }
-
-    companion object {
-        /**
-         * JSON key used for the query ID parameter of messages.
-         */
-        private const val QUERY_ID_KEY = "queryId"
-
-        /**
-         * JSON key used for the name parameter of received messages.
-         */
-        private const val NAME_KEY = "name"
-
-        /**
-         * JSON key used for the message parameter of received messages.
-         */
-        private const val MESSAGE_KEY = "message"
-
-        /**
-         * The function name use in injected JavaScript when sending messages.
-         */
-        private const val QUERY_NAME = "window.Bentley_ITMMessenger_Query"
-
-        /**
-         * The function name use in injected JavaScript when sending query responses.
-         */
-        private const val QUERY_RESPONSE_NAME = "window.Bentley_ITMMessenger_QueryResponse"
-
-        /**
-         * The name of the JavascriptInterface class used by the `Messenger` class in
-         * `@itwin/mobile-sdk-core`.
-         */
-        private const val JS_INTERFACE_NAME = "Bentley_ITMMessenger"
-    }
-
-    override suspend fun sendQuery(queryId: Int, type: String, data: String?): ITMQueryResponse {
-        val responseDeferred = CompletableDeferred<JSONValue>()
-            .also { pendingQueries[queryId] = it }
-
-        val dataString = Base64.encodeToString((data.orEmpty()).toByteArray(), Base64.NO_WRAP)
-        webView?.evaluateJavascript("$QUERY_NAME('$type', $queryId, '$dataString')", null)
-
-        val response = responseDeferred.await()
-        pendingQueries.remove(queryId)
-
-        val responseMap = response.anyValue as Map<*, *>
-        val error = responseMap[ERROR_KEY]
-        return if (error != null) {
-            ITMQueryResponse.Failure(Exception(error.toString()))
-        } else {
-            ITMQueryResponse.Success(if (responseMap.contains(RESPONSE_KEY)) responseMap[RESPONSE_KEY] else Unit)
-        }
-    }
-
-    private fun sendResponse(queryId: Int, response: String) {
-        mainScope.launch {
-            val dataString = Base64.encodeToString(response.toByteArray(), Base64.NO_WRAP)
-            webView?.evaluateJavascript("$QUERY_RESPONSE_NAME$queryId('$dataString')", null)
-        }
-    }
-
-    /**
-     * Called when a query is received from [webView].
-     *
-     * > __Note:__ If [messageString] is malformed, an error will be logged. The error will also be
-     * sent back to [webView] as long as [messageString] contains a valid `queryId` field.
-     *
-     * @param messageString The JSON message string sent by [webView].
-     */
-    private fun handleQuery(messageString: String) {
-        mainScope.launch {
-            var queryId: Int? = null
-            try {
-                // Note: if there is anything wrong with messageString, it will trigger an exception,
-                // which will be logged and sent back to TS as an error.
-                val request = JSONValue.fromJSON(messageString)
-                queryId = (request[QUERY_ID_KEY] as Number).toInt()
-                val name = request[NAME_KEY] as String
-                val response = delegate.onQuery(queryId, name, toJSON(request.opt(MESSAGE_KEY)))
-                sendResponse(queryId, response)
-            } catch (error: Throwable) {
-                delegate.logger?.error("ITMMessenger.handleQuery exception: $error")
-                queryId?.let { sendResponse(it, ITMQueryResponse.Failure(error).toJSONString()) }
-            }
-        }
-    }
-
-    /**
-     * Called when a query response is received from [webView].
-     *
-     * > __Note:__ If [responseString] is malformed, this will log an error. Since this gets called
-     * in response to a response message being sent by [webView], and [webView] isn't expecting any
-     * response to its response, there is nothing further that can be done.
-     *
-     * @param responseString The JSON response string sent by [webView].
-     */
-    private fun handleQueryResponse(responseString: String) {
-        try {
-            // Note: if there is anything wrong with responseString, it will trigger an exception,
-            // which will be logged.
-            val response = JSONValue.fromJSON(responseString)
-            val queryId = (response[QUERY_ID_KEY] as Number).toInt()
-            pendingQueries[queryId]?.complete(response)
-        } catch (error: Throwable) {
-            // Note: the only way it should be possible to get here is if invalid data is sent from
-            // TypeScript (by not using Messenger.query). But if we do get here, responseString
-            // does not contain valid data, so there's nothing we can do.
-            delegate.logger?.error("ITMMessenger.handleQueryResponse exception: $error")
-        }
-    }
 }

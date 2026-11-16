@@ -537,6 +537,7 @@ open class ITMApplication(
      * @param context The [Context].
      */
     open fun reinitializeFrontend(context: Context) {
+        messenger.detach()
         geolocationManager?.detach()
         webViewLogger?.detach()
         webViewLogger = null
@@ -561,6 +562,7 @@ open class ITMApplication(
     }
 
     private fun reset() {
+        messenger.detach()
         backendInitTask.cancel()
         backendInitTask = Job()
         frontendInitTask.cancel()
@@ -598,7 +600,7 @@ open class ITMApplication(
      */
     protected open fun setupWebView() {
         val webView = this.webView ?: return
-        messenger.webView = webView
+        messenger.attach(webView, getBridgeAllowedOrigins())
         if (attachWebViewLogger) {
             webViewLogger?.detach()
             webViewLogger = ITMWebViewLogger(webView, ::onWebViewLog, getBridgeAllowedOrigins())
@@ -615,6 +617,7 @@ open class ITMApplication(
                 url.startsWith("file:///android_asset/frontend")
 
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                messenger.onPageStarted(view)
                 geolocationManager?.onPageStarted(view)
                 webViewLogger?.onPageStarted()
                 if (shouldIgnoreUrl(url)) {
@@ -628,6 +631,7 @@ open class ITMApplication(
                     return
                 }
                 geolocationManager?.onPageFinished(view)
+                messenger.onPageFinished(view)
                 isLoaded.value = true
                 this@ITMApplication.onPageFinished(view, url)
             }
@@ -641,6 +645,7 @@ open class ITMApplication(
             }
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                messenger.detach()
                 geolocationManager?.detach()
                 return this@ITMApplication.onRenderProcessGone(view, detail) || super.onRenderProcessGone(view, detail)
             }

@@ -23,7 +23,7 @@ import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * The response to a query, either sent to or received from the other side of an
@@ -95,7 +95,15 @@ internal class ITMMessengerImpl(
      * calls to [query] will wait for this to complete before sending the message. If launch fails, pending
      * queries will fail with the launch exception.
      */
-    val launchDeferred = CompletableDeferred<Unit>()
+    var launchDeferred = CompletableDeferred<Unit>()
+        private set
+
+    /** Fail old-document waiters before opening the readiness gate for the next document. */
+    fun resetLaunch(error: Throwable, awaitingLaunch: Boolean = true) {
+        launchDeferred.completeExceptionally(error)
+        launchDeferred = CompletableDeferred()
+        if (!awaitingLaunch) launchDeferred.completeExceptionally(error)
+    }
 
     /**
      * Convenience property with a value of [MainScope()][MainScope]
@@ -186,16 +194,16 @@ internal class ITMMessengerImpl(
         }
 
         logQuery("Request $targetName -> Kotlin", queryId, type, data)
-        return suspendCoroutine { continuation ->
+        return suspendCancellableCoroutine { continuation ->
             handler.handleMessage(
                 data,
                 onSuccess = { response ->
                     logQuery("Response Kotlin -> $targetName", queryId, type, response)
-                    continuation.resume(ITMQueryResponse.Success(response))
+                    if (continuation.isActive) continuation.resume(ITMQueryResponse.Success(response))
                 },
                 onFailure = { error ->
                     logQuery("Error Response Kotlin -> $targetName", queryId, type, null)
-                    continuation.resume(ITMQueryResponse.Failure(error))
+                    if (continuation.isActive) continuation.resume(ITMQueryResponse.Failure(error))
                 },
             )
         }
@@ -309,10 +317,12 @@ internal class ITMMessengerImpl(
     }
 
     override fun <I, O> query(type: String, data: I, success: ITMSuccessCallback<O>?, failure: ITMFailureCallback?) {
+        val launch = launchDeferred
         mainScope.launch {
             try {
                 // Wait until the other side is ready to receive messages.
-                awaitLaunch()
+                launch.await()
+                check(launch === launchDeferred) { "Messenger document session ended." }
                 val queryId = queryIdCounter.incrementAndGet()
                 val dataValue = toJSONOrNull(data)
                 logQuery("Request Kotlin -> $targetName", queryId, type, dataValue)

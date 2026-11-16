@@ -58,6 +58,14 @@ echo sdk.dir=/Users/$USER/Libarary/Android/sdk > local.properties
 #### Notes 
 - The `echo` command which creates the `local.properties` file only needs to be done once. The `sdk.dir` to specify the location of the Android SDK you wish to use. Alternatively, you can set `ANDROID_SDK` in your shell. On Windows, the `echo` command will need to be changed to reflect where Android Studio installs the SDK. In Android Studio the SDK location can be shown by going to: Preferences | Appearance & Behavior | System Settings | Android SDK | Android SDK Location
 
+### Messenger validation
+
+Run `./gradlew detekt build` for the SDK gate. With an emulator/device attached, run
+`./gradlew :mobile-sdk:connectedDebugAndroidTest` for real-WebView messenger tests.
+On an arm64 emulator, `-Pandroid.injected.build.abi=arm64-v8a` avoids packaging the unused x86_64
+native library and reduces the test APK's installation-space requirement. These fixtures are
+instrumentation-only and are not included in production AARs.
+
 ### Using the local Maven repository
 
 To use the locally published Mobile SDK in your App do the following:
