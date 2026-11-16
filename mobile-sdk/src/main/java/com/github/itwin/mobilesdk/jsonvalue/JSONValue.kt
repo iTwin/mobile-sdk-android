@@ -206,7 +206,7 @@ class JSONValue private constructor(value: Any?) {
     override fun toString() = when {
         isNullValue -> "null"
         isBoolean   -> if (booleanValue == true) "true" else "false"
-        isString    -> "\"${stringValue}\""
+        isString    -> JSONObject.quote(stringValue)
         else        -> (numberValue ?: arrayValue ?: objectValue ?: "").toString()
     }
 
