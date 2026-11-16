@@ -184,11 +184,11 @@ class ITMMessengerTest {
     }
 
     @Test
-    fun largePayloadsRoundTripInBothDirections() = runBlocking {
+    fun largePayloadsAndLongQueryNamesRoundTrip() = runBlocking {
         withTimeout(30_000) {
             val fixture = fixture()
             try {
-                fixture.messenger.registerQueryHandler<String, String>("echo") { body, success, _ -> success?.invoke(body) }
+                fixture.messenger.registerQueryHandler<String, String>("e".repeat(1025)) { body, success, _ -> success?.invoke(body) }
                 load(fixture)
                 fixture.messenger.frontendLaunchSucceeded()
                 val message = "x".repeat(1_048_577)
@@ -198,7 +198,7 @@ class ITMMessengerTest {
                     result.await()
                 }
                 assertEquals(message, response)
-                evaluate(fixture, "send({operation:'query',queryId:0,name:'echo',message:'x'.repeat(1048577)}); true")
+                evaluate(fixture, "send({operation:'query',queryId:0,name:'e'.repeat(1025),message:'x'.repeat(1048577)}); true")
                 waitFor(fixture, "received.some(m => m.operation === 'queryResponse' && m.queryId === 0)")
                 assertEquals("true", evaluate(fixture,
                     "JSON.parse(atob(received.find(m => m.operation === 'queryResponse' && m.queryId === 0).message)).response === 'x'.repeat(1048577)"))

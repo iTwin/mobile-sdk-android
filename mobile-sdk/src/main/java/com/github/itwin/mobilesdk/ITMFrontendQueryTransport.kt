@@ -184,7 +184,7 @@ internal class ITMFrontendQueryTransport(
                 "query" -> {
                     require(request.keys().asSequence().all { it in setOf("operation", "sessionId", "documentId", "queryId", "name", "message") })
                     val name = request.opt("name") as? String
-                    require(name != null && name.isNotEmpty() && name.length <= 1024)
+                    require(name != null && name.isNotEmpty())
                     handleQuery(current, queryId, name, request)
                 }
                 "queryResponse" -> {
