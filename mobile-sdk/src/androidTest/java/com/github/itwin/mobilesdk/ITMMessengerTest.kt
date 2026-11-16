@@ -25,7 +25,7 @@ class ITMMessengerTest {
         lateinit var view: WebView
     }
 
-    private suspend fun fixture(): Fixture = withContext(Dispatchers.Main) {
+    private suspend fun fixture(beforeAttach: (ITMMessenger) -> Unit = {}): Fixture = withContext(Dispatchers.Main) {
         Fixture().also { fixture ->
             fixture.view = WebView(instrumentation.targetContext).apply {
                 settings.javaScriptEnabled = true
@@ -44,6 +44,7 @@ class ITMMessengerTest {
                     }
                 }
             }
+            beforeAttach(fixture.messenger)
             fixture.messenger.attach(fixture.view)
         }
     }
@@ -117,6 +118,65 @@ class ITMMessengerTest {
                 load(fixture)
                 fixture.messenger.frontendLaunchSucceeded()
                 assertEquals("h\u00e9llo", query(fixture, "reattached"))
+            } finally {
+                dispose(fixture)
+            }
+        }
+    }
+
+    @Test
+    fun firstAttachmentAfterDetachReopensLaunchGate() = runBlocking {
+        withTimeout(30_000) {
+            val detachActions: List<(ITMMessenger) -> Unit> = listOf(
+                { it.detach() },
+                { it.webView = null }
+            )
+            for (detach in detachActions) {
+                val fixture = fixture(detach)
+                try {
+                    load(fixture)
+                    fixture.messenger.frontendLaunchSucceeded()
+                    assertEquals("h\u00e9llo", query(fixture, "first-attachment"))
+                } finally {
+                    dispose(fixture)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun frontendQueriesPreserveExplicitNullProperties() = runBlocking {
+        withTimeout(30_000) {
+            val fixture = fixture()
+            try {
+                val messages = mutableListOf<Any?>()
+                fixture.messenger.registerQueryHandler<Any?, Boolean>("captureJson") { body, success, _ ->
+                    messages.add(body)
+                    success?.invoke(true)
+                }
+                load(fixture)
+                evaluate(fixture, """
+                    window.nullPayload = {
+                        nullable:null,
+                        nested:{nullable:null},
+                        array:[null,{nullable:null}]
+                    };
+                    send({operation:'query',queryId:0,name:'captureJson',message:nullPayload});
+                    send({operation:'query',queryId:1,name:'captureJson',message:null});
+                    true;
+                """.trimIndent())
+                waitFor(fixture, "received.filter(m => m.operation === 'queryResponse').length === 2")
+                val expected = listOf(
+                    mapOf(
+                        "nullable" to null,
+                        "nested" to mapOf("nullable" to null),
+                        "array" to listOf(null, mapOf("nullable" to null))
+                    ),
+                    null
+                )
+                assertEquals(expected, withContext(Dispatchers.Main) { messages.toList() })
+                assertEquals("true", evaluate(fixture,
+                    "received.filter(m => m.operation === 'queryResponse').every(m => JSON.parse(atob(m.message)).response === true)"))
             } finally {
                 dispose(fixture)
             }

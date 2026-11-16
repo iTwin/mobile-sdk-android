@@ -38,7 +38,7 @@ internal class ITMFrontendQueryTransport(
 
     private var session: DocumentSession? = null
     private var attachedWebView: WebView? = null
-    private var hasAttached = false
+    private var resetLaunchOnAttach = false
     private var allowedOrigins = ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS
     private var loading = false
     private var hasDocument = false
@@ -64,8 +64,8 @@ internal class ITMFrontendQueryTransport(
         }
         if (attachedWebView === view && allowedOrigins == validated) return
         if (attachedWebView != null) detach()
-        if (hasAttached) sessionEnded(IllegalStateException("Messenger document replaced."), true)
-        hasAttached = true
+        if (resetLaunchOnAttach) sessionEnded(IllegalStateException("Messenger document replaced."), true)
+        resetLaunchOnAttach = true
         allowedOrigins = validated
         if (validated.isEmpty()) {
             sessionEnded(IllegalStateException("Messenger has no trusted origins."), false)
@@ -88,6 +88,7 @@ internal class ITMFrontendQueryTransport(
     }
 
     fun detach() {
+        resetLaunchOnAttach = true
         invalidateSession()
         attachedWebView?.let { WebViewCompat.removeWebMessageListener(it, BRIDGE_NAME) }
         attachedWebView = null
@@ -222,7 +223,10 @@ internal class ITMFrontendQueryTransport(
         current.incoming.add(queryId)
         current.scope.launch {
             try {
-                val data = if (request.has("message")) toJSON(request.toMap()["message"]) else null
+                val data = if (request.has("message")) {
+                    val message = request.get("message")
+                    toJSON(if (message === JSONObject.NULL) null else message)
+                } else null
                 val response = delegate.onQuery(queryId, name, data)
                 ensureActive()
                 sendResponse(current, queryId, response)
