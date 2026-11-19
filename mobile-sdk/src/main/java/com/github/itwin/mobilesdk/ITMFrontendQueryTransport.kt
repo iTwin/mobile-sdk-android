@@ -23,6 +23,7 @@ import java.util.UUID
 
 internal class ITMFrontendQueryTransport(
     override val delegate: ITMQueryTransport.Delegate,
+    initialAllowedOrigins: Set<String>,
     private val sessionEnded: (Throwable, Boolean) -> Unit
 ) : ITMQueryTransport {
     private class DocumentSession(val origin: String) {
@@ -39,7 +40,8 @@ internal class ITMFrontendQueryTransport(
     private var session: DocumentSession? = null
     private var attachedWebView: WebView? = null
     private var resetLaunchOnAttach = false
-    private var allowedOrigins = ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS
+    var allowedOrigins = ITMBridgeOriginPolicy.validatedOrigins(initialAllowedOrigins)
+        private set
     private var loading = false
     private var hasDocument = false
     private var lastDiagnostic = -1000L
@@ -54,10 +56,10 @@ internal class ITMFrontendQueryTransport(
     var webView: WebView?
         get() = attachedWebView
         set(value) {
-            if (value == null) detach() else attach(value)
+            if (value == null) detach() else attach(value, allowedOrigins)
         }
 
-    fun attach(view: WebView, origins: Set<String> = ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS) {
+    fun attach(view: WebView, origins: Set<String>) {
         val validated = ITMBridgeOriginPolicy.validatedOrigins(origins)
         check(validated.isEmpty() || WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             "Messenger requires WebView WEB_MESSAGE_LISTENER support."

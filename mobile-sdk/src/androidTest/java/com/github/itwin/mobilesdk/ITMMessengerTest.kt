@@ -20,13 +20,12 @@ import java.io.ByteArrayInputStream
 class ITMMessengerTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
-    private class Fixture {
-        val messenger = ITMMessenger()
+    private class Fixture(val messenger: ITMMessenger) {
         lateinit var view: WebView
     }
 
-    private suspend fun fixture(beforeAttach: (ITMMessenger) -> Unit = {}): Fixture = withContext(Dispatchers.Main) {
-        Fixture().also { fixture ->
+    private suspend fun fixture(beforeAttach: (ITMMessenger) -> Unit = {}, messenger: ITMMessenger = ITMMessenger()): Fixture = withContext(Dispatchers.Main) {
+        Fixture(messenger).also { fixture ->
             fixture.view = WebView(instrumentation.targetContext).apply {
                 settings.javaScriptEnabled = true
                 webViewClient = object : WebViewClient() {
@@ -45,7 +44,7 @@ class ITMMessengerTest {
                 }
             }
             beforeAttach(fixture.messenger)
-            fixture.messenger.attach(fixture.view)
+            fixture.messenger.webView = fixture.view
         }
     }
 
@@ -79,6 +78,25 @@ class ITMMessengerTest {
     private suspend fun dispose(fixture: Fixture) = withContext(Dispatchers.Main) {
         fixture.messenger.detach()
         fixture.view.destroy()
+    }
+
+    @Test
+    fun webViewAssignmentUsesConstructorOriginsAndKeepsExplicitOverrides() = runBlocking {
+        val origin = "https://frontend.example"
+        val fixture = fixture(messenger = ITMMessenger(allowedOrigins = setOf(origin)))
+        try {
+            load(fixture, origin)
+            waitFor(fixture, "window.ready === true")
+            withContext(Dispatchers.Main) {
+                fixture.messenger.attach(fixture.view, emptySet())
+                fixture.messenger.webView = fixture.view
+                assertNull(fixture.messenger.webView)
+                fixture.messenger.attach(fixture.view)
+                assertNull(fixture.messenger.webView)
+            }
+        } finally {
+            dispose(fixture)
+        }
     }
 
     @Test

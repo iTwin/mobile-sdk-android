@@ -22,8 +22,12 @@ typealias ITMQueryCallback<I, O> = (I, success: ITMSuccessCallback<O>?, failure:
  * the `Messenger` class in `@itwin/mobile-sdk-core`.
  *
  * @param logger The [ITMLogger] to use for logging. If this is `null`, no logging happens.
+ * @param allowedOrigins Exact HTTP(S) origins trusted on first attachment. An empty set disables the bridge.
  */
-class ITMMessenger(logger: ITMLogger? = null): ITMMessengerProtocol {
+class ITMMessenger(logger: ITMLogger? = null, allowedOrigins: Set<String>): ITMMessengerProtocol {
+    @JvmOverloads
+    constructor(logger: ITMLogger? = null) : this(logger, ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS)
+
     /**
      * Empty interface used for message handlers. Alias to [ITMQueryHandler] kept for backwards compatibility.
      */
@@ -41,7 +45,7 @@ class ITMMessenger(logger: ITMLogger? = null): ITMMessengerProtocol {
     private val implementation = ITMMessengerImpl("JS", "WVID", logger)
 
     init {
-        val transport = ITMFrontendQueryTransport(implementation) { error, awaitingLaunch ->
+        val transport = ITMFrontendQueryTransport(implementation, allowedOrigins) { error, awaitingLaunch ->
             implementation.resetLaunch(error, awaitingLaunch)
         }
         implementation.transport = transport
@@ -58,6 +62,7 @@ class ITMMessenger(logger: ITMLogger? = null): ITMMessengerProtocol {
 
     /**
      * The [WebView][android.webkit.WebView] with which this [ITMMessenger] communicates.
+     * Assignment keeps the current allowed origins; assigning null detaches.
      */
     var webView: WebView?
         get() = frontendTransport.webView
@@ -65,8 +70,8 @@ class ITMMessenger(logger: ITMLogger? = null): ITMMessengerProtocol {
             frontendTransport.webView = value
         }
 
-    /** Attach before loading the frontend, using exact native-configured origins. */
-    fun attach(webView: WebView, allowedOrigins: Set<String> = ITMBridgeOriginPolicy.DEFAULT_ALLOWED_ORIGINS) {
+    /** Attach before loading the frontend. Supplying [allowedOrigins] replaces the current policy. */
+    fun attach(webView: WebView, allowedOrigins: Set<String> = frontendTransport.allowedOrigins) {
         frontendTransport.attach(webView, allowedOrigins)
     }
 
